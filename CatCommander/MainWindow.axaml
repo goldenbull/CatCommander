@@ -1,0 +1,13 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="CatCommander.MainWindow"
+        Title="CatCommander">
+    <StackPanel>
+        <TextBlock>Why Cat Commander?</TextBlock>
+        <TextBlock>Because this is a mouse free file manager!</TextBlock>
+        <TextBlock>It is a tribute to Total Commander</TextBlock>
+    </StackPanel>
+</Window>
