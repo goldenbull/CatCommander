@@ -2,12 +2,136 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:as="http://schemas.actiprosoftware.com/avaloniaui"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="CatCommander.MainWindow"
         Title="CatCommander">
-    <StackPanel>
-        <TextBlock>Why Cat Commander?</TextBlock>
-        <TextBlock>Because this is a mouse free file manager!</TextBlock>
-        <TextBlock>It is a tribute to Total Commander</TextBlock>
-    </StackPanel>
+    <DockPanel LastChildFill="True">
+
+        <!-- Top menu bar-->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New Tab" InputGesture="Ctrl+T" />
+                <MenuItem Header="_Close Tab" InputGesture="Ctrl+W" />
+                <Separator />
+                <MenuItem Header="_Exit" InputGesture="Alt+F4" />
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Copy" InputGesture="F5" />
+                <MenuItem Header="_Move" InputGesture="F6" />
+                <MenuItem Header="_Delete" InputGesture="F8" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Refresh" InputGesture="Ctrl+R" />
+                <MenuItem Header="_Show Hidden Files" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About" />
+            </MenuItem>
+        </Menu>
+
+        <!-- Toolbar -->
+        <ToolBar DockPanel.Dock="Top">
+            <Button Content="Back" ToolTip.Tip="Go Back (Alt+Left)" />
+            <Button Content="Forward" ToolTip.Tip="Go Forward (Alt+Right)" />
+            <NativeMenuItemSeparator Header="-" />
+            <Button Content="Up" ToolTip.Tip="Parent Directory (Backspace)" />
+            <Button Content="Refresh" ToolTip.Tip="Refresh (Ctrl+R)" />
+            <NativeMenuItemSeparator Header="-" />
+            <Button Content="Copy" ToolTip.Tip="Copy (F5)" />
+            <Button Content="Move" ToolTip.Tip="Move (F6)" />
+            <Button Content="Delete" ToolTip.Tip="Delete (F8)" />
+            <NativeMenuItemSeparator Header="-" />
+            <Button Content="Search" ToolTip.Tip="Search Files (Ctrl+F)" />
+        </ToolBar>
+
+        <!-- status bar -->
+        <Border DockPanel.Dock="Bottom" Margin="5">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="Ready" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="2" Text="Selected: 0 files" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="3" Text="Total: 10 items" />
+            </Grid>
+        </Border>
+
+        <!-- main panes -->
+        <Grid ColumnDefinitions="*,4,*" Margin="4">
+            <!-- Left Pane -->
+            <TabControl Grid.Column="0" Margin="0" Padding="0">
+                <TabItem Header="C:" Margin="0" Padding="0">
+                    <Border BorderThickness="1" BorderBrush="Gray">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Margin="5">Left Pane</TextBlock>
+                            <ListBox>
+                                <ListBoxItem>.. (Parent Directory)</ListBoxItem>
+                                <ListBoxItem>Folder 1</ListBoxItem>
+                                <ListBoxItem>Folder 2</ListBoxItem>
+                                <ListBoxItem>File 1.txt</ListBoxItem>
+                                <ListBoxItem>File 2.txt</ListBoxItem>
+                            </ListBox>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+                <TabItem Header="C:\windows">
+                    <Border BorderThickness="1" BorderBrush="Gray">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Margin="5">Left Pane</TextBlock>
+                            <ListBox>
+                                <ListBoxItem>.. (Parent Directory)</ListBoxItem>
+                                <ListBoxItem>Folder 1</ListBoxItem>
+                                <ListBoxItem>Folder 2</ListBoxItem>
+                                <ListBoxItem>File 1.txt</ListBoxItem>
+                                <ListBoxItem>File 2.txt</ListBoxItem>
+                            </ListBox>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+            </TabControl>
+
+            <!-- Vertical Menu Between Panes -->
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+            <!-- <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" Background="LightGray" -->
+            <!--             Width="50"> -->
+            <!--     <Button Content="F5 Copy" Margin="2" Width="45" /> -->
+            <!--     <Button Content="F6 Move" Margin="2" Width="45" /> -->
+            <!--     <Button Content="F7 New" Margin="2" Width="45" /> -->
+            <!--     <Button Content="F8 Del" Margin="2" Width="45" /> -->
+            <!-- </StackPanel> -->
+            <!-- <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="Transparent" -->
+            <!--               ResizeDirection="Columns" /> -->
+
+            <!-- Right Pane -->
+            <TabControl Grid.Column="2" Margin="0" Padding="0">
+                <TabItem Header="C:" Margin="0" Padding="0">
+                    <Border BorderThickness="1" BorderBrush="Gray">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Margin="5">Left Pane</TextBlock>
+                            <ListBox>
+                                <ListBoxItem>.. (Parent Directory)</ListBoxItem>
+                                <ListBoxItem>Folder 1</ListBoxItem>
+                                <ListBoxItem>Folder 2</ListBoxItem>
+                                <ListBoxItem>File 1.txt</ListBoxItem>
+                                <ListBoxItem>File 2.txt</ListBoxItem>
+                            </ListBox>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+                <TabItem Header="C:\windows" Margin="0" Padding="0">
+                    <Border BorderThickness="1" BorderBrush="Gray">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Margin="5">Left Pane</TextBlock>
+                            <ListBox>
+                                <ListBoxItem>.. (Parent Directory)</ListBoxItem>
+                                <ListBoxItem>Folder 1</ListBoxItem>
+                                <ListBoxItem>Folder 2</ListBoxItem>
+                                <ListBoxItem>File 1.txt</ListBoxItem>
+                                <ListBoxItem>File 2.txt</ListBoxItem>
+                            </ListBox>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+            </TabControl>
+
+        </Grid>
+    </DockPanel>
 </Window>
