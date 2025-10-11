@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using CatCommander.Services;
 
 namespace CatCommander
 {
@@ -9,6 +10,9 @@ namespace CatCommander
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
+
+            // Initialize logging
+            LoggingService.Initialize();
         }
 
         public override void OnFrameworkInitializationCompleted()
@@ -16,6 +20,12 @@ namespace CatCommander
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.MainWindow = new MainWindow();
+
+                // Handle application exit
+                desktop.Exit += (sender, args) =>
+                {
+                    LoggingService.Shutdown();
+                };
             }
 
             base.OnFrameworkInitializationCompleted();
