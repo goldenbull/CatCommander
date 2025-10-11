@@ -31,19 +31,23 @@
         </Menu>
 
         <!-- Toolbar -->
-        <ToolBar DockPanel.Dock="Top">
-            <Button Content="Back" ToolTip.Tip="Go Back (Alt+Left)" />
-            <Button Content="Forward" ToolTip.Tip="Go Forward (Alt+Right)" />
-            <NativeMenuItemSeparator Header="-" />
-            <Button Content="Up" ToolTip.Tip="Parent Directory (Backspace)" />
-            <Button Content="Refresh" ToolTip.Tip="Refresh (Ctrl+R)" />
-            <NativeMenuItemSeparator Header="-" />
-            <Button Content="Copy" ToolTip.Tip="Copy (F5)" />
-            <Button Content="Move" ToolTip.Tip="Move (F6)" />
-            <Button Content="Delete" ToolTip.Tip="Delete (F8)" />
-            <NativeMenuItemSeparator Header="-" />
-            <Button Content="Search" ToolTip.Tip="Search Files (Ctrl+F)" />
-        </ToolBar>
+        <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,0,0,1" Padding="5">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <Button Content="Back" ToolTip.Tip="Go Back (Alt+Left)" Padding="8,4" />
+                <Button Content="Forward" ToolTip.Tip="Go Forward (Alt+Right)" Padding="8,4" />
+                <Separator Width="1" Height="20" Margin="5,0" />
+                <Button Content="Up" ToolTip.Tip="Parent Directory (Backspace)" Padding="8,4" />
+                <Button Content="Refresh" ToolTip.Tip="Refresh (Ctrl+R)" Padding="8,4" />
+                <Separator Width="1" Height="20" Margin="5,0" />
+                <Button Content="Copy" ToolTip.Tip="Copy (F5)" Padding="8,4" />
+                <Button Content="Move" ToolTip.Tip="Move (F6)" Padding="8,4" />
+                <Button Content="Delete" ToolTip.Tip="Delete (F8)" Padding="8,4" />
+                <Separator Width="1" Height="20" Margin="5,0" />
+                <Button Content="Search" ToolTip.Tip="Search Files (Ctrl+F)" Padding="8,4" />
+            </StackPanel>
+        </Border>
 
         <!-- status bar -->
         <Border DockPanel.Dock="Bottom" Margin="5">
@@ -55,7 +59,13 @@
         </Border>
 
         <!-- main panes -->
-        <Grid ColumnDefinitions="*,4,*" Margin="4">
+        <Grid Margin="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="100" />
+                <ColumnDefinition Width="40" />
+                <ColumnDefinition Width="*" MinWidth="100"/>
+            </Grid.ColumnDefinitions>
+            
             <!-- Left Pane -->
             <TabControl Grid.Column="0" Margin="0" Padding="0">
                 <TabItem Header="C:" Margin="0" Padding="0">
@@ -88,17 +98,23 @@
                 </TabItem>
             </TabControl>
 
-            <!-- Vertical Menu Between Panes -->
-            <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
-            <!-- <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" Background="LightGray" -->
-            <!--             Width="50"> -->
-            <!--     <Button Content="F5 Copy" Margin="2" Width="45" /> -->
-            <!--     <Button Content="F6 Move" Margin="2" Width="45" /> -->
-            <!--     <Button Content="F7 New" Margin="2" Width="45" /> -->
-            <!--     <Button Content="F8 Del" Margin="2" Width="45" /> -->
-            <!-- </StackPanel> -->
-            <!-- <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="Transparent" -->
-            <!--               ResizeDirection="Columns" /> -->
+            <!-- Vertical Menu and two splitters Between Panes -->
+            <GridSplitter Grid.Column="1"
+                          HorizontalAlignment="Left"
+                          Width="4"
+                          ResizeDirection="Columns"
+                          ResizeBehavior="PreviousAndNext" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Width="32">
+                <Button Margin="0" Padding="0" Width="32"> <Image Source="resm:Avalonia.Skia.Assets.NoiseAsset_256X256_PNG.png?assembly=Avalonia.Skia"/> </Button>
+                <Button Margin="0" Padding="0" Width="32"> <Image Source="resm:Avalonia.Skia.Assets.NoiseAsset_256X256_PNG.png?assembly=Avalonia.Skia"/> </Button>
+                <Button Margin="0" Padding="0" Width="32"> <Image Source="resm:Avalonia.Skia.Assets.NoiseAsset_256X256_PNG.png?assembly=Avalonia.Skia"/> </Button>
+                <Button Margin="0" Padding="0" Width="32"> <Image Source="resm:Avalonia.Skia.Assets.NoiseAsset_256X256_PNG.png?assembly=Avalonia.Skia"/> </Button>
+            </StackPanel>
+            <GridSplitter Grid.Column="1"
+                          HorizontalAlignment="Right"
+                          Width="4"
+                          ResizeDirection="Columns"
+                          ResizeBehavior="PreviousAndNext"/>
 
             <!-- Right Pane -->
             <TabControl Grid.Column="2" Margin="0" Padding="0">
