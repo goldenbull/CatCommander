@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 
 namespace CatCommander
@@ -7,6 +8,9 @@ namespace CatCommander
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = this;
         }
+
+        public bool IsWindowsOS => OperatingSystem.IsWindows();
     }
 }

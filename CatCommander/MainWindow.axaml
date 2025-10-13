@@ -8,6 +8,7 @@
         MinWidth="500" MinHeight="400"
         WindowState="Maximized"
         x:Class="CatCommander.MainWindow"
+        x:DataType="local:MainWindow"
         Title="CatCommander">
 
     <!-- Top menu bar-->
@@ -25,6 +26,13 @@
                     <NativeMenuItem Header="Cut"  Gesture="Meta+X" />
                     <NativeMenuItem Header="Copy"  Gesture="Meta+C" />
                     <NativeMenuItem Header="Past"  Gesture="Meta+V" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="About" IsVisible="{Binding IsWindowsOS}">
+                <NativeMenu>                    
+                    <NativeMenuItem Header="Open…"  Gesture="Meta+O" />
+                    <NativeMenuItem Header="Save As…"  Gesture="Meta+Shift+S" />
+                    <NativeMenuItem Header="Save As…"  Gesture="Meta+A" />
                 </NativeMenu>
             </NativeMenuItem>
         </NativeMenu>
