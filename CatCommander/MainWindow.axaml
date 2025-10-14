@@ -14,21 +14,6 @@
     <!-- Top menu bar-->
     <NativeMenu.Menu>
         <NativeMenu>
-            <OnPlatform>
-                <On Options="Windows">
-                    <!-- empty placeholder-->
-                    <NativeMenuItem IsVisible="False" />
-                </On>
-                <On Options="Default">
-                    <NativeMenuItem Header="About">
-                        <NativeMenu>
-                            <NativeMenuItem Header="About"></NativeMenuItem>
-                            <NativeMenuItem Header="Help"></NativeMenuItem>
-                            <NativeMenuItem Header="Check Update"></NativeMenuItem>
-                        </NativeMenu>
-                    </NativeMenuItem>
-                </On>
-            </OnPlatform>
             <NativeMenuItem Header="File">
                 <NativeMenu>
                     <NativeMenuItem Header="Open" Gesture="Meta+O" />
@@ -50,7 +35,11 @@
         <DockPanel DockPanel.Dock="Top">
             <NativeMenuBar DockPanel.Dock="Left" x:Name="MenuBar" />
             <OnPlatform>
-                <OnPlatform.Windows>
+                <On Options="macOS">
+                    <!-- empty placeholder for mac -->
+                    <Menu IsVisible="False" />
+                </On>
+                <On Options="Default">
                     <Menu DockPanel.Dock="Right">
                         <Menu.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -63,11 +52,7 @@
                             <MenuItem Header="Check Update"></MenuItem>
                         </MenuItem>
                     </Menu>
-                </OnPlatform.Windows>
-                <OnPlatform.Default>
-                    <!-- empty placeholder -->
-                    <Menu IsVisible="False" />
-                </OnPlatform.Default>
+                </On>
             </OnPlatform>
         </DockPanel>
 
