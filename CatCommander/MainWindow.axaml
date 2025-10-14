@@ -14,32 +14,62 @@
     <!-- Top menu bar-->
     <NativeMenu.Menu>
         <NativeMenu>
-            <NativeMenuItem Header="File" IsVisible="true">
-                <NativeMenu>                    
-                    <NativeMenuItem Header="Open…"  Gesture="Meta+O" />
-                    <NativeMenuItem Header="Save As…"  Gesture="Meta+Shift+S" />
-                    <NativeMenuItem Header="Save As…"  Gesture="Meta+A" />
-                </NativeMenu>
-            </NativeMenuItem>
-            <NativeMenuItem Header="Edit" IsEnabled="true">
+            <OnPlatform>
+                <On Options="Windows">
+                    <!-- empty placeholder-->
+                    <NativeMenuItem IsVisible="False" />
+                </On>
+                <On Options="Default">
+                    <NativeMenuItem Header="About">
+                        <NativeMenu>
+                            <NativeMenuItem Header="About"></NativeMenuItem>
+                            <NativeMenuItem Header="Help"></NativeMenuItem>
+                            <NativeMenuItem Header="Check Update"></NativeMenuItem>
+                        </NativeMenu>
+                    </NativeMenuItem>
+                </On>
+            </OnPlatform>
+            <NativeMenuItem Header="File">
                 <NativeMenu>
-                    <NativeMenuItem Header="Cut"  Gesture="Meta+X" />
-                    <NativeMenuItem Header="Copy"  Gesture="Meta+C" />
-                    <NativeMenuItem Header="Past"  Gesture="Meta+V" />
+                    <NativeMenuItem Header="Open" Gesture="Meta+O" />
+                    <NativeMenuItem Header="Save" Gesture="Meta+S" />
+                    <NativeMenuItem Header="Close" Gesture="Meta+W" />
                 </NativeMenu>
             </NativeMenuItem>
-            <NativeMenuItem Header="About" IsVisible="{Binding IsWindowsOS}">
-                <NativeMenu>                    
-                    <NativeMenuItem Header="Open…"  Gesture="Meta+O" />
-                    <NativeMenuItem Header="Save As…"  Gesture="Meta+Shift+S" />
-                    <NativeMenuItem Header="Save As…"  Gesture="Meta+A" />
+            <NativeMenuItem Header="Edit">
+                <NativeMenu>
+                    <NativeMenuItem Header="Cut" Gesture="Meta+X" />
+                    <NativeMenuItem Header="Copy" Gesture="Meta+C" />
+                    <NativeMenuItem Header="Past" Gesture="Meta+V" />
                 </NativeMenu>
             </NativeMenuItem>
         </NativeMenu>
     </NativeMenu.Menu>
 
     <DockPanel LastChildFill="True">
-        <NativeMenuBar DockPanel.Dock="Top" x:Name="MenuBar" />
+        <DockPanel DockPanel.Dock="Top">
+            <NativeMenuBar DockPanel.Dock="Left" x:Name="MenuBar" />
+            <OnPlatform>
+                <OnPlatform.Windows>
+                    <Menu DockPanel.Dock="Right">
+                        <Menu.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <DockPanel HorizontalAlignment="Stretch"></DockPanel>
+                            </ItemsPanelTemplate>
+                        </Menu.ItemsPanel>
+                        <MenuItem Header="About" HorizontalAlignment="Right">
+                            <MenuItem Header="About"></MenuItem>
+                            <MenuItem Header="Help"></MenuItem>
+                            <MenuItem Header="Check Update"></MenuItem>
+                        </MenuItem>
+                    </Menu>
+                </OnPlatform.Windows>
+                <OnPlatform.Default>
+                    <!-- empty placeholder -->
+                    <Menu IsVisible="False" />
+                </OnPlatform.Default>
+            </OnPlatform>
+        </DockPanel>
 
         <!-- Toolbar -->
         <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"

@@ -10,7 +10,5 @@ namespace CatCommander
             InitializeComponent();
             DataContext = this;
         }
-
-        public bool IsWindowsOS => OperatingSystem.IsWindows();
     }
 }
