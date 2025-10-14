@@ -35,11 +35,10 @@
         <DockPanel DockPanel.Dock="Top">
             <NativeMenuBar DockPanel.Dock="Left" x:Name="MenuBar" />
             <OnPlatform>
-                <On Options="macOS">
-                    <!-- empty placeholder for mac -->
-                    <Menu IsVisible="False" />
-                </On>
-                <On Options="Default">
+                <OnPlatform.macOS>
+                    <!-- mac specific menu is in App.axaml -->
+                </OnPlatform.macOS>
+                <OnPlatform.Default>
                     <Menu DockPanel.Dock="Right">
                         <Menu.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -52,7 +51,7 @@
                             <MenuItem Header="Check Update"></MenuItem>
                         </MenuItem>
                     </Menu>
-                </On>
+                </OnPlatform.Default>
             </OnPlatform>
         </DockPanel>
 
