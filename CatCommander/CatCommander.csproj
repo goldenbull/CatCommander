@@ -29,4 +29,11 @@
   <ItemGroup>
     <AvaloniaResource Include="Images\*.png" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="UI\ItemsBrowser.axaml.cs">
+      <DependentUpon>ItemsBrowser.axaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
 </Project>

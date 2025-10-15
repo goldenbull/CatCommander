@@ -2,13 +2,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="using:CatCommander"
+        xmlns:ui="clr-namespace:CatCommander.UI"
         mc:Ignorable="d"
         d:DesignWidth="800" d:DesignHeight="450"
         MinWidth="500" MinHeight="400"
         WindowState="Maximized"
         x:Class="CatCommander.MainWindow"
-        x:DataType="local:MainWindow"
         Title="CatCommander">
 
     <!-- Top menu bar-->
@@ -32,13 +31,16 @@
     </NativeMenu.Menu>
 
     <DockPanel LastChildFill="True">
+        <!-- main menu -->
         <DockPanel DockPanel.Dock="Top">
             <NativeMenuBar DockPanel.Dock="Left" x:Name="MenuBar" />
             <OnPlatform>
                 <OnPlatform.macOS>
                     <!-- mac specific menu is in App.axaml -->
+                    <Menu IsVisible="False" />
                 </OnPlatform.macOS>
                 <OnPlatform.Default>
+                    <!-- right aligned menu items on windows and linux -->
                     <Menu DockPanel.Dock="Right">
                         <Menu.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -56,27 +58,23 @@
         </DockPanel>
 
         <!-- Toolbar -->
-        <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                BorderThickness="0,0,0,1" Padding="5">
-            <StackPanel Orientation="Horizontal">
-                <Button>
-                    <Image Source="/Images/close_32x32.png" Width="32" />
-                </Button>
-                <Button>
-                    <Image Source="/Images/selectall_32x32.png" Width="32" />
-                </Button>
-                <Separator Width="1" Height="20" Margin="5,0" />
-                <Button Content="Up" ToolTip.Tip="Parent Directory (Backspace)" Padding="8,4" />
-                <Button Content="Refresh" ToolTip.Tip="Refresh (Ctrl+R)" Padding="8,4" />
-                <Separator Width="1" Height="20" Margin="5,0" />
-                <Button Content="Copy" ToolTip.Tip="Copy (F5)" Padding="8,4" />
-                <Button Content="Move" ToolTip.Tip="Move (F6)" Padding="8,4" />
-                <Button Content="Delete" ToolTip.Tip="Delete (F8)" Padding="8,4" />
-                <Separator Width="1" Height="20" Margin="5,0" />
-                <Button Content="Search" ToolTip.Tip="Search Files (Ctrl+F)" Padding="8,4" />
-            </StackPanel>
-        </Border>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+            <Button>
+                <Image Source="/Images/close_32x32.png" Width="32" />
+            </Button>
+            <Button>
+                <Image Source="/Images/selectall_32x32.png" Width="32" />
+            </Button>
+            <Separator Width="1" Height="20" Margin="5,0" />
+            <Button Content="Up" ToolTip.Tip="Parent Directory (Backspace)" Padding="8,4" />
+            <Button Content="Refresh" ToolTip.Tip="Refresh (Ctrl+R)" Padding="8,4" />
+            <Separator Width="1" Height="20" Margin="5,0" />
+            <Button Content="Copy" ToolTip.Tip="Copy (F5)" Padding="8,4" />
+            <Button Content="Move" ToolTip.Tip="Move (F6)" Padding="8,4" />
+            <Button Content="Delete" ToolTip.Tip="Delete (F8)" Padding="8,4" />
+            <Separator Width="1" Height="20" Margin="5,0" />
+            <Button Content="Search" ToolTip.Tip="Search Files (Ctrl+F)" Padding="8,4" />
+        </StackPanel>
 
         <!-- main panes -->
         <Grid Margin="4">
@@ -87,18 +85,20 @@
             </Grid.ColumnDefinitions>
 
             <!-- Left Pane -->
-            <TabControl Grid.Column="0">
-                <TabItem Header="Home">
-                    <local:ItemsBrowser />
-                </TabItem>
-            </TabControl>
+            <ui:MainPanel Grid.Column="0" />
 
             <!-- Vertical Menu and two splitters Between Panes -->
             <GridSplitter Grid.Column="1"
                           HorizontalAlignment="Left"
                           Width="4"
                           ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext" />
+                          ResizeBehavior="PreviousAndNext">
+                <GridSplitter.Template>
+                    <ControlTemplate>
+                        <Image Source="/Images/resizing-thumb.png" Width="3" Height="32" Stretch="Fill"></Image>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
             <StackPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Center" Width="32">
                 <Border Height="100" />
                 <Button Margin="0" Padding="0" Width="32">
@@ -118,17 +118,16 @@
                           HorizontalAlignment="Right"
                           Width="4"
                           ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext" />
+                          ResizeBehavior="PreviousAndNext">
+                <GridSplitter.Template>
+                    <ControlTemplate>
+                        <Image Source="/Images/resizing-thumb.png" Width="3" Height="32" Stretch="Fill"></Image>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
 
             <!-- Right Pane -->
-            <TabControl Grid.Column="2">
-                <TabItem Header="Home">
-                    <local:ItemsBrowser />
-                </TabItem>
-                <TabItem Header="src">
-                    <local:ItemsBrowser />
-                </TabItem>
-            </TabControl>
+            <ui:MainPanel Grid.Column="2" />
 
         </Grid>
     </DockPanel>
