@@ -55,7 +55,19 @@
                       AutoDragDropRows="False"
                       CanUserResizeColumns="True"
                       CanUserSortColumns="True"
-                      ShowColumnHeaders="True">
+                      ShowColumnHeaders="True"
+                      FontSize="12">
+            <TreeDataGrid.Styles>
+                <Style Selector="TreeDataGridRow">
+                    <Setter Property="MinHeight" Value="12" />
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0" />
+                </Style>
+                <Style Selector="TreeDataGridTextCell">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0" />
+                </Style>
+            </TreeDataGrid.Styles>
         </TreeDataGrid>
 
     </DockPanel>

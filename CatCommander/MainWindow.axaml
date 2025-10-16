@@ -32,14 +32,13 @@
 
     <DockPanel LastChildFill="True">
         <!-- main menu -->
-        <DockPanel DockPanel.Dock="Top" MinHeight="0">
-            <NativeMenuBar DockPanel.Dock="Left" FontSize="12" Height="20" MinHeight="0" />
-            <OnPlatform>
-                <OnPlatform.macOS>
-                    <!-- mac specific menu is in App.axaml -->
-                    <Menu IsVisible="False" />
-                </OnPlatform.macOS>
-                <OnPlatform.Default>
+        <OnPlatform>
+            <OnPlatform.macOS>
+                <NativeMenuBar x:Name="NativeMenuBar"/>
+            </OnPlatform.macOS>
+            <OnPlatform.Default>
+                <DockPanel DockPanel.Dock="Top">
+                    <NativeMenuBar DockPanel.Dock="Left" FontSize="12" Height="20" />
                     <!-- right aligned menu items on windows and linux -->
                     <Menu DockPanel.Dock="Right" Height="20" FontSize="12">
                         <Menu.ItemsPanel>
@@ -53,9 +52,9 @@
                             <MenuItem Header="Check Update"></MenuItem>
                         </MenuItem>
                     </Menu>
-                </OnPlatform.Default>
-            </OnPlatform>
-        </DockPanel>
+                </DockPanel>
+            </OnPlatform.Default>
+        </OnPlatform>
 
         <!-- Toolbar -->
         <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="1">
