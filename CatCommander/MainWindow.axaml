@@ -33,15 +33,15 @@
     <DockPanel LastChildFill="True">
         <!-- main menu -->
         <DockPanel DockPanel.Dock="Top" MinHeight="0">
-            <NativeMenuBar DockPanel.Dock="Left" x:Name="MenuBar" />
+            <NativeMenuBar DockPanel.Dock="Left" FontSize="12" Height="20" MinHeight="0" />
             <OnPlatform>
                 <OnPlatform.macOS>
                     <!-- mac specific menu is in App.axaml -->
-                    <Menu IsVisible="False"/>
+                    <Menu IsVisible="False" />
                 </OnPlatform.macOS>
                 <OnPlatform.Default>
                     <!-- right aligned menu items on windows and linux -->
-                    <Menu DockPanel.Dock="Right" Height="24">
+                    <Menu DockPanel.Dock="Right" Height="20" FontSize="12">
                         <Menu.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <DockPanel HorizontalAlignment="Stretch"></DockPanel>
@@ -70,7 +70,7 @@
                     </Style>
                 </StackPanel.Styles>
                 <Button>
-                    <Image Source="/Images/close_32x32.png"/>
+                    <Image Source="/Images/close_32x32.png" />
                 </Button>
                 <Button>
                     <Image Source="/Images/left_32x32.png" />
@@ -101,8 +101,7 @@
                           HorizontalAlignment="Left"
                           Width="6"
                           ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext"
-                          >
+                          ResizeBehavior="PreviousAndNext">
             </GridSplitter>
             <StackPanel Grid.Column="1" Width="24" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1">
                 <StackPanel.Styles>
@@ -133,8 +132,7 @@
                           HorizontalAlignment="Right"
                           Width="6"
                           ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext"
-                          >
+                          ResizeBehavior="PreviousAndNext">
             </GridSplitter>
 
             <!-- Right Pane -->
