@@ -32,16 +32,16 @@
 
     <DockPanel LastChildFill="True">
         <!-- main menu -->
-        <DockPanel DockPanel.Dock="Top" Height="24">
+        <DockPanel DockPanel.Dock="Top" MinHeight="0">
             <NativeMenuBar DockPanel.Dock="Left" x:Name="MenuBar" />
             <OnPlatform>
                 <OnPlatform.macOS>
                     <!-- mac specific menu is in App.axaml -->
-                    <Menu IsVisible="False" />
+                    <Menu IsVisible="False"/>
                 </OnPlatform.macOS>
                 <OnPlatform.Default>
                     <!-- right aligned menu items on windows and linux -->
-                    <Menu DockPanel.Dock="Right">
+                    <Menu DockPanel.Dock="Right" Height="24">
                         <Menu.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <DockPanel HorizontalAlignment="Stretch"></DockPanel>
@@ -59,26 +59,28 @@
 
         <!-- Toolbar -->
         <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="1">
-            <StackPanel Orientation="Horizontal" Height="24">
+            <StackPanel Orientation="Horizontal" Height="24" Spacing="1">
                 <StackPanel.Styles>
                     <Style Selector="Button">
+                        <Setter Property="MinHeight" Value="0" />
+                        <Setter Property="Height" Value="24" />
+                        <Setter Property="Width" Value="24" />
                         <Setter Property="Padding" Value="0" />
                         <Setter Property="Margin" Value="0" />
-                        <Setter Property="Background" Value="Transparent" />
                     </Style>
                 </StackPanel.Styles>
-                <Button ToolTip.Tip="Close something">
-                    <Image Source="/Images/close_32x32.png" />
+                <Button>
+                    <Image Source="/Images/close_32x32.png"/>
                 </Button>
                 <Button>
-                    <Image Source="/Images/selectall_32x32.png" />
+                    <Image Source="/Images/left_32x32.png" />
                 </Button>
                 <Separator Width="1" Height="16" VerticalAlignment="Center" Margin="4" />
-                <Button ToolTip.Tip="Close something">
-                    <Image Source="/Images/close_32x32.png" />
+                <Button ToolTip.Tip="forward">
+                    <Image Source="/Images/right_32x32.png" />
                 </Button>
                 <Button>
-                    <Image Source="/Images/selectall_32x32.png" />
+                    <Image Source="/Images/download_32x32.png" />
                 </Button>
             </StackPanel>
         </Border>
@@ -92,38 +94,25 @@
             </Grid.ColumnDefinitions>
 
             <!-- Left Pane -->
-            <ui:MainPanel Grid.Column="0" />
+            <ui:ItemsBrowser Grid.Column="0" />
 
             <!-- Vertical Menu and two splitters Between Panes -->
             <GridSplitter Grid.Column="1"
                           HorizontalAlignment="Left"
                           Width="6"
                           ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext">
-                <GridSplitter.Template>
-                    <ControlTemplate>
-                        <Grid RowDefinitions="*,32,*">
-                            <Image Grid.Row="0" Width="3" Source="/Images/empty.png" Stretch="Fill"
-                                   VerticalAlignment="Stretch">
-                            </Image>
-                            <Image Grid.Row="1" Source="/Images/resizing-thumb.png" Width="3" Height="32"
-                                   Stretch="Fill">
-                            </Image>
-                            <Image Grid.Row="2" Width="3" Source="/Images/empty.png" Stretch="Fill"
-                                   VerticalAlignment="Stretch">
-                            </Image>
-                        </Grid>
-                    </ControlTemplate>
-                </GridSplitter.Template>
+                          ResizeBehavior="PreviousAndNext"
+                          >
             </GridSplitter>
-            <StackPanel Grid.Column="1" Width="24" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel Grid.Column="1" Width="24" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1">
                 <StackPanel.Styles>
                     <!-- todo: refactor, DRY -->
                     <Style Selector="Button">
+                        <Setter Property="MinHeight" Value="0" />
+                        <Setter Property="Height" Value="24" />
                         <Setter Property="Width" Value="24" />
                         <Setter Property="Padding" Value="0" />
                         <Setter Property="Margin" Value="0" />
-                        <Setter Property="Background" Value="Transparent" />
                     </Style>
                 </StackPanel.Styles>
                 <!--<Border Height="100" BorderThickness="1" BorderBrush="Blue" />-->
@@ -144,22 +133,8 @@
                           HorizontalAlignment="Right"
                           Width="6"
                           ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext">
-                <GridSplitter.Template>
-                    <ControlTemplate>
-                        <Grid RowDefinitions="*,32,*">
-                            <Image Grid.Row="0" Width="3" Source="/Images/empty.png" Stretch="Fill"
-                                   VerticalAlignment="Stretch">
-                            </Image>
-                            <Image Grid.Row="1" Source="/Images/resizing-thumb.png" Width="3" Height="32"
-                                   Stretch="Fill">
-                            </Image>
-                            <Image Grid.Row="2" Width="3" Source="/Images/empty.png" Stretch="Fill"
-                                   VerticalAlignment="Stretch">
-                            </Image>
-                        </Grid>
-                    </ControlTemplate>
-                </GridSplitter.Template>
+                          ResizeBehavior="PreviousAndNext"
+                          >
             </GridSplitter>
 
             <!-- Right Pane -->

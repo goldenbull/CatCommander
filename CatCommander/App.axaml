@@ -2,8 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="CatCommander.App"
              Name="CatCommander"
-             RequestedThemeVariant="Light">
-    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Light"
+             xmlns:semi="https://irihi.tech/semi">
+    
     <NativeMenu.Menu>
         <OnPlatform>
             <OnPlatform.macOS>
@@ -14,9 +15,11 @@
             </OnPlatform.macOS>
         </OnPlatform>
     </NativeMenu.Menu>
-
+    
     <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml" />
+        <semi:SemiTheme/>
+        <semi:TreeDataGridSemiTheme />
+        <!-- <FluentTheme /> -->
+        <!-- <StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml" /> -->
     </Application.Styles>
 </Application>
