@@ -3,19 +3,20 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="clr-namespace:CatCommander.UI"
+        xmlns:vm="clr-namespace:CatCommander.ViewModels"
         mc:Ignorable="d"
         d:DesignWidth="800" d:DesignHeight="450"
         MinWidth="500" MinHeight="400"
         WindowState="Maximized"
         x:Class="CatCommander.MainWindow"
-        Title="CatCommander">
-
+        Title="CatCommander"
+        x:DataType="vm:MainViewModel">
     <!-- Top menu bar-->
     <NativeMenu.Menu>
         <NativeMenu>
             <NativeMenuItem Header="File">
                 <NativeMenu>
-                    <NativeMenuItem Header="Open" Gesture="Meta+O" />
+                    <NativeMenuItem Header="Open" Gesture="Meta+O" Command="{Binding OpenCommand}" />
                     <NativeMenuItem Header="Save" Gesture="Meta+S" />
                     <NativeMenuItem Header="Close" Gesture="Meta+W" />
                 </NativeMenu>

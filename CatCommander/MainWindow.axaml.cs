@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using CatCommander.ViewModels;
 using NLog;
 
 namespace CatCommander
@@ -12,8 +13,7 @@ namespace CatCommander
         public MainWindow()
         {
             InitializeComponent();
-            
-            log.Info(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+            DataContext = new MainViewModel();
         }
 
         private void Button_OnClick(object? sender, RoutedEventArgs e)
