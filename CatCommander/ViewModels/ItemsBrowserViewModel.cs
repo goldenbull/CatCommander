@@ -7,21 +7,20 @@ using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
 using CatCommander.Models;
-using CatCommander.Services;
-using Microsoft.Extensions.Logging;
+using NLog;
 
 namespace CatCommander.ViewModels;
 
 public class ItemsBrowserViewModel : INotifyPropertyChanged
 {
-    private readonly ILogger<ItemsBrowserViewModel> _logger;
+    private static readonly Logger log = LogManager.GetCurrentClassLogger();
+
     private string _currentPath = string.Empty;
     private HierarchicalTreeDataGridSource<FileItemModel>? _fileItems;
 
     public ItemsBrowserViewModel()
     {
-        _logger = LoggingService.CreateLogger<ItemsBrowserViewModel>();
-        _logger.LogInformation("Initializing ItemsBrowserViewModel");
+        log.Info("Initializing ItemsBrowserViewModel");
 
         // Initialize with the user's home directory
         InitializeFileItems();
@@ -83,11 +82,11 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
 
     private void LoadDirectory(string path)
     {
-        _logger.LogDebug("LoadDirectory called with path: {Path}", path);
+        log.Debug($"LoadDirectory called with path: {path}");
 
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
         {
-            _logger.LogWarning("Invalid or non-existent path: {Path}", path);
+            log.Warn($"Invalid or non-existent path: {path}");
             return;
         }
 
@@ -128,7 +127,7 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to access directory: {Directory}", dir);
+                    log.Error(ex, $"Failed to access directory: {dir}");
                 }
             }
 
@@ -152,12 +151,11 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to access file: {File}", file);
+                    log.Error(ex, $"Failed to access file: {file}");
                 }
             }
 
-            _logger.LogInformation("Loaded directory {Path}: {DirCount} directories, {FileCount} files",
-                path, dirCount, fileCount);
+            log.Debug($"Loaded directory {path}: {dirCount} directories, {fileCount} files");
 
             // Update the TreeDataGrid source
             FileItems = new HierarchicalTreeDataGridSource<FileItemModel>(items)
@@ -175,7 +173,7 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading directory: {Path}", path);
+            log.Error(ex, $"Error loading directory: {path}");
         }
     }
 
