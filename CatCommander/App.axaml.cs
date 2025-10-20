@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using CatCommander.Configuration;
 
 namespace CatCommander
 {
@@ -13,6 +14,10 @@ namespace CatCommander
 
         public override void OnFrameworkInitializationCompleted()
         {
+            // Load configuration
+            var configManager = ConfigManager.Instance;
+            configManager.Load();
+
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.MainWindow = new MainWindow();
@@ -20,6 +25,8 @@ namespace CatCommander
                 // Handle application exit
                 desktop.Exit += (sender, args) =>
                 {
+                    // Save configuration on exit if needed
+                    configManager.Save();
                 };
             }
 
