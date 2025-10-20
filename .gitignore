@@ -420,3 +420,7 @@ FodyWeavers.xsd
 .idea/
 
 .fake
+
+# 7zip build
+_o/
+o/
