@@ -433,14 +433,15 @@ set(ALL_SOURCES
     ${COMPRESS_SOURCES}
     ${CRYPTO_SOURCES}
     ${EXPORT_SOURCES}
+        utils.h
 )
 
 # Create shared library
 if(WIN32)
     # On Windows, use the custom .def file for exports (includes 7-Zip and custom exports)
-    add_library(7z SHARED ${ALL_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.def)
+    add_library(7z SHARED ${ALL_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.cpp ${CMAKE_CURRENT_SOURCE_DIR}/ArchiveInfoManager.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.def)
 else()
-    add_library(7z SHARED ${ALL_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.cpp)
+    add_library(7z SHARED ${ALL_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.cpp ${CMAKE_CURRENT_SOURCE_DIR}/ArchiveInfoManager.cpp)
 endif()
 
 # Link libraries
