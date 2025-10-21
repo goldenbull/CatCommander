@@ -15,11 +15,8 @@
 #include <iostream>
 
 // External API functions from ArchiveExports.cpp
-extern "C" {
-HRESULT GetNumberOfFormats(UINT32 *numFormats);
-
-HRESULT GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT *value);
-}
+STDAPI GetNumberOfFormats(UINT32 *numFormats);
+STDAPI GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT *value);
 
 // Implementation of the ArchiveInfoManager singleton
 ArchiveInfoManager::ArchiveInfoManager() : m_initialized(false) {

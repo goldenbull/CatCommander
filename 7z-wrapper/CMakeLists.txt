@@ -433,7 +433,7 @@ set(ALL_SOURCES
     ${COMPRESS_SOURCES}
     ${CRYPTO_SOURCES}
     ${EXPORT_SOURCES}
-        utils.h
+    utils.h
 )
 
 # Create shared library
@@ -462,23 +462,11 @@ endif()
 
 # Set output properties
 if(WIN32)
-    set_target_properties(7z PROPERTIES
-        OUTPUT_NAME "7z"
-        PREFIX ""
-        SUFFIX ".dll"
-    )
+    set_target_properties(7z PROPERTIES SUFFIX ".dll")
 elseif(APPLE)
-    set_target_properties(7z PROPERTIES
-        OUTPUT_NAME "7z"
-        PREFIX ""
-        SUFFIX ".dylib"
-    )
+    set_target_properties(7z PROPERTIES SUFFIX ".dylib")
 else()
-    set_target_properties(7z PROPERTIES
-        OUTPUT_NAME "7z"
-        PREFIX ""
-        SUFFIX ".so"
-    )
+    set_target_properties(7z PROPERTIES SUFFIX ".so")
 endif()
 
 # Install targets
