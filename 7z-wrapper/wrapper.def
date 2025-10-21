@@ -20,4 +20,4 @@ EXPORTS
   GetModuleProp PRIVATE
 
   ; Custom exports from library.cpp
-  GetArchiveInfo
+  GetArchiveInfoByFilename

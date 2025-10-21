@@ -21,14 +21,16 @@
 #include "ArchiveInfoManager.h"
 #include "wrapper.h"
 
-bool GetArchiveInfo(const char *fname, ArchiveInfo *outInfo) {
-    if (!fname || !outInfo) {
+#include <iostream>
+
+bool GetArchiveInfoByFilename(const wchar_t *fname, ArchiveInfo &outInfo) {
+    if (!fname) {
         return false;
     }
 
     // Extract file extension using std::filesystem::path
     std::filesystem::path filePath(fname);
-    std::string extStr = filePath.extension().string();
+    std::wstring extStr = filePath.extension().wstring();
 
     // Remove the leading dot if present
     if (!extStr.empty() && extStr[0] == '.') {
@@ -40,13 +42,13 @@ bool GetArchiveInfo(const char *fname, ArchiveInfo *outInfo) {
     }
 
     // Don't handle .exe files
-    if (tolower(extStr) == "exe") {
+    if (tolower(extStr) == L"exe") {
         return false;
     }
 
     // Use the singleton to get archive info by extension
     ArchiveInfoManager &manager = ArchiveInfoManager::getInstance();
-    if (!manager.getArchiveInfoByExtension(extStr, *outInfo)) {
+    if (!manager.getArchiveInfoByExtension(extStr, outInfo)) {
         return false; // No matching format found
     }
 

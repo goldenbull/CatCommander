@@ -7,12 +7,12 @@
 #include "Common/MyString.h"
 #include "7zip/Common/RegisterArc.h"
 
-// Wrapper structure for archive info using FString instead of const char*
+// Wrapper structure for archive info using UString instead of FString
 struct ArchiveInfo
 {
-    FString Name;
-    FString Ext;
-    FString AddExt;
+    UString Name;
+    UString Ext;
+    UString AddExt;
 
     UInt32 Flags;
     UInt32 TimeFlags;
@@ -36,16 +36,16 @@ public:
     static ArchiveInfoManager& getInstance();
     
     // Get archive info by format name
-    bool getArchiveInfoByName(const std::string& name, ArchiveInfo& info) const;
+    bool getArchiveInfoByName(const std::wstring& name, ArchiveInfo& info) const;
     
     // Get archive info by extension
-    bool getArchiveInfoByExtension(const std::string& ext, ArchiveInfo& info) const;
+    bool getArchiveInfoByExtension(const std::wstring& ext, ArchiveInfo& info) const;
     
     // Check if a format supports an extension
-    bool isSupportedFormat(const std::string& ext) const;
+    bool isSupportedFormat(const std::wstring& ext) const;
     
     // Get all supported format names
-    std::vector<std::string> getAllFormatNames() const;
+    std::vector<std::wstring> getAllFormatNames() const;
 
 private:
     ArchiveInfoManager();  // Private constructor for singleton
@@ -56,7 +56,7 @@ private:
     // Initialize archive information from registered formats
     bool initialize();
     
-    std::map<std::string, ArchiveInfo> m_archiveMap;  // Map from format name to ArchiveInfo
-    std::map<std::string, std::string> m_extToFormat; // Map from extension to format name
+    std::map<std::wstring, ArchiveInfo> m_archiveMap;  // Map from format name to ArchiveInfo
+    std::map<std::wstring, std::wstring> m_extToFormat; // Map from extension to format name
     bool m_initialized;
 };

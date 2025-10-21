@@ -17,48 +17,44 @@ Simple test program to verify GetArchiveInfo functionality.
 #include "ArchiveInfoManager.h"
 #include "Windows/PropVariant.h"
 
-void testFile(std::string_view filename) {
-    std::cout << std::format("\nTesting: {}\n", filename);
-    std::cout << "=====================================\n";
+void testFile(std::wstring_view filename) {
+    std::wcout << std::format(L"\nTesting: {}\n", filename);
+    std::wcout << L"=====================================\n";
 
     ArchiveInfo info;
-
-    if (GetArchiveInfo(filename.data(), &info)) {
-        std::cout << "✓ Format detected!\n";
-        std::cout << std::format("  Name:      {}\n",
-                                 info.Name.IsEmpty() ? "(null)" : info.Name.Ptr());
-        std::cout << std::format("  Ext:       {}\n",
-                                 info.Ext.IsEmpty() ? "(null)" : info.Ext.Ptr());
-        std::cout << std::format("  AddExt:    {}\n",
-                                 info.AddExt.IsEmpty() ? "(null)" : info.AddExt.Ptr());
-        std::cout << std::format("  Flags:     0x{:08X}\n", info.Flags);
-        std::cout << std::format("  TimeFlags: 0x{:08X}\n", info.TimeFlags);
+    if (GetArchiveInfoByFilename(filename.data(), info)) {
+        std::wcout << L"Format detected!\n";
+        std::wcout << std::format(L"  Name:      {}\n", info.Name.IsEmpty() ? L"(null)" : info.Name.Ptr());
+        std::wcout << std::format(L"  Ext:       {}\n", info.Ext.IsEmpty() ? L"(null)" : info.Ext.Ptr());
+        std::wcout << std::format(L"  AddExt:    {}\n", info.AddExt.IsEmpty() ? L"(null)" : info.AddExt.Ptr());
+        std::wcout << std::format(L"  Flags:     0x{:08X}\n", info.Flags);
+        std::wcout << std::format(L"  TimeFlags: 0x{:08X}\n", info.TimeFlags);
     } else {
-        std::cout << "✗ No format detected (unknown or unsupported)\n";
+        std::wcout << L"No format detected (unknown or unsupported)\n";
     }
 }
 
 void listAllFormats() {
-    std::cout << "\nRegistered Archive Formats:\n";
-    std::cout << "===========================\n";
+    std::wcout << L"\nRegistered Archive Formats:\n";
+    std::wcout << L"===========================\n";
 
     auto &mgr = ArchiveInfoManager::getInstance();
     auto names = mgr.getAllFormatNames();
 
-    std::cout << std::format("Total formats registered: {}\n\n", names.size());
+    std::wcout << std::format(L"Total formats registered: {}\n\n", names.size());
 
     for (auto i: std::views::iota(0u, names.size())) {
         ArchiveInfo info;
         mgr.getArchiveInfoByName(names[i], info);
-        std::cout << std::format("[{:2}] {:10}", i, info.Name.Ptr());
-        std::cout << std::format(" Extensions: {}", info.Ext.Ptr());
-        std::cout << "\n";
+        std::wcout << std::format(L"[{:2}] {:10}", i, info.Name.Ptr());
+        std::wcout << std::format(L" Extensions: {}", info.Ext.Ptr());
+        std::wcout << L"\n";
     }
 }
 
 int main(int argc, char *argv[]) {
-    std::cout << "7z-wrapper Test Program\n";
-    std::cout << "=======================\n";
+    std::wcout << L"7z-wrapper Test Program\n";
+    std::wcout << L"=======================\n";
 
     // First, list all registered formats
     // Test ArchiveInfoManager directly
@@ -68,30 +64,33 @@ int main(int argc, char *argv[]) {
         // Test files provided as arguments
         auto args = std::span(argv, argc) | std::views::drop(1);
         for (const auto &arg: args) {
-            testFile(arg);
+            std::string s(arg);
+            std::wstring ws(s.begin(), s.end());
+            testFile(ws);
         }
     } else {
         // Test with common archive extensions
-        std::cout << "\nTesting common archive formats:\n";
+        std::wcout << L"\nTesting common archive formats:\n";
 
-        constexpr std::array testFiles = {
-            "test.zip",
-            "test.7z",
-            "test.tar",
-            "test.tar.gz",
-            "test.tgz",
-            "test.rar",
-            "test.iso",
-            "test.cab",
-            "document.docx", // ZIP-based format
-            "test.jar", // ZIP-based format
-            "unknown.xyz", // Should fail
-            "test.exe", // Should fail (excluded)
-            "noextension" // Should fail
+        std::vector<std::wstring> testFiles = {
+            L"test.zip",
+            L"test.7z",
+            L"test.tar",
+            L"test.tar.gz",
+            L"test.tgz",
+            L"test.rar",
+            L"test.iso",
+            L"test.cab",
+            L"document.docx", // ZIP-based format
+            L"test.jar", // ZIP-based format
+            L"unknown.xyz", // Should fail
+            L"test.exe", // Should fail (excluded)
+            L"noextension" // Should fail
         };
 
         for (const auto &file: testFiles) {
             testFile(file);
+            std::wcout << file << L"\n";
         }
     }
 

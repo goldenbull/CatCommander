@@ -12,9 +12,12 @@
 
 #include "ArchiveInfoManager.h"
 
+#include <iostream>
+
 // External API functions from ArchiveExports.cpp
 extern "C" {
 HRESULT GetNumberOfFormats(UINT32 *numFormats);
+
 HRESULT GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT *value);
 }
 
@@ -54,18 +57,15 @@ bool ArchiveInfoManager::initialize() {
             continue;
         }
 
-        // Convert name to string for use as map key
-        std::string formatName{us2fs(nameProp.bstrVal)};
-
         // Create ArchiveInfo structure
         ArchiveInfo info;
-        info.Name = us2fs(nameProp.bstrVal); // Already have the name
+        info.Name = nameProp.bstrVal; // Already have the name as UString
 
         // Get Extension
         NWindows::NCOM::CPropVariant extProp;
         if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kExtension, &extProp) == S_OK
             && extProp.vt == VT_BSTR && extProp.bstrVal) {
-            info.Ext = us2fs(extProp.bstrVal);
+            info.Ext = extProp.bstrVal; // Direct assignment to UString
         } else {
             info.Ext.Empty();
         }
@@ -74,7 +74,7 @@ bool ArchiveInfoManager::initialize() {
         NWindows::NCOM::CPropVariant addExtProp;
         if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kAddExtension, &addExtProp) == S_OK
             && addExtProp.vt == VT_BSTR && addExtProp.bstrVal) {
-            info.AddExt = us2fs(addExtProp.bstrVal);
+            info.AddExt = addExtProp.bstrVal; // Direct assignment to UString
         } else {
             info.AddExt.Empty();
         }
@@ -107,35 +107,33 @@ bool ArchiveInfoManager::initialize() {
         info.SignatureOffset = 0;
 
         // Add to the map
-        m_archiveMap[formatName] = info;
+        m_archiveMap[info.Name.Ptr()] = info;
 
         // Create mapping from extensions to format name
         if (!info.Ext.IsEmpty()) {
-            // Split the extension string and map each extension
-            FString extList(info.Ext);
-            std::string_view extListView(static_cast<const char *>(extList), extList.Len());
+            // Process the extension string and map each extension
+            const wchar_t *extListView = info.Ext;
 
             size_t pos = 0;
-            while (pos < extListView.size()) {
+            size_t len = info.Ext.Len();
+            while (pos < len) {
                 // Skip leading spaces
-                while (pos < extListView.size() && extListView[pos] == ' ') ++pos;
-                if (pos >= extListView.size()) break;
+                while (pos < len && extListView[pos] == L' ') ++pos;
+                if (pos >= len) break;
 
                 // Find end of current extension
                 size_t end = pos;
-                while (end < extListView.size() && extListView[end] != ' ') ++end;
+                while (end < len && extListView[end] != L' ') ++end;
 
                 // Extract and map extension
-                auto currentExt = extListView.substr(pos, end - pos);
+                std::wstring currentExt(extListView + pos, end - pos);
                 if (!currentExt.empty()) {
-                    // Convert to lowercase for case-insensitive matching
-                    std::string extStr = std::string(currentExt);
-                    std::transform(extStr.begin(), extStr.end(), extStr.begin(),
-                                   [](unsigned char c) { return std::tolower(c); });
-                    m_extToFormat[extStr] = formatName;
+                    std::wstring extStr = currentExt;
+                    std::ranges::transform(extStr, extStr.begin(), [](wchar_t c) { return std::tolower(c); });
+                    m_extToFormat[extStr] = info.Name.Ptr();
                 }
 
-                pos = end;
+                pos = end + 1; // Move past the space
             }
         }
     }
@@ -144,7 +142,7 @@ bool ArchiveInfoManager::initialize() {
     return true;
 }
 
-bool ArchiveInfoManager::getArchiveInfoByName(const std::string &name, ArchiveInfo &info) const {
+bool ArchiveInfoManager::getArchiveInfoByName(const std::wstring &name, ArchiveInfo &info) const {
     if (!m_initialized) {
         const_cast<ArchiveInfoManager *>(this)->initialize(); // Lazy initialization
     }
@@ -157,14 +155,13 @@ bool ArchiveInfoManager::getArchiveInfoByName(const std::string &name, ArchiveIn
     return false;
 }
 
-bool ArchiveInfoManager::getArchiveInfoByExtension(const std::string &ext, ArchiveInfo &info) const {
+bool ArchiveInfoManager::getArchiveInfoByExtension(const std::wstring &ext, ArchiveInfo &info) const {
     if (!m_initialized) {
         const_cast<ArchiveInfoManager *>(this)->initialize(); // Lazy initialization
     }
 
-    std::string lowerExt = ext;
-    std::transform(lowerExt.begin(), lowerExt.end(), lowerExt.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::wstring lowerExt = ext;
+    std::ranges::transform(lowerExt, lowerExt.begin(), [](wchar_t c) { return std::tolower(c); });
 
     auto it = m_extToFormat.find(lowerExt);
     if (it != m_extToFormat.end()) {
@@ -174,29 +171,29 @@ bool ArchiveInfoManager::getArchiveInfoByExtension(const std::string &ext, Archi
             return true;
         }
     }
+
     return false;
 }
 
-bool ArchiveInfoManager::isSupportedFormat(const std::string &ext) const {
+bool ArchiveInfoManager::isSupportedFormat(const std::wstring &ext) const {
     if (!m_initialized) {
         const_cast<ArchiveInfoManager *>(this)->initialize(); // Lazy initialization
     }
 
-    std::string lowerExt = ext;
-    std::transform(lowerExt.begin(), lowerExt.end(), lowerExt.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::wstring lowerExt = ext;
+    std::ranges::transform(lowerExt, lowerExt.begin(), [](wchar_t c) { return std::tolower(c); });
 
     return m_extToFormat.find(lowerExt) != m_extToFormat.end();
 }
 
 
-std::vector<std::string> ArchiveInfoManager::getAllFormatNames() const {
-    std::vector<std::string> formatNames;
+std::vector<std::wstring> ArchiveInfoManager::getAllFormatNames() const {
+    std::vector<std::wstring> formatNames;
     formatNames.reserve(m_archiveMap.size());
-    
-    for (const auto& pair : m_archiveMap) {
+
+    for (const auto &pair: m_archiveMap) {
         formatNames.push_back(pair.first);
     }
-    
+
     return formatNames;
 }
