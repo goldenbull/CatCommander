@@ -32,23 +32,6 @@ extern "C" {
     HRESULT GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT *value);
 }
 
-// Helper function to convert wchar_t to char using C++20 features
-// Returns a unique_ptr for automatic memory management
-static std::unique_ptr<char[]> WCharToChar(const wchar_t* wstr) {
-    if (!wstr) return nullptr;
-
-    size_t len = std::char_traits<wchar_t>::length(wstr);
-    auto result = std::make_unique<char[]>(len + 1);
-
-    for (size_t i = 0; i < len; i++) {
-        // Simple conversion - only works for ASCII range
-        result[i] = static_cast<char>(wstr[i] & 0xFF);
-    }
-    result[len] = '\0';
-
-    return result;
-}
-
 // Helper function for case-insensitive string comparison using C++20
 static bool StrEqualNoCase(std::string_view s1, std::string_view s2) {
     if (s1.size() != s2.size()) return false;
@@ -60,22 +43,24 @@ static bool StrEqualNoCase(std::string_view s1, std::string_view s2) {
         });
 }
 
-// Helper function to check if extension matches any in space-separated list
-static bool ExtensionInList(std::string_view ext, std::string_view extList) {
-    if (ext.empty() || extList.empty()) return false;
+// Helper function to check if extension matches any in space-separated FString list
+static bool ExtensionInList(std::string_view ext, const FString& extList) {
+    if (ext.empty() || extList.IsEmpty()) return false;
+
+    std::string_view extListView(static_cast<const char*>(extList), extList.Len());
 
     size_t pos = 0;
-    while (pos < extList.size()) {
+    while (pos < extListView.size()) {
         // Skip leading spaces
-        while (pos < extList.size() && extList[pos] == ' ') ++pos;
-        if (pos >= extList.size()) break;
+        while (pos < extListView.size() && extListView[pos] == ' ') ++pos;
+        if (pos >= extListView.size()) break;
 
         // Find end of current extension
         size_t end = pos;
-        while (end < extList.size() && extList[end] != ' ') ++end;
+        while (end < extListView.size() && extListView[end] != ' ') ++end;
 
         // Extract and compare
-        auto currentExt = extList.substr(pos, end - pos);
+        auto currentExt = extListView.substr(pos, end - pos);
         if (StrEqualNoCase(ext, currentExt)) {
             return true;
         }
@@ -86,7 +71,7 @@ static bool ExtensionInList(std::string_view ext, std::string_view extList) {
     return false;
 }
 
-bool GetArchiveInfo(const char* fname, CArcInfo* outInfo) {
+bool GetArchiveInfo(const char* fname, ArchiveInfo* outInfo) {
     if (!fname || !outInfo) {
         return false;
     }
@@ -128,12 +113,10 @@ bool GetArchiveInfo(const char* fname, CArcInfo* outInfo) {
 
         // Check if it's a BSTR (wide string)
         if (prop.vt == VT_BSTR && prop.bstrVal) {
-            // Convert BSTR (wchar_t*) to char* for comparison
-            auto extListPtr = WCharToChar(prop.bstrVal);
-            if (!extListPtr) continue;
+            // Convert BSTR (wchar_t*) to FString using 7-Zip's us2fs
+            FString extListFStr = us2fs(prop.bstrVal);
 
-            std::string_view extList(extListPtr.get());
-            if (!ExtensionInList(ext, extList)) {
+            if (!ExtensionInList(ext, extListFStr)) {
                 continue;
             }
 
@@ -143,22 +126,21 @@ bool GetArchiveInfo(const char* fname, CArcInfo* outInfo) {
             NWindows::NCOM::CPropVariant nameProp;
             if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kName, &nameProp) == S_OK
                 && nameProp.vt == VT_BSTR && nameProp.bstrVal) {
-                // Store the converted string - caller must manage memory
-                outInfo->Name = WCharToChar(nameProp.bstrVal).release();
+                outInfo->Name = us2fs(nameProp.bstrVal);
             } else {
-                outInfo->Name = nullptr;
+                outInfo->Name.Empty();
             }
 
-            // Get Extension - convert from wide string
-            outInfo->Ext = WCharToChar(prop.bstrVal).release();
+            // Get Extension - convert from wide string to FString
+            outInfo->Ext = extListFStr;
 
             // Get AddExtension
             NWindows::NCOM::CPropVariant addExtProp;
             if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kAddExtension, &addExtProp) == S_OK
                 && addExtProp.vt == VT_BSTR && addExtProp.bstrVal) {
-                outInfo->AddExt = WCharToChar(addExtProp.bstrVal).release();
+                outInfo->AddExt = us2fs(addExtProp.bstrVal);
             } else {
-                outInfo->AddExt = nullptr;
+                outInfo->AddExt.Empty();
             }
 
             // Get Flags

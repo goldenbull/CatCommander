@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 project(7zip)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Paths
 set(7Z_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../7z")

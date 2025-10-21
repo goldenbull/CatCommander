@@ -26,13 +26,16 @@ void testFile(std::string_view filename) {
     std::cout << std::format("\nTesting: {}\n", filename);
     std::cout << "=====================================\n";
 
-    CArcInfo info{};
+    ArchiveInfo info;
 
     if (GetArchiveInfo(filename.data(), &info)) {
         std::cout << "✓ Format detected!\n";
-        std::cout << std::format("  Name:      {}\n", info.Name ? info.Name : "(null)");
-        std::cout << std::format("  Ext:       {}\n", info.Ext ? info.Ext : "(null)");
-        std::cout << std::format("  AddExt:    {}\n", info.AddExt ? info.AddExt : "(null)");
+        std::cout << std::format("  Name:      {}\n",
+            info.Name.IsEmpty() ? "(null)" : static_cast<const char*>(info.Name));
+        std::cout << std::format("  Ext:       {}\n",
+            info.Ext.IsEmpty() ? "(null)" : static_cast<const char*>(info.Ext));
+        std::cout << std::format("  AddExt:    {}\n",
+            info.AddExt.IsEmpty() ? "(null)" : static_cast<const char*>(info.AddExt));
         std::cout << std::format("  Flags:     0x{:08X}\n", info.Flags);
         std::cout << std::format("  TimeFlags: 0x{:08X}\n", info.TimeFlags);
     } else {
