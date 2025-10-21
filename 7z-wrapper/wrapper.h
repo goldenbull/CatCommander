@@ -1,6 +1,8 @@
 #pragma once
 
+#include "7zip/Common/RegisterArc.h"
+
 extern "C"
 {
-void hello();
+    bool GetArchiveInfo(const char* fname, CArcInfo* info);
 }

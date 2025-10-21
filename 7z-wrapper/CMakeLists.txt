@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(7zip)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 11)
 
 # Paths
@@ -483,6 +483,15 @@ install(TARGETS 7z
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin
+)
+
+# Test executable
+add_executable(7z-test ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+target_link_libraries(7z-test 7z)
+
+# Set output directory for test executable
+set_target_properties(7z-test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
 # Print configuration summary
