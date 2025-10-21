@@ -1,55 +1,66 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.7" />
-    <PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.1.1" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.7" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.7" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.7" />
-    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.7">
-      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
-      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
-    <PackageReference Include="Semi.Avalonia" Version="11.3.7" />
-    <PackageReference Include="Semi.Avalonia.AvaloniaEdit" Version="11.2.0.1" />
-    <PackageReference Include="Semi.Avalonia.ColorPicker" Version="11.3.7" />
-    <PackageReference Include="Semi.Avalonia.DataGrid" Version="11.3.7" />
-    <PackageReference Include="Semi.Avalonia.Dock" Version="11.3.6.2" />
-    <PackageReference Include="Semi.Avalonia.TreeDataGrid" Version="11.0.10.4" />
-    <PackageReference Include="NLog" Version="6.0.5" />
-    <PackageReference Include="NLog.Extensions.Logging" Version="6.0.5" />
-    <PackageReference Include="ReactiveUI" Version="22.1.1" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.7" />
-    <PackageReference Include="Tomlyn" Version="0.19.0" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.3.7"/>
+        <PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.1.1"/>
+        <PackageReference Include="Avalonia.Desktop" Version="11.3.7"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.7"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.7"/>
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Include="Avalonia.Diagnostics" Version="11.3.7">
+            <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+            <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10"/>
+        <PackageReference Include="Semi.Avalonia" Version="11.3.7"/>
+        <PackageReference Include="Semi.Avalonia.AvaloniaEdit" Version="11.2.0.1"/>
+        <PackageReference Include="Semi.Avalonia.ColorPicker" Version="11.3.7"/>
+        <PackageReference Include="Semi.Avalonia.DataGrid" Version="11.3.7"/>
+        <PackageReference Include="Semi.Avalonia.Dock" Version="11.3.6.2"/>
+        <PackageReference Include="Semi.Avalonia.TreeDataGrid" Version="11.0.10.4"/>
+        <PackageReference Include="NLog" Version="6.0.5"/>
+        <PackageReference Include="NLog.Extensions.Logging" Version="6.0.5"/>
+        <PackageReference Include="ReactiveUI" Version="22.1.1"/>
+        <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.7"/>
+        <PackageReference Include="Tomlyn" Version="0.19.0"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <AvaloniaResource Include="Images\*.png" />
-  </ItemGroup>
+    <ItemGroup>
+        <AvaloniaResource Include="Images\*.png"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Update="NLog.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="config.toml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+    <ItemGroup>
+        <None Update="NLog.config">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="config.toml">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="lib\7z.dylib">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="lib\7z.so">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="UI\ItemsBrowser.axaml.cs">
-      <DependentUpon>ItemsBrowser.axaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-  </ItemGroup>
+    <ItemGroup>
+        <Compile Update="UI\ItemsBrowser.axaml.cs">
+            <DependentUpon>ItemsBrowser.axaml</DependentUpon>
+            <SubType>Code</SubType>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="lib\" />
+    </ItemGroup>
 </Project>
