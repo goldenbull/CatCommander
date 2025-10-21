@@ -1351,13 +1351,6 @@ $O/7zMain.o: ../../../../C/Util/7z/7zMain.c
 $O/LzmaUtil.o: ../../../../C/Util/Lzma/LzmaUtil.c
 	$(CC) $(CFLAGS) $<
 
-
-
-$O/Wrapper.o: ./Wrapper.cpp
-	$(CXX) $(CXXFLAGS) $<
-
-
-
 ifneq ($(CC), xlc)
 SHOW_PREDEF=-dM
 else

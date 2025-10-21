@@ -1,0 +1,23 @@
+EXPORTS
+  ; 7-Zip Archive API exports
+  CreateObject PRIVATE
+  GetHandlerProperty PRIVATE
+  GetNumberOfFormats PRIVATE
+  GetHandlerProperty2 PRIVATE
+  GetIsArc PRIVATE
+
+  ; 7-Zip Codec API exports
+  GetNumberOfMethods PRIVATE
+  GetMethodProperty PRIVATE
+  CreateDecoder PRIVATE
+  CreateEncoder PRIVATE
+
+  ; Additional 7-Zip exports
+  GetHashers PRIVATE
+  SetCodecs PRIVATE
+  SetLargePageMode PRIVATE
+  SetCaseSensitive PRIVATE
+  GetModuleProp PRIVATE
+
+  ; Custom exports from library.cpp
+  hello
