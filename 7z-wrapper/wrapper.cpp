@@ -5,52 +5,29 @@
 #include <filesystem>
 #include <algorithm>
 
-#include "7zVersion.h"
-
-#include "Common/Defs.h"
-#include "Common/MyWindows.h"
-#include "Common/IntToString.h"
-#include "Common/StringConvert.h"
-#include "Common/MyString.h"
-
-#include "7zip/Common/FileStreams.h"
-#include "7zip/Archive/IArchive.h"
-#include "7zip/IPassword.h"
-
-#include "utils.h"
 #include "ArchiveInfoManager.h"
 #include "wrapper.h"
 
-#include <iostream>
 
-bool GetArchiveInfoByFilename(const wchar_t *fname, ArchiveInfo &outInfo) {
-    if (!fname) {
-        return false;
-    }
-
-    // Extract file extension using std::filesystem::path
-    std::filesystem::path filePath(fname);
-    std::wstring extStr = filePath.extension().wstring();
-
-    // Remove the leading dot if present
-    if (!extStr.empty() && extStr[0] == '.') {
-        extStr = extStr.substr(1);
-    }
-
-    if (extStr.empty()) {
-        return false; // No extension
-    }
-
-    // Don't handle .exe files
-    if (tolower(extStr) == L"exe") {
+bool GetFormatInfoByName(wchar_t* name, FormatInfo* info)
+{
+   if (!name || !info) {
         return false;
     }
 
     // Use the singleton to get archive info by extension
     ArchiveInfoManager &manager = ArchiveInfoManager::getInstance();
-    if (!manager.getArchiveInfoByExtension(extStr, outInfo)) {
+    ArchiveInfo arc_info;
+    if (!manager.getArchiveInfoByName(name, arc_info)) {
         return false; // No matching format found
     }
 
+    *info = arc_info.simple;
     return true;
+}
+
+wchar_t* GetAllFormatNames()
+{
+    ArchiveInfoManager& manager = ArchiveInfoManager::getInstance();
+    return manager.all_names.data();
 }

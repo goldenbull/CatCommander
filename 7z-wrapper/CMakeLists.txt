@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(7zip)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -19,7 +19,7 @@ endif()
 
 # Platform-specific definitions
 if(WIN32)
-    add_definitions(-DZ7_EXTERNAL_CODECS)
+    add_definitions(-DZ7_EXTERNAL_CODECS -MP)
 else()
     add_definitions(-DZ7_EXTERNAL_CODECS -DUNICODE -D_UNICODE)
 endif()

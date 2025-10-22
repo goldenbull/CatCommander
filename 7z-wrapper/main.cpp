@@ -10,46 +10,23 @@ Simple test program to verify GetArchiveInfo functionality.
 #include <ranges>
 #include <span>
 
-#include "Common/MyWindows.h"
-#include "7zip/Archive/IArchive.h"
-
 #include "wrapper.h"
-#include "ArchiveInfoManager.h"
-#include "Windows/PropVariant.h"
 
 void testFile(std::wstring_view filename) {
-    std::wcout << std::format(L"\nTesting: {}\n", filename);
-    std::wcout << L"=====================================\n";
+    //std::wcout << std::format(L"\nTesting: {}\n", filename);
+    //std::wcout << L"=====================================\n";
 
-    ArchiveInfo info;
-    if (GetArchiveInfoByFilename(filename.data(), info)) {
-        std::wcout << L"Format detected!\n";
-        std::wcout << std::format(L"  Name:      {}\n", info.Name.IsEmpty() ? L"(null)" : info.Name.Ptr());
-        std::wcout << std::format(L"  Ext:       {}\n", info.Ext.IsEmpty() ? L"(null)" : info.Ext.Ptr());
-        std::wcout << std::format(L"  AddExt:    {}\n", info.AddExt.IsEmpty() ? L"(null)" : info.AddExt.Ptr());
-        std::wcout << std::format(L"  Flags:     0x{:08X}\n", info.Flags);
-        std::wcout << std::format(L"  TimeFlags: 0x{:08X}\n", info.TimeFlags);
-    } else {
-        std::wcout << L"No format detected (unknown or unsupported)\n";
-    }
-}
-
-void listAllFormats() {
-    std::wcout << L"\nRegistered Archive Formats:\n";
-    std::wcout << L"===========================\n";
-
-    auto &mgr = ArchiveInfoManager::getInstance();
-    auto names = mgr.getAllFormatNames();
-
-    std::wcout << std::format(L"Total formats registered: {}\n\n", names.size());
-
-    for (auto i: std::views::iota(0u, names.size())) {
-        ArchiveInfo info;
-        mgr.getArchiveInfoByName(names[i], info);
-        std::wcout << std::format(L"[{:2}] {:10}", i, info.Name.Ptr());
-        std::wcout << std::format(L" Extensions: {}", info.Ext.Ptr());
-        std::wcout << L"\n";
-    }
+    //ArchiveInfo info;
+    //if (GetArchiveInfoByFilename(filename.data(), info)) {
+    //    std::wcout << L"Format detected!\n";
+    //    std::wcout << std::format(L"  Name:      {}\n", info.Name.IsEmpty() ? L"(null)" : info.Name.Ptr());
+    //    std::wcout << std::format(L"  Ext:       {}\n", info.Ext.IsEmpty() ? L"(null)" : info.Ext.Ptr());
+    //    std::wcout << std::format(L"  AddExt:    {}\n", info.AddExt.IsEmpty() ? L"(null)" : info.AddExt.Ptr());
+    //    std::wcout << std::format(L"  Flags:     0x{:08X}\n", info.Flags);
+    //    std::wcout << std::format(L"  TimeFlags: 0x{:08X}\n", info.TimeFlags);
+    //} else {
+    //    std::wcout << L"No format detected (unknown or unsupported)\n";
+    //}
 }
 
 int main(int argc, char *argv[]) {
@@ -57,8 +34,9 @@ int main(int argc, char *argv[]) {
     std::wcout << L"=======================\n";
 
     // First, list all registered formats
-    // Test ArchiveInfoManager directly
-    listAllFormats();
+    std::wcout << L"\nRegistered Archive Formats:\n";
+    std::wcout << L"===========================\n";
+    //ListAllFormats();
 
     if (argc > 1) {
         // Test files provided as arguments
