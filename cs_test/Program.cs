@@ -6,10 +6,11 @@ class Program
 {
     static void Main(string[] args)
     {
+        Console.WriteLine($"C#: |{NativeLib.GetAllFormatNames()}|");
         var formats = NativeLib.GetAllFormatNames() + " xxxxx";
         foreach (var fmt in formats.Split(" "))
         {
-            Console.WriteLine("==============");
+            Console.WriteLine($"======= {fmt} =======");
             var info = new FormatInfo();
             var ret = NativeLib.GetFormatInfoByName(fmt, ref info);
             if (ret)

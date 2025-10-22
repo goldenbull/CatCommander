@@ -13,8 +13,8 @@ Simple test program to verify GetArchiveInfo functionality.
 #include "wrapper.h"
 
 void testFile(std::wstring_view filename) {
-    //std::wcout << std::format(L"\nTesting: {}\n", filename);
-    //std::wcout << L"=====================================\n";
+    std::wcout << std::format(L"\nTesting: {}\n", filename);
+    std::wcout << L"=====================================\n";
 
     //ArchiveInfo info;
     //if (GetArchiveInfoByFilename(filename.data(), info)) {

@@ -20,16 +20,19 @@ endif()
 set(7Z_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../7z")
 set(7Z_C "${7Z_ROOT}/C")
 set(7Z_CPP "${7Z_ROOT}/CPP")
+set(UNI_ALGO "${CMAKE_CURRENT_SOURCE_DIR}/uni-algo-1.2.0")
 
 # Compiler flags
 if(NOT MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wall -Wextra -D_REENTRANT -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -Wextra -D_REENTRANT -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE")
+else()
+    add_compile_options(/MP /utf-8)
 endif()
 
 # Platform-specific definitions
 if(WIN32)
-    add_definitions(-DZ7_EXTERNAL_CODECS -MP)
+    add_definitions(-DZ7_EXTERNAL_CODECS)
 else()
     add_definitions(-DZ7_EXTERNAL_CODECS -DUNICODE -D_UNICODE)
 endif()
@@ -41,6 +44,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include_directories(
     ${7Z_C}
     ${7Z_CPP}
+    ${UNI_ALGO}/include
 )
 
 # CPP/Common sources
@@ -443,8 +447,9 @@ set(ALL_SOURCES
     ${COMPRESS_SOURCES}
     ${CRYPTO_SOURCES}
     ${EXPORT_SOURCES}
-    utils.h
 )
+
+add_subdirectory(${UNI_ALGO})
 
 # Create shared library
 if(WIN32)
@@ -462,11 +467,13 @@ if(WIN32)
         user32
         advapi32
         shell32
+        uni-algo::uni-algo
     )
 else()
     target_link_libraries(7z
         pthread
         dl
+        uni-algo::uni-algo
     )
 endif()
 

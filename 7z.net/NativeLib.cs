@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace SevenZip.net;
@@ -6,17 +7,22 @@ namespace SevenZip.net;
 [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Unicode)]
 public struct FormatInfo
 {
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string Name;
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string Ext;
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string AddExt;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+    public string Name;
+
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+    public string Ext;
+
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+    public string AddExt;
 }
 
 public partial class NativeLib
 {
     [LibraryImport("lib/7z", EntryPoint = "GetAllFormatNames")]
-    private static unsafe partial IntPtr _GetAllFormatNames();
+    private static partial IntPtr _GetAllFormatNames();
 
-    public static string GetAllFormatNames()
+    public static unsafe string GetAllFormatNames()
     {
         var s = _GetAllFormatNames();
         return Marshal.PtrToStringUni(s) ?? "";

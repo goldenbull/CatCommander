@@ -10,7 +10,7 @@
 #include "wrapper.h"
 
 
-bool GetFormatInfoByName(wchar_t* name, FormatInfo* info)
+bool GetFormatInfoByName(char16_t* name, FormatInfo* info)
 {
    if (!name || !info) {
         return false;
@@ -27,18 +27,8 @@ bool GetFormatInfoByName(wchar_t* name, FormatInfo* info)
     return true;
 }
 
-wchar_t* GetAllFormatNames()
+char16_t* GetAllFormatNames()
 {
     ArchiveInfoManager& manager = ArchiveInfoManager::getInstance();
-    auto ret = manager.all_names.data();
-
-    // char* mem =(char*)(void*)ret;
-    // for(int i=0;i<20;i++)
-    // {
-    //     std::cout<<mem[i];
-    // }
-    std::wcout << L"naive:" << ret << std::endl;
-    std::wcout.flush();
-
-    return ret;
+    return manager.all_names.data();
 }

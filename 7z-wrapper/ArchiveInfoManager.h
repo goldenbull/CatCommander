@@ -11,9 +11,9 @@
 // this is a copy of internal CArcInfo class, because CArcInfo and g_Arcs are linked internally so not visible from outside
 struct ArchiveInfo
 {
-    std::wstring Name;
-    std::wstring Ext;
-    std::wstring AddExt;
+    std::u16string Name;
+    std::u16string Ext;
+    std::u16string AddExt;
 
     UInt32 Flags;
     UInt32 TimeFlags;
@@ -31,18 +31,18 @@ public:
     static ArchiveInfoManager& getInstance();
 
     // Get archive info by format name
-    bool getArchiveInfoByName(const std::wstring& name, ArchiveInfo& info) const;
+    bool getArchiveInfoByName(const std::u16string& name, ArchiveInfo& info) const;
 
     // Get archive info by extension
-    bool getArchiveInfoByExtension(const std::wstring& ext, ArchiveInfo& info) const;
+    bool getArchiveInfoByExtension(const std::u16string& ext, ArchiveInfo& info) const;
 
     // Check if a format supports an extension
-    bool isSupportedFormat(const std::wstring& ext) const;
+    bool isSupportedFormat(const std::u16string& ext) const;
 
     // Get all supported format names
-    std::vector<std::wstring> getAllFormatNames() const;
+    std::vector<std::u16string> getAllFormatNames() const;
 
-    std::wstring all_names;
+    std::u16string all_names;
 
 private:
     ArchiveInfoManager();  // Private constructor for singleton
@@ -53,6 +53,6 @@ private:
     // Initialize archive information from registered formats
     bool initialize();
 
-    std::map<std::wstring, ArchiveInfo> m_archiveMap;  // Map from format name to ArchiveInfo
-    std::map<std::wstring, std::wstring> m_extToFormat; // Map from extension to format name
+    std::map<std::u16string, ArchiveInfo> m_archiveMap;  // Map from format name to ArchiveInfo
+    std::map<std::u16string, std::u16string> m_extToFormat; // Map from extension to format name
 };

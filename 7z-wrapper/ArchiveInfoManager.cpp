@@ -8,10 +8,12 @@
 #include <iostream>
 #include <ranges>
 
+#include "uni_algo/conv.h"
+#include "uni_algo/case.h"
+
 #include "Windows/PropVariant.h"
 #include "7zip/Archive/IArchive.h"
 
-#include "utils.h"
 #include "ArchiveInfoManager.h"
 
 // External API functions from ArchiveExports.cpp
@@ -44,22 +46,25 @@ bool ArchiveInfoManager::initialize()
         NWindows::NCOM::CPropVariant prop;
 
         // Get format name
-        if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kName, &prop) == S_OK && prop.vt == VT_BSTR || prop.bstrVal)
+        if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kName, &prop) == S_OK && prop.vt == VT_BSTR && prop.bstrVal)
         {
-            info.Name = prop.bstrVal; // BSTR is wchar_t*
-            all_names = all_names + info.Name + L" ";
+            std::wstring s(prop.bstrVal);// BSTR is wchar_t*
+            info.Name = std::u16string(s.begin(),s.end());
+            all_names = all_names + info.Name + u" ";
         }
 
         // Get Extension
         if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kExtension, &prop) == S_OK && prop.vt == VT_BSTR && prop.bstrVal)
         {
-            info.Ext = prop.bstrVal;
+            std::wstring s(prop.bstrVal);
+            info.Ext =  std::u16string(s.begin(),s.end());
         }
 
         // Get AddExtension
         if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kAddExtension, &prop) == S_OK && prop.vt == VT_BSTR && prop.bstrVal)
         {
-            info.AddExt = prop.bstrVal;
+            std::wstring s(prop.bstrVal);
+            info.AddExt = std::u16string(s.begin(),s.end());
         }
 
         // Get Flags
@@ -87,7 +92,7 @@ bool ArchiveInfoManager::initialize()
         {
             for (auto ext : std::views::split(info.Ext, L" "))
             {
-                m_extToFormat[strlower(std::wstring_view(ext))] = info.Name;
+                m_extToFormat[una::cases::to_lowercase_utf16(std::u16string_view(ext))] = info.Name;
             }
         }
     }
@@ -101,7 +106,7 @@ bool ArchiveInfoManager::initialize()
     return true;
 }
 
-bool ArchiveInfoManager::getArchiveInfoByName(const std::wstring& name, ArchiveInfo& info) const
+bool ArchiveInfoManager::getArchiveInfoByName(const std::u16string& name, ArchiveInfo& info) const
 {
     auto it = m_archiveMap.find(name);
     if (it != m_archiveMap.end())
@@ -112,9 +117,9 @@ bool ArchiveInfoManager::getArchiveInfoByName(const std::wstring& name, ArchiveI
     return false;
 }
 
-bool ArchiveInfoManager::getArchiveInfoByExtension(const std::wstring& ext, ArchiveInfo& info) const
+bool ArchiveInfoManager::getArchiveInfoByExtension(const std::u16string& ext, ArchiveInfo& info) const
 {
-    auto it = m_extToFormat.find(strlower(ext));
+    auto it = m_extToFormat.find(una::cases::to_lowercase_utf16(ext));
     if (it != m_extToFormat.end())
     {
         auto infoIt = m_archiveMap.find(it->second);
@@ -128,15 +133,15 @@ bool ArchiveInfoManager::getArchiveInfoByExtension(const std::wstring& ext, Arch
     return false;
 }
 
-bool ArchiveInfoManager::isSupportedFormat(const std::wstring& ext) const
+bool ArchiveInfoManager::isSupportedFormat(const std::u16string& ext) const
 {
-    return m_extToFormat.contains(strlower(ext));
+    return m_extToFormat.contains(una::cases::to_lowercase_utf16(ext));
 }
 
 
-std::vector<std::wstring> ArchiveInfoManager::getAllFormatNames() const
+std::vector<std::u16string> ArchiveInfoManager::getAllFormatNames() const
 {
-    std::vector<std::wstring> formatNames;
+    std::vector<std::u16string> formatNames;
     formatNames.reserve(m_archiveMap.size());
 
     for (const auto& key : m_archiveMap | std::views::keys)
