@@ -10,8 +10,10 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 if(WIN32)
   # Windows: Ensure x64 build
   set(CMAKE_GENERATOR_PLATFORM "x64" CACHE STRING "Platform" FORCE)
-else()
+elseif(APPLE)
   set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build for both x86_64 and arm64 architectures")
+elseif(UNIX AND NOT APPLE)
+   message(STATUS "Building for 64-bit Linux architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
 # Paths

@@ -1,11 +1,31 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 
 namespace SevenZip.net;
 
+[StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Unicode)]
+public struct FormatInfo
+{
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string Name;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string Ext;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string AddExt;
+}
+
 public partial class NativeLib
 {
-    [LibraryImport("lib/7z")]
-    public static partial int my_wrapper_func(int n);
+    [LibraryImport("lib/7z", EntryPoint = "GetAllFormatNames")]
+    private static unsafe partial void* _GetAllFormatNames();
+
+    public static unsafe string GetAllFormatNames()
+    {
+        void* s = _GetAllFormatNames();
+        return Marshal.PtrToStringUni((IntPtr)s) ?? "";
+    }
+
+    [DllImport("lib/7z", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetFormatInfoByName(string name, ref FormatInfo info);
+
 
     void ListAllFormats()
     {

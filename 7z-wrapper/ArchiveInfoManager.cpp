@@ -40,7 +40,7 @@ bool ArchiveInfoManager::initialize()
     // Process all registered formats
     for (UINT32 i = 0; i < numFormats; i++)
     {
-        ArchiveInfo info;
+        ArchiveInfo info = {};
         NWindows::NCOM::CPropVariant prop;
 
         // Get format name
