@@ -16,14 +16,8 @@ namespace CatCommander
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
-
-            // try interop
-            log.Info(my_wrapper_func(100));
         }
 
-        [LibraryImport("lib/7z")]
-        private static partial int my_wrapper_func(int n);
-        
         public override void OnFrameworkInitializationCompleted()
         {
             // Load configuration
