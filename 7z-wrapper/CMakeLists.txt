@@ -472,11 +472,11 @@ endif()
 
 # Set output properties
 if(WIN32)
-    set_target_properties(7z PROPERTIES SUFFIX ".dll")
+    set_target_properties(7z PROPERTIES PREFIX "" SUFFIX ".dll")
 elseif(APPLE)
-    set_target_properties(7z PROPERTIES SUFFIX ".dylib")
+    set_target_properties(7z PROPERTIES PREFIX "" SUFFIX ".dylib")
 else()
-    set_target_properties(7z PROPERTIES SUFFIX ".so")
+    set_target_properties(7z PROPERTIES PREFIX "" SUFFIX ".so")
 endif()
 
 # Install targets

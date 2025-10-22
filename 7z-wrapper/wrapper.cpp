@@ -4,6 +4,7 @@
 #include <cctype>
 #include <filesystem>
 #include <algorithm>
+#include <iostream>
 
 #include "ArchiveInfoManager.h"
 #include "wrapper.h"
@@ -29,5 +30,15 @@ bool GetFormatInfoByName(wchar_t* name, FormatInfo* info)
 wchar_t* GetAllFormatNames()
 {
     ArchiveInfoManager& manager = ArchiveInfoManager::getInstance();
-    return manager.all_names.data();
+    auto ret = manager.all_names.data();
+
+    // char* mem =(char*)(void*)ret;
+    // for(int i=0;i<20;i++)
+    // {
+    //     std::cout<<mem[i];
+    // }
+    std::wcout << L"naive:" << ret << std::endl;
+    std::wcout.flush();
+
+    return ret;
 }

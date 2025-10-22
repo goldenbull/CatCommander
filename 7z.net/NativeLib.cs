@@ -14,12 +14,12 @@ public struct FormatInfo
 public partial class NativeLib
 {
     [LibraryImport("lib/7z", EntryPoint = "GetAllFormatNames")]
-    private static unsafe partial void* _GetAllFormatNames();
+    private static unsafe partial IntPtr _GetAllFormatNames();
 
-    public static unsafe string GetAllFormatNames()
+    public static string GetAllFormatNames()
     {
-        void* s = _GetAllFormatNames();
-        return Marshal.PtrToStringUni((IntPtr)s) ?? "";
+        var s = _GetAllFormatNames();
+        return Marshal.PtrToStringUni(s) ?? "";
     }
 
     [DllImport("lib/7z", CharSet = CharSet.Unicode)]
