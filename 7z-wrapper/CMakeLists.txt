@@ -6,6 +6,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# Architecture-specific settings for different platforms
+if(WIN32)
+  # Windows: Ensure x64 build
+  set(CMAKE_GENERATOR_PLATFORM "x64" CACHE STRING "Platform" FORCE)
+else()
+  set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build for both x86_64 and arm64 architectures")
+endif()
+
 # Paths
 set(7Z_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../7z")
 set(7Z_C "${7Z_ROOT}/C")
