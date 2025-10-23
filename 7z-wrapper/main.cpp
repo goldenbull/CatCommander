@@ -10,67 +10,39 @@ Simple test program to verify GetArchiveInfo functionality.
 #include <ranges>
 #include <span>
 
+#include "uni_algo/conv.h"
 #include "wrapper.h"
 
-void testFile(std::wstring_view filename) {
-    std::wcout << std::format(L"\nTesting: {}\n", filename);
-    std::wcout << L"=====================================\n";
-
-    //ArchiveInfo info;
-    //if (GetArchiveInfoByFilename(filename.data(), info)) {
-    //    std::wcout << L"Format detected!\n";
-    //    std::wcout << std::format(L"  Name:      {}\n", info.Name.IsEmpty() ? L"(null)" : info.Name.Ptr());
-    //    std::wcout << std::format(L"  Ext:       {}\n", info.Ext.IsEmpty() ? L"(null)" : info.Ext.Ptr());
-    //    std::wcout << std::format(L"  AddExt:    {}\n", info.AddExt.IsEmpty() ? L"(null)" : info.AddExt.Ptr());
-    //    std::wcout << std::format(L"  Flags:     0x{:08X}\n", info.Flags);
-    //    std::wcout << std::format(L"  TimeFlags: 0x{:08X}\n", info.TimeFlags);
-    //} else {
-    //    std::wcout << L"No format detected (unknown or unsupported)\n";
-    //}
-}
-
-int main(int argc, char *argv[]) {
-    std::wcout << L"7z-wrapper Test Program\n";
-    std::wcout << L"=======================\n";
-
+int main(int argc, char *argv[])
+{
     // First, list all registered formats
     std::wcout << L"\nRegistered Archive Formats:\n";
     std::wcout << L"===========================\n";
-    //ListAllFormats();
-
-    if (argc > 1) {
-        // Test files provided as arguments
-        auto args = std::span(argv, argc) | std::views::drop(1);
-        for (const auto &arg: args) {
-            std::string s(arg);
-            std::wstring ws(s.begin(), s.end());
-            testFile(ws);
+    std::u16string formats = GetAllFormatNames();
+    for (auto view : std::views::split(formats, ' ')) // TODO: can not use string as delimiter, why?
+    {
+        auto fmt = std::u16string(std::u16string_view(view));
+        std::cout << una::utf16to8(fmt) << ":" << std::endl;
+        FormatInfo info;
+        if (!GetFormatInfoByName(fmt.data(), &info))
+        {
+            std::cout << "can not get format info of " << una::utf16to8(fmt) << std::endl;
+            continue;
         }
-    } else {
-        // Test with common archive extensions
-        std::wcout << L"\nTesting common archive formats:\n";
-
-        std::vector<std::wstring> testFiles = {
-            L"test.zip",
-            L"test.7z",
-            L"test.tar",
-            L"test.tar.gz",
-            L"test.tgz",
-            L"test.rar",
-            L"test.iso",
-            L"test.cab",
-            L"document.docx", // ZIP-based format
-            L"test.jar", // ZIP-based format
-            L"unknown.xyz", // Should fail
-            L"test.exe", // Should fail (excluded)
-            L"noextension" // Should fail
-        };
-
-        for (const auto &file: testFiles) {
-            testFile(file);
-            std::wcout << file << L"\n";
+        else
+        {
+            std::cout << std::format("  Ext:       {}\n", una::utf16to8(info.Ext));
+            std::cout << std::format("  AddExt:    {}\n", una::utf16to8(info.AddExt));
         }
     }
+
+    std::u16string filename = u"/Users/cjn/Downloads/uni-algo-1.2.0.zip";
+    if (argc > 1)
+    {
+        filename = una::utf8to16<char, char16_t>(argv[1]);
+    }
+    auto ret = TestExpandToCurrentFolder(filename.data());
+    std::cout << "TestExpandToCurrentFolder returns " << ret << std::endl;
 
     return 0;
 }

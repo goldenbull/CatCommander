@@ -118,6 +118,7 @@ set(MT_SOURCES
 set(7ZIP_COMMON_SOURCES
     ${7Z_CPP}/7zip/Common/CreateCoder.cpp
     ${7Z_CPP}/7zip/Common/CWrappers.cpp
+    ${7Z_CPP}/7zip/Common/FileStreams.cpp
     ${7Z_CPP}/7zip/Common/InBuffer.cpp
     ${7Z_CPP}/7zip/Common/InOutTempBuffer.cpp
     ${7Z_CPP}/7zip/Common/FilterCoder.cpp
@@ -447,6 +448,9 @@ set(ALL_SOURCES
     ${COMPRESS_SOURCES}
     ${CRYPTO_SOURCES}
     ${EXPORT_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ArchiveInfoManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MyExtract.cpp
 )
 
 add_subdirectory(${UNI_ALGO})
@@ -454,9 +458,9 @@ add_subdirectory(${UNI_ALGO})
 # Create shared library
 if(WIN32)
     # On Windows, use the custom .def file for exports (includes 7-Zip and custom exports)
-    add_library(7z SHARED ${ALL_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.cpp ${CMAKE_CURRENT_SOURCE_DIR}/ArchiveInfoManager.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.def)
+    add_library(7z SHARED ${ALL_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.def)
 else()
-    add_library(7z SHARED ${ALL_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/wrapper.cpp ${CMAKE_CURRENT_SOURCE_DIR}/ArchiveInfoManager.cpp)
+    add_library(7z SHARED ${ALL_SOURCES})
 endif()
 
 # Link libraries
@@ -486,18 +490,25 @@ else()
     set_target_properties(7z PROPERTIES PREFIX "" SUFFIX ".so")
 endif()
 
-# Set output directory to 7z.net/lib
+# Set output directory to default location (for other C++ apps)
 set_target_properties(7z PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib"
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-# Install targets - Use relative path to avoid CMP0177 policy warning
+# Install targets to default location for other C++ apps
 install(TARGETS 7z
-    LIBRARY DESTINATION ../7z.net/lib
-    ARCHIVE DESTINATION ../7z.net/lib
-    RUNTIME DESTINATION ../7z.net/lib
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
+# Copy the built library to 7z.net/lib for .NET project using a custom command
+add_custom_command(TARGET 7z POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:7z> "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib/"
+    COMMENT "Copying library to 7z.net/lib for .NET project"
 )
 
 # Test executable

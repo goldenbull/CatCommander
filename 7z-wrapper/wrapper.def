@@ -22,3 +22,4 @@ EXPORTS
   ; Custom exports from library.cpp
   GetAllFormatNames
   GetFormatInfoByName
+  TestExpandToCurrentFolder

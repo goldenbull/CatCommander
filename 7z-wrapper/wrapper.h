@@ -9,11 +9,14 @@ struct FormatInfo
     char16_t Name[64];
     char16_t Ext[256];
     char16_t AddExt[256];
-    int8_t ClassID[sizeof(GUID)];
+    GUID ClassID;
 };
 #pragma pack(pop)
 
-extern "C" {
-    char16_t* GetAllFormatNames(); // names are separated by space
-    bool GetFormatInfoByName(char16_t* name, FormatInfo* info);
+extern "C"
+{
+    char16_t *GetAllFormatNames(); // names are separated by space
+    bool GetFormatInfoByName(char16_t *name, FormatInfo *info);
+
+    bool TestExpandToCurrentFolder(const char16_t *filename);
 }

@@ -17,8 +17,8 @@
 #include "ArchiveInfoManager.h"
 
 // External API functions from ArchiveExports.cpp
-STDAPI GetNumberOfFormats(UINT32* numFormats);
-STDAPI GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT* value);
+STDAPI GetNumberOfFormats(UINT32 *numFormats);
+STDAPI GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT *value);
 
 // Implementation of the ArchiveInfoManager singleton
 ArchiveInfoManager::ArchiveInfoManager()
@@ -27,7 +27,7 @@ ArchiveInfoManager::ArchiveInfoManager()
     initialize();
 }
 
-ArchiveInfoManager& ArchiveInfoManager::getInstance()
+ArchiveInfoManager &ArchiveInfoManager::getInstance()
 {
     static ArchiveInfoManager instance; // Guaranteed to be destroyed and instantiated on first use
     return instance;
@@ -48,8 +48,8 @@ bool ArchiveInfoManager::initialize()
         // Get format name
         if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kName, &prop) == S_OK && prop.vt == VT_BSTR && prop.bstrVal)
         {
-            std::wstring s(prop.bstrVal);// BSTR is wchar_t*
-            info.Name = std::u16string(s.begin(),s.end());
+            std::wstring s(prop.bstrVal); // BSTR is wchar_t*
+            info.Name = std::u16string(s.begin(), s.end());
             all_names = all_names + info.Name + u" ";
         }
 
@@ -57,14 +57,14 @@ bool ArchiveInfoManager::initialize()
         if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kExtension, &prop) == S_OK && prop.vt == VT_BSTR && prop.bstrVal)
         {
             std::wstring s(prop.bstrVal);
-            info.Ext =  std::u16string(s.begin(),s.end());
+            info.Ext = std::u16string(s.begin(), s.end());
         }
 
         // Get AddExtension
         if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kAddExtension, &prop) == S_OK && prop.vt == VT_BSTR && prop.bstrVal)
         {
             std::wstring s(prop.bstrVal);
-            info.AddExt = std::u16string(s.begin(),s.end());
+            info.AddExt = std::u16string(s.begin(), s.end());
         }
 
         // Get Flags
@@ -89,7 +89,7 @@ bool ArchiveInfoManager::initialize()
         std::ranges::copy(info.Name, info.simple.Name);
         std::ranges::copy(info.Ext, info.simple.Ext);
         std::ranges::copy(info.AddExt, info.simple.AddExt);
-        memcpy(info.simple.ClassID, &info.ClassID, sizeof(GUID));
+        info.simple.ClassID = info.ClassID;
 
         // Add to the map
         m_archiveMap[info.Name] = info;
@@ -113,7 +113,7 @@ bool ArchiveInfoManager::initialize()
     return true;
 }
 
-bool ArchiveInfoManager::getArchiveInfoByName(const std::u16string& name, ArchiveInfo& info) const
+bool ArchiveInfoManager::getArchiveInfoByName(const std::u16string &name, ArchiveInfo &info) const
 {
     auto it = m_archiveMap.find(name);
     if (it != m_archiveMap.end())
@@ -124,7 +124,7 @@ bool ArchiveInfoManager::getArchiveInfoByName(const std::u16string& name, Archiv
     return false;
 }
 
-bool ArchiveInfoManager::getArchiveInfoByExtension(const std::u16string& ext, ArchiveInfo& info) const
+bool ArchiveInfoManager::getArchiveInfoByExtension(const std::u16string &ext, ArchiveInfo &info) const
 {
     auto it = m_extToFormat.find(una::cases::to_lowercase_utf16(ext));
     if (it != m_extToFormat.end())
@@ -140,18 +140,17 @@ bool ArchiveInfoManager::getArchiveInfoByExtension(const std::u16string& ext, Ar
     return false;
 }
 
-bool ArchiveInfoManager::isSupportedFormat(const std::u16string& ext) const
+bool ArchiveInfoManager::isSupportedFormat(const std::u16string &ext) const
 {
     return m_extToFormat.contains(una::cases::to_lowercase_utf16(ext));
 }
-
 
 std::vector<std::u16string> ArchiveInfoManager::getAllFormatNames() const
 {
     std::vector<std::u16string> formatNames;
     formatNames.reserve(m_archiveMap.size());
 
-    for (const auto& key : m_archiveMap | std::views::keys)
+    for (const auto &key : m_archiveMap | std::views::keys)
     {
         formatNames.push_back(key);
     }
