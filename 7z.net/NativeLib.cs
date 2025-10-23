@@ -15,6 +15,11 @@ public struct FormatInfo
 
     [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
     public string AddExt;
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+    byte[] ClassID_data;
+
+    public Guid ClassID => new Guid(ClassID_data);
 }
 
 public partial class NativeLib

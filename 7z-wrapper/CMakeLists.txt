@@ -486,11 +486,18 @@ else()
     set_target_properties(7z PROPERTIES PREFIX "" SUFFIX ".so")
 endif()
 
-# Install targets
+# Set output directory to 7z.net/lib
+set_target_properties(7z PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../7z.net/lib"
+)
+
+# Install targets - Use relative path to avoid CMP0177 policy warning
 install(TARGETS 7z
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION ../7z.net/lib
+    ARCHIVE DESTINATION ../7z.net/lib
+    RUNTIME DESTINATION ../7z.net/lib
 )
 
 # Test executable

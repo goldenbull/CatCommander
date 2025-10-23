@@ -79,10 +79,17 @@ bool ArchiveInfoManager::initialize()
             info.TimeFlags = prop.ulVal;
         }
 
+        // Get Class ID
+        if (GetHandlerProperty2(i, NArchive::NHandlerPropID::kClassID, &prop) == S_OK && prop.vt == VT_BSTR && prop.bstrVal)
+        {
+            memcpy(&info.ClassID, prop.bstrVal, sizeof(GUID));
+        }
+
         // fill interop struct
         std::ranges::copy(info.Name, info.simple.Name);
         std::ranges::copy(info.Ext, info.simple.Ext);
         std::ranges::copy(info.AddExt, info.simple.AddExt);
+        memcpy(info.simple.ClassID, &info.ClassID, sizeof(GUID));
 
         // Add to the map
         m_archiveMap[info.Name] = info;

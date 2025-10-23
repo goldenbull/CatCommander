@@ -18,6 +18,7 @@ class Program
                 Console.WriteLine(info.Name);
                 Console.WriteLine(info.Ext);
                 Console.WriteLine(info.AddExt);
+                Console.WriteLine(info.ClassID);
             }
             else
             {

@@ -17,6 +17,7 @@ struct ArchiveInfo
 
     UInt32 Flags;
     UInt32 TimeFlags;
+    GUID ClassID;
     bool IsMultiSignature() const { return (Flags & NArcInfoFlags::kMultiSignature) != 0; }
 
     // and alse a simplified member for interop
