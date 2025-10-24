@@ -14,7 +14,7 @@
     <!-- Top menu bar-->
     <NativeMenu.Menu>
         <NativeMenu>
-            <NativeMenuItem Header="File">
+            <NativeMenuItem Header="文件">
                 <NativeMenu>
                     <NativeMenuItem Header="Open" Gesture="Meta+O" Command="{Binding OpenCommand}" />
                     <NativeMenuItem Header="Save" Gesture="Meta+S" />
@@ -39,9 +39,9 @@
             </OnPlatform.macOS>
             <OnPlatform.Default>
                 <DockPanel DockPanel.Dock="Top">
-                    <NativeMenuBar DockPanel.Dock="Left" FontSize="12" Height="20" />
+                    <NativeMenuBar DockPanel.Dock="Left" FontSize="12" Height="18" />
                     <!-- right aligned menu items on windows and linux -->
-                    <Menu DockPanel.Dock="Right" Height="20" FontSize="12">
+                    <Menu DockPanel.Dock="Right" Height="18" FontSize="12">
                         <Menu.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <DockPanel HorizontalAlignment="Stretch"></DockPanel>
@@ -59,12 +59,12 @@
 
         <!-- Toolbar -->
         <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="1">
-            <StackPanel Orientation="Horizontal" Height="24" Spacing="1">
+            <StackPanel Orientation="Horizontal" Spacing="1">
                 <StackPanel.Styles>
                     <Style Selector="Button">
                         <Setter Property="MinHeight" Value="0" />
-                        <Setter Property="Height" Value="24" />
-                        <Setter Property="Width" Value="24" />
+                        <Setter Property="Height" Value="18" />
+                        <Setter Property="Width" Value="18" />
                         <Setter Property="Padding" Value="0" />
                         <Setter Property="Margin" Value="1" />
                     </Style>
@@ -78,7 +78,7 @@
                 <Button>
                     <Image Source="/Images/left_32x32.png" />
                 </Button>
-                <Separator Width="1" Height="16" VerticalAlignment="Center" Margin="4" />
+                <Separator Width="1" Height="14" Background="DarkGray" VerticalAlignment="Center" Margin="2" />
                 <Button ToolTip.Tip="forward">
                     <Image Source="/Images/right_32x32.png" />
                 </Button>
