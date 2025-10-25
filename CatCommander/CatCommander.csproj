@@ -60,4 +60,8 @@
             <SubType>Code</SubType>
         </Compile>
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\libcat\libcat.csproj" />
+    </ItemGroup>
 </Project>
