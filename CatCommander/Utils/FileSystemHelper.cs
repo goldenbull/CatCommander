@@ -190,6 +190,145 @@ public static class FileSystemHelper
         }
     }
 
+    /// <summary>
+    /// Gets the system icon for a file or folder (as shown in Finder/Explorer)
+    /// Returns null if the icon cannot be retrieved
+    /// </summary>
+    /// <param name="fullPath">Full path to the file or folder</param>
+    /// <returns>Icon identifier/path or null</returns>
+    public static string? GetSystemIcon(string fullPath)
+    {
+        if (string.IsNullOrEmpty(fullPath))
+            return null;
+
+        try
+        {
+            var os = GetOperatingSystem();
+
+            switch (os)
+            {
+                case OperatingSystemType.Windows:
+                    return GetWindowsIcon(fullPath);
+
+                case OperatingSystemType.MacOS:
+                    return GetMacOSIcon(fullPath);
+
+                case OperatingSystemType.Linux:
+                    return GetLinuxIcon(fullPath);
+
+                default:
+                    return GetFallbackIcon(fullPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, $"Failed to get system icon for: {fullPath}");
+            return null;
+        }
+    }
+
+    private static string? GetWindowsIcon(string fullPath)
+    {
+        // On Windows, we return the file path itself
+        // The icon can be extracted using SHGetFileInfo in the UI layer
+        // For now, return the extension which can be used to determine icon
+        try
+        {
+            if (Directory.Exists(fullPath))
+                return "folder";
+
+            var extension = Path.GetExtension(fullPath)?.ToLowerInvariant();
+            return string.IsNullOrEmpty(extension) ? "file" : extension;
+        }
+        catch
+        {
+            return "file";
+        }
+    }
+
+    private static string? GetMacOSIcon(string fullPath)
+    {
+        // On macOS, NSWorkspace can be used to get icons
+        // For now, we'll return a type identifier
+        try
+        {
+            if (Directory.Exists(fullPath))
+                return "folder";
+
+            var extension = Path.GetExtension(fullPath)?.ToLowerInvariant();
+
+            // Return UTI (Uniform Type Identifier) style identifiers
+            return extension switch
+            {
+                ".txt" => "public.plain-text",
+                ".pdf" => "com.adobe.pdf",
+                ".jpg" or ".jpeg" => "public.jpeg",
+                ".png" => "public.png",
+                ".gif" => "com.compuserve.gif",
+                ".mp3" => "public.mp3",
+                ".mp4" => "public.mpeg-4",
+                ".zip" => "public.zip-archive",
+                ".dmg" => "com.apple.disk-image",
+                ".app" => "com.apple.application-bundle",
+                _ => string.IsNullOrEmpty(extension) ? "public.data" : extension
+            };
+        }
+        catch
+        {
+            return "public.data";
+        }
+    }
+
+    private static string? GetLinuxIcon(string fullPath)
+    {
+        // On Linux, icon names follow freedesktop.org standards
+        // Return MIME type based icon names
+        try
+        {
+            if (Directory.Exists(fullPath))
+                return "folder";
+
+            var extension = Path.GetExtension(fullPath)?.ToLowerInvariant();
+
+            return extension switch
+            {
+                ".txt" => "text-plain",
+                ".pdf" => "application-pdf",
+                ".jpg" or ".jpeg" => "image-jpeg",
+                ".png" => "image-png",
+                ".gif" => "image-gif",
+                ".mp3" => "audio-mpeg",
+                ".mp4" => "video-mp4",
+                ".zip" or ".tar" or ".gz" => "application-zip",
+                ".deb" => "application-x-deb",
+                ".rpm" => "application-x-rpm",
+                ".sh" => "text-x-script",
+                _ => "text-x-generic"
+            };
+        }
+        catch
+        {
+            return "text-x-generic";
+        }
+    }
+
+    private static string? GetFallbackIcon(string fullPath)
+    {
+        // Fallback for unknown OS
+        try
+        {
+            if (Directory.Exists(fullPath))
+                return "folder";
+
+            var extension = Path.GetExtension(fullPath)?.ToLowerInvariant();
+            return string.IsNullOrEmpty(extension) ? "file" : extension;
+        }
+        catch
+        {
+            return "file";
+        }
+    }
+
     private static DriveInformation CreateDriveInformation(DriveInfo drive)
     {
         var info = new DriveInformation

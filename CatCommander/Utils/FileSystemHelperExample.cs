@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 
 namespace CatCommander.Utils;
@@ -152,6 +153,36 @@ public static class FileSystemHelperExample
         foreach (var size in sizes)
         {
             Console.WriteLine($"{size,15} bytes = {FileSystemHelper.FormatFileSize(size)}");
+        }
+    }
+
+    /// <summary>
+    /// Example: Get system icons for files
+    /// </summary>
+    public static void Example6b_GetSystemIcons()
+    {
+        Console.WriteLine("=== System Icon Identifiers ===\n");
+
+        var testPaths = new[]
+        {
+            @"/Users/test/Documents",
+            @"/Users/test/file.txt",
+            @"/Users/test/image.png",
+            @"/Users/test/video.mp4",
+            @"/Users/test/document.pdf",
+            @"/Users/test/archive.zip",
+            @"C:\Windows\System32\notepad.exe",
+            @"C:\Users\test\document.docx"
+        };
+
+        foreach (var path in testPaths)
+        {
+            var iconId = FileSystemHelper.GetSystemIcon(path);
+            var fileName = Path.GetFileName(path);
+            if (string.IsNullOrEmpty(fileName))
+                fileName = path;
+
+            Console.WriteLine($"{fileName,-30} → Icon: {iconId ?? "(none)"}");
         }
     }
 
