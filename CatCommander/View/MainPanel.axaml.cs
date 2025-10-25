@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using CatCommander.ViewModels;
 
-namespace CatCommander.UI;
+namespace CatCommander.View;
 
 public partial class MainPanel : UserControl
 {

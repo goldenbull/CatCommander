@@ -3,7 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using CatCommander.ViewModels;
 
-namespace CatCommander.UI;
+namespace CatCommander.View;
 
 public partial class ItemsBrowser : UserControl
 {
