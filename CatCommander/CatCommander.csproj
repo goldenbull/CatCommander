@@ -36,6 +36,7 @@
 
     <ItemGroup>
         <AvaloniaResource Include="Images\*.png"/>
+        <AvaloniaResource Include="Assets\*.png"/>
     </ItemGroup>
 
     <ItemGroup>
