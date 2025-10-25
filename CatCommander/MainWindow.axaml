@@ -10,7 +10,7 @@
         WindowState="Maximized"
         x:Class="CatCommander.MainWindow"
         Title="CatCommander"
-        x:DataType="vm:MainViewModel">
+        x:DataType="vm:MainWindowViewModel">
     <!-- Top menu bar-->
     <NativeMenu.Menu>
         <NativeMenu>

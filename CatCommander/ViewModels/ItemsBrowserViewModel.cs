@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -6,6 +8,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
+using Avalonia.Controls.Selection;
 using CatCommander.Models;
 using NLog;
 
@@ -17,6 +20,7 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
 
     private string _currentPath = string.Empty;
     private HierarchicalTreeDataGridSource<FileItemModel>? _fileItems;
+    private int _selectedCount;
 
     public ItemsBrowserViewModel()
     {
@@ -64,9 +68,40 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Number of selected items
+    /// </summary>
+    public int SelectedCount
+    {
+        get => _selectedCount;
+        private set
+        {
+            if (_selectedCount != value)
+            {
+                _selectedCount = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the currently selected items
+    /// </summary>
+    public IEnumerable<FileItemModel> SelectedItems
+    {
+        get
+        {
+            if (FileItems?.Selection is TreeDataGridRowSelectionModel<FileItemModel> selection)
+            {
+                return selection.SelectedItems.Where(item => item != null)!;
+            }
+            return Enumerable.Empty<FileItemModel>();
+        }
+    }
+
     private void InitializeFileItems()
     {
-        FileItems = new HierarchicalTreeDataGridSource<FileItemModel>(Array.Empty<FileItemModel>())
+        var source = new HierarchicalTreeDataGridSource<FileItemModel>(Array.Empty<FileItemModel>())
         {
             Columns =
             {
@@ -78,6 +113,60 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
                 new TextColumn<FileItemModel, DateTime>("Modified", x => x.Modified, new GridLength(150))
             }
         };
+
+        ConfigureSelection(source);
+        FileItems = source;
+    }
+
+    private void ConfigureSelection(HierarchicalTreeDataGridSource<FileItemModel> source)
+    {
+        // RowSelection is auto-initialized, just configure it
+        if (source.RowSelection != null)
+        {
+            source.RowSelection.SingleSelect = false;
+            source.RowSelection.SelectionChanged += OnSelectionChanged;
+        }
+    }
+
+    private void OnSelectionChanged(object? sender, TreeSelectionModelSelectionChangedEventArgs<FileItemModel> e)
+    {
+        SelectedCount = SelectedItems.Count();
+        log.Debug($"Selection changed: {SelectedCount} items selected");
+    }
+
+    /// <summary>
+    /// Toggles the selection of the currently focused item (Space key handler)
+    /// </summary>
+    public void ToggleCurrentItemSelection()
+    {
+        if (FileItems?.RowSelection is TreeDataGridRowSelectionModel<FileItemModel> selection)
+        {
+            // Get the current focused row index
+            var focusedIndex = selection.AnchorIndex;
+            if (focusedIndex.Count > 0)
+            {
+                var rowIndex = focusedIndex[0];
+
+                // Get the item at that index
+                var items = FileItems.Items.ToList();
+                if (rowIndex >= 0 && rowIndex < items.Count)
+                {
+                    var item = items[rowIndex];
+
+                    // Toggle selection
+                    if (selection.IsSelected(focusedIndex))
+                    {
+                        selection.Deselect(focusedIndex);
+                        log.Debug($"Deselected item: {item?.Name}");
+                    }
+                    else
+                    {
+                        selection.Select(focusedIndex);
+                        log.Debug($"Selected item: {item?.Name}");
+                    }
+                }
+            }
+        }
     }
 
     private void LoadDirectory(string path)
@@ -158,7 +247,7 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
             log.Debug($"Loaded directory {path}: {dirCount} directories, {fileCount} files");
 
             // Update the TreeDataGrid source
-            FileItems = new HierarchicalTreeDataGridSource<FileItemModel>(items)
+            var source = new HierarchicalTreeDataGridSource<FileItemModel>(items)
             {
                 Columns =
                 {
@@ -170,6 +259,9 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
                     new TextColumn<FileItemModel, DateTime>("Modified", x => x.Modified, new GridLength(150))
                 }
             };
+
+            ConfigureSelection(source);
+            FileItems = source;
         }
         catch (Exception ex)
         {

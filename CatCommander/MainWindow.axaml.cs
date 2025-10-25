@@ -13,7 +13,7 @@ namespace CatCommander
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+            DataContext = new MainWindowViewModel();
         }
 
         private void Button_OnClick(object? sender, RoutedEventArgs e)

@@ -1,6 +1,5 @@
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
+using CatCommander.ViewModels;
 
 namespace CatCommander.UI;
 
@@ -9,5 +8,6 @@ public partial class MainPanel : UserControl
     public MainPanel()
     {
         InitializeComponent();
+        DataContext = new MainPanelViewModel();
     }
 }

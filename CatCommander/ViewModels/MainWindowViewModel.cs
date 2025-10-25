@@ -8,11 +8,11 @@ using ReactiveUI;
 
 namespace CatCommander.ViewModels;
 
-public class MainViewModel : INotifyPropertyChanged
+public class MainWindowViewModel : INotifyPropertyChanged
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
-    public MainViewModel()
+    public MainWindowViewModel()
     {
         // Initialize commands with CanExecute observables
         OpenCommand = ReactiveCommand.Create(ExecuteOpen, CanExecuteOpenObservable, RxApp.MainThreadScheduler);

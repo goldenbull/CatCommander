@@ -10,12 +10,12 @@ namespace CatCommander.Utils;
 /// Can be built from a flattened list of IFileSystemItem objects.
 /// Useful for reconstructing directory structure from zip archives, SFTP listings, etc.
 /// </summary>
-public class FileTreeNode
+public class FileItemTreeNode
 {
-    private FileTreeNode(string path)
+    private FileItemTreeNode(string path)
     {
         FullPath = path;
-        Children = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
+        Children = new Dictionary<string, FileItemTreeNode>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -41,7 +41,7 @@ public class FileTreeNode
     /// <summary>
     /// Child nodes indexed by name
     /// </summary>
-    public Dictionary<string, FileTreeNode> Children { get; }
+    public Dictionary<string, FileItemTreeNode> Children { get; }
 
     /// <summary>
     /// Whether this node has any children
@@ -54,9 +54,9 @@ public class FileTreeNode
     /// <param name="items">Flattened list of items with full paths</param>
     /// <param name="separator">Path separator character (default: '/')</param>
     /// <returns>Root node containing the tree structure</returns>
-    public static FileTreeNode CreateFrom(IEnumerable<IFileSystemItem> items, char separator = '/')
+    public static FileItemTreeNode CreateFrom(IEnumerable<IFileSystemItem> items, char separator = '/')
     {
-        var root = new FileTreeNode(string.Empty);
+        var root = new FileItemTreeNode(string.Empty);
 
         foreach (var item in items)
         {
@@ -72,7 +72,7 @@ public class FileTreeNode
     /// <param name="path">Path to query (empty for root)</param>
     /// <param name="separator">Path separator character (default: '/')</param>
     /// <returns>List of items at the specified path</returns>
-    public IEnumerable<FileTreeNode> GetItemsAtPath(string path, char separator = '/')
+    public IEnumerable<FileItemTreeNode> GetItemsAtPath(string path, char separator = '/')
     {
         if (string.IsNullOrEmpty(path))
         {
@@ -86,7 +86,7 @@ public class FileTreeNode
         {
             if (!current.Children.TryGetValue(part, out var child))
             {
-                return Enumerable.Empty<FileTreeNode>();
+                return Enumerable.Empty<FileItemTreeNode>();
             }
             current = child;
         }
@@ -97,7 +97,7 @@ public class FileTreeNode
     /// <summary>
     /// Finds a node at the specified relative path
     /// </summary>
-    public FileTreeNode? FindNode(string relativePath, char separator = '/')
+    public FileItemTreeNode? FindNode(string relativePath, char separator = '/')
     {
         if (string.IsNullOrEmpty(relativePath))
         {
@@ -122,7 +122,7 @@ public class FileTreeNode
     /// <summary>
     /// Gets all descendant items recursively
     /// </summary>
-    public IEnumerable<FileTreeNode> GetAllDescendants()
+    public IEnumerable<FileItemTreeNode> GetAllDescendants()
     {
         foreach (var child in Children.Values)
         {
@@ -138,7 +138,7 @@ public class FileTreeNode
     /// <summary>
     /// Gets all file items (non-directories) recursively
     /// </summary>
-    public IEnumerable<FileTreeNode> GetAllFiles()
+    public IEnumerable<FileItemTreeNode> GetAllFiles()
     {
         return GetAllDescendants().Where(n => !n.IsDirectory);
     }
@@ -146,12 +146,12 @@ public class FileTreeNode
     /// <summary>
     /// Gets all directory items recursively
     /// </summary>
-    public IEnumerable<FileTreeNode> GetAllDirectories()
+    public IEnumerable<FileItemTreeNode> GetAllDirectories()
     {
         return GetAllDescendants().Where(n => n.IsDirectory);
     }
 
-    private static void AddItemToTree(FileTreeNode root, IFileSystemItem item, char separator)
+    private static void AddItemToTree(FileItemTreeNode root, IFileSystemItem item, char separator)
     {
         var path = item.FullPath.Replace('\\', separator); // Normalize separators
         var parts = path.Split(separator, StringSplitOptions.RemoveEmptyEntries);
@@ -173,7 +173,7 @@ public class FileTreeNode
             if (!current.Children.TryGetValue(part, out var child))
             {
                 // Create intermediate directory node (no item, just a virtual directory)
-                child = new FileTreeNode(currentPath)
+                child = new FileItemTreeNode(currentPath)
                 {
                     Name = part
                 };
@@ -187,7 +187,7 @@ public class FileTreeNode
         var finalPart = parts[^1];
         if (!current.Children.ContainsKey(finalPart))
         {
-            current.Children[finalPart] = new FileTreeNode(item.FullPath)
+            current.Children[finalPart] = new FileItemTreeNode(item.FullPath)
             {
                 Name = item.Name,
                 Item = item

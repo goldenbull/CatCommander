@@ -5,9 +5,9 @@ using CatCommander.Models;
 namespace CatCommander.Utils;
 
 /// <summary>
-/// Example usage of FileTreeNode for reconstructing directory structure from flat lists
+/// Example usage of FileItemTreeNode for reconstructing directory structure from flat lists
 /// </summary>
-public static class FileTreeNodeExample
+public static class FileItemTreeNodeExample
 {
     /// <summary>
     /// Example: Building tree from zip archive entries (IFileSystemItem list)
@@ -55,7 +55,7 @@ public static class FileTreeNodeExample
         };
 
         // Build tree from flat list
-        var tree = FileTreeNode.CreateFrom(zipItems);
+        var tree = FileItemTreeNode.CreateFrom(zipItems);
 
         // Get all items at root level
         var rootItems = tree.GetItemsAtPath("");
@@ -137,7 +137,7 @@ public static class FileTreeNodeExample
         };
 
         // Build tree from flat list
-        var tree = FileTreeNode.CreateFrom(items);
+        var tree = FileItemTreeNode.CreateFrom(items);
 
         // Simulate browsing starting from root
         Console.WriteLine("\n=== File Browser Simulation ===");
@@ -187,7 +187,7 @@ public static class FileTreeNodeExample
         };
 
         // Build tree from flat list
-        var tree = FileTreeNode.CreateFrom(items);
+        var tree = FileItemTreeNode.CreateFrom(items);
 
         // Navigate to 'src' - this is a virtual directory (not in the original list)
         var srcNode = tree.FindNode("src");
@@ -213,9 +213,9 @@ public static class FileTreeNodeExample
         }
     }
 
-    private static void ShowCurrentDirectory(FileTreeNode tree, string path)
+    private static void ShowCurrentDirectory(FileItemTreeNode itemTree, string path)
     {
-        var items = tree.GetItemsAtPath(path);
+        var items = itemTree.GetItemsAtPath(path);
         foreach (var item in items)
         {
             var type = item.IsDirectory ? "[DIR]" : "[FILE]";

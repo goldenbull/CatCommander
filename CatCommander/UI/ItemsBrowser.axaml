@@ -41,13 +41,12 @@
         </Grid>
 
         <!-- status bar -->
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="4">
             <TextBlock Text="Ready" VerticalAlignment="Center" />
             <Separator Width="1" Height="20" VerticalAlignment="Center" />
-            <TextBlock Text="Selected: 0 files" VerticalAlignment="Center" />
-            <Separator  Width="1" Height="20" VerticalAlignment="Center" />
-            <TextBlock Text="Total: " VerticalAlignment="Center" />
-            <TextBlock Text="{Binding PathHistory.Count}" VerticalAlignment="Center" />
+            <TextBlock Text="Selected:" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding SelectedCount}" VerticalAlignment="Center" />
+            <TextBlock Text="files" VerticalAlignment="Center" />
         </StackPanel>
 
         <!-- TreeDataGrid for file listing -->
