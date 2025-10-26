@@ -4,7 +4,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using CatCommander.Commands;
 using CatCommander.Utils;
+using CatCommander.View;
 using CatCommander.ViewModels;
 using NLog;
 
@@ -14,45 +16,46 @@ namespace CatCommander
     {
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
         private DateTime? lastMetaKeyPress;
+        private KeyboardHookManager? _keyboardHook;
 
         public MainWindow()
         {
             InitializeComponent();
             DataContext = new MainWindowViewModel();
 
-            // Attach PreviewKeyDown event handler (tunneling event)
-            // handledEventsToo=true ensures we get events even if they're marked as handled
-            // Use Tunnel | Bubble to catch events in both phases
-            AddHandler(KeyDownEvent, Window_PreviewKeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
-
-            // Also listen to KeyUp to detect Meta key releases
-            AddHandler(KeyUpEvent, Window_PreviewKeyUp, RoutingStrategies.Tunnel, true);
+            // Initialize keyboard hook manager
+            InitializeKeyboardHook();
 
             // Handle Closing event to detect Meta+Q triggered closes
             Closing += MainWindow_Closing;
+        }
 
-            // Add KeyBinding for Control+Tab to intercept it before other controls
-            this.KeyBindings.Add(new KeyBinding
+        private void InitializeKeyboardHook()
+        {
+            try
             {
-                Gesture = new KeyGesture(Key.Tab, KeyModifiers.Control),
-                Command = ReactiveUI.ReactiveCommand.Create(() =>
-                {
-                    var keyInfo = "Control Tab (CAPTURED via KeyBinding!)";
-                    tbKeyPreview.Text = keyInfo;
-                    log.Debug(keyInfo);
-                })
-            });
+                _keyboardHook = new KeyboardHookManager();
+                _keyboardHook.KeyPressed += OnGlobalKeyPressed;
+                _keyboardHook.Start();
+                log.Info("Keyboard hook initialized and started");
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex, "Failed to initialize keyboard hook. Falling back to Avalonia events.");
+                // Fallback to Avalonia's keyboard events if hook fails
+                AddHandler(KeyDownEvent, Window_PreviewKeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
+                AddHandler(KeyUpEvent, Window_PreviewKeyUp, RoutingStrategies.Tunnel, true);
+            }
+        }
 
-            // Override the Quit command to intercept Meta+Q
-            this.KeyBindings.Add(new KeyBinding
+        private void OnGlobalKeyPressed(object? sender, CatKeyEventArgs e)
+        {
+            // Run on UI thread
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                Gesture = new KeyGesture(Key.Q, KeyModifiers.Meta),
-                Command = ReactiveUI.ReactiveCommand.Create(() =>
-                {
-                    var keyInfo = "Meta Q (CAPTURED via KeyBinding)";
-                    tbKeyPreview.Text = keyInfo;
-                    log.Debug(keyInfo);
-                })
+                var keyCombination = e.ToString();
+                tbKeyPreview.Text = keyCombination;
+                log.Debug($"Global key pressed: {keyCombination}");
             });
         }
 
@@ -135,7 +138,8 @@ namespace CatCommander
 
             if (result == MessageBoxResult.Yes)
             {
-                // User confirmed exit, close without triggering this event again
+                // User confirmed exit, cleanup and close
+                _keyboardHook?.Dispose();
                 Closing -= MainWindow_Closing;
                 Close();
             }

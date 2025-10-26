@@ -5,7 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace CatCommander.Utils;
+namespace CatCommander.View;
 
 /// <summary>
 /// Result of a MessageBox dialog
