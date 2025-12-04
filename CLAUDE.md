@@ -75,6 +75,10 @@ CatCommander follows a standard Avalonia MVVM architecture with three main conce
   - Created with reference to `MainWindowViewModel`
   - All commands follow pattern: Execute method, CanExecute method, and CanExecute observable
   - Commands are currently stubs awaiting implementation
+- `KeyboardHookManager`: Low-level global keyboard hook using SharpHook library
+  - Tracks modifier keys (Ctrl, Alt, Shift, Meta) across key presses
+  - Normalizes key combinations to consistent format for comparison
+  - Raises `KeyPressed` events with `CatKeyEventArgs` containing modifiers and key code
 
 **Data Models (libcat project)**:
 - `IFileSystemItem`: Interface for file system items from various sources (disk, zip, SFTP, FTP)
@@ -110,6 +114,7 @@ CatCommander follows a standard Avalonia MVVM architecture with three main conce
 - **Avalonia.Controls.TreeDataGrid**: File list display
 - **Semi.Avalonia**: Theme and extended controls (AvaloniaEdit, ColorPicker, DataGrid, Dock, TreeDataGrid)
 - **ReactiveUI 22.1.1**: Command handling and reactive patterns (MVVM infrastructure)
+- **SharpHook 7.0.3**: Global keyboard hook for capturing system-wide keyboard events
 - **Tomlyn 0.19.0**: TOML configuration parsing
 - **NLog 6.0.5**: Logging framework with Microsoft.Extensions.Logging integration
 
@@ -130,7 +135,8 @@ CatCommander follows a standard Avalonia MVVM architecture with three main conce
 /
 ├── CatCommander/              # Main UI application
 │   ├── Commands/              # Command management
-│   │   └── CommandManager.cs  # Centralized command coordinator
+│   │   ├── CommandManager.cs     # Centralized command coordinator
+│   │   └── KeyboardHookManager.cs # Global keyboard hook handler
 │   ├── Configuration/         # TOML configuration management
 │   │   ├── ConfigManager.cs   # Singleton loader/saver
 │   │   ├── AppConfig.cs       # Configuration data structures
@@ -187,6 +193,15 @@ To add a new command:
 2. Initialize in `InitializeCommands()`
 3. Create Execute/CanExecute methods and observable
 4. Wire up in UI (MainWindow.axaml or keybindings)
+
+### Keyboard Hook System
+
+The `KeyboardHookManager` uses SharpHook to capture global keyboard events:
+- Tracks modifier key states (Ctrl, Alt, Shift, Meta) across key presses/releases
+- Normalizes key combinations using `Normalized()` method for consistent comparison
+- Key normalization handles different formats (e.g., "Ctrl+Alt+A", "alt+ctrl+vca" both normalize to "ctrl+alt+a")
+- Modifier-only key presses do not trigger events (only actual key+modifier combinations)
+- Must call `Start()` to begin capturing events and `Dispose()` to clean up
 
 ### Configuration System
 
