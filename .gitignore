@@ -421,3 +421,6 @@ _o/
 o/
 build/
 
+# MacOS
+.DS_Store
+

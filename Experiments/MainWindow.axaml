@@ -7,10 +7,12 @@
         x:Class="Experiments.MainWindow"
         Title="Experiments"
         x:DataType="my:MyViewModel">
-    <StackPanel Orientation="Vertical">
-        <Button Command="{Binding ClickMe}">Add 1</Button>
-        <Button Command="{Binding RunBackground}">Add BackGround</Button>
-        <TextBlock Text="{Binding Counter}" />
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Vertical">
+            <Button Command="{Binding ClickMe}">Add 1</Button>
+            <Button Command="{Binding RunBackground}">Add BackGround</Button>
+            <TextBlock Text="{Binding Counter}" />
+        </StackPanel>
         <ListBox ItemsSource="{Binding Numbers}"
                  ScrollViewer.VerticalScrollBarVisibility="Visible"
                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
@@ -18,10 +20,10 @@
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock>id:</TextBlock>
-                        <TextBlock Text="{Binding}"></TextBlock>
+                        <TextBlock Text="{Binding}" />
                     </StackPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-    </StackPanel>
+    </DockPanel>
 </Window>
