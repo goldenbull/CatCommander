@@ -19,6 +19,7 @@
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="Metalama.Patterns.Observability" Version="2025.1.16" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
         <PackageReference Include="Semi.Avalonia" Version="11.3.7.1" />
         <PackageReference Include="Semi.Avalonia.AvaloniaEdit" Version="11.2.0.1" />

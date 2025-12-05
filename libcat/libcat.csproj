@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="11.3.9" />
+        <PackageReference Include="Metalama.Patterns.Observability" Version="2025.1.16" />
         <PackageReference Include="NLog" Version="6.0.6" />
         <PackageReference Include="System.Drawing.Common" Version="10.0.0" />
         <PackageReference Include="SharpCompress" Version="0.42.0" />
