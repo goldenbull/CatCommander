@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "libcat", "libcat\libcat.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestCat", "TestCat\TestCat.csproj", "{065BC641-FCF5-4E02-88B0-A622A01B7D1A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Experiments", "Experiments\Experiments.csproj", "{D1CC1866-E724-46DA-AACB-D5447FD252A3}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{065BC641-FCF5-4E02-88B0-A622A01B7D1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{065BC641-FCF5-4E02-88B0-A622A01B7D1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{065BC641-FCF5-4E02-88B0-A622A01B7D1A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D1CC1866-E724-46DA-AACB-D5447FD252A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D1CC1866-E724-46DA-AACB-D5447FD252A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D1CC1866-E724-46DA-AACB-D5447FD252A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D1CC1866-E724-46DA-AACB-D5447FD252A3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
