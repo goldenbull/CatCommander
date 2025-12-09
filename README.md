@@ -10,21 +10,31 @@ The overall architecture is quite simple, just a typical MVVM app. There three m
 
 ```mermaid
 block
+  columns 2
   block:services
     columns 1
     ConfigManager
     KeyHookManager
     ActionExecutor
+    space
+    filesystem
   end
   block:UI
     columns 1
-    Windows/Panels
-    block:ViewModels
+    block:view:1
+      columns 1
+      MainWindow
+      Panels
+    end
+    block:vm:1
       columns 1
       MainWindowViewModel
       PanelViewModel
     end
   end
+
+  filesystem --> ActionExecutor
+  ActionExecutor --> filesystem
 ```
 
 ## Key Components
