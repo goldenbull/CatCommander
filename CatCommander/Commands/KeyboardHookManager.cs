@@ -9,8 +9,8 @@ namespace CatCommander.Commands;
 
 public class CatKeyEventArgs
 {
-    public KeyModifiers Modifiers { get; set; }
-    public KeyCode KeyCode { get; set; }
+    public required KeyModifiers Modifiers { get; init; }
+    public required KeyCode KeyCode { get; init; }
 
     public override string ToString()
     {
@@ -39,10 +39,27 @@ public class CatKeyEventArgs
 /// <summary>
 /// Manages low-level global keyboard hooks using SharpHook.
 /// This allows capturing keyboard events that are normally handled by the OS.
+/// Singleton pattern ensures only one instance manages global hooks.
 /// </summary>
 public class KeyboardHookManager : IDisposable
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
+
+    #region Singleton
+
+    private static KeyboardHookManager? _instance;
+
+    public static KeyboardHookManager Instance
+    {
+        get
+        {
+            _instance ??= new KeyboardHookManager();
+            return _instance;
+        }
+    }
+
+    #endregion
+
     private readonly SimpleGlobalHook _globalHook;
     private readonly HashSet<KeyCode> _pressedModifiers = new();
 
@@ -61,7 +78,7 @@ public class KeyboardHookManager : IDisposable
 
     public event EventHandler<CatKeyEventArgs>? KeyPressed;
 
-    public KeyboardHookManager()
+    private KeyboardHookManager()
     {
         _globalHook = new SimpleGlobalHook();
         _globalHook.KeyPressed += OnKeyPressed;

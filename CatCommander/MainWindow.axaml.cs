@@ -16,7 +16,6 @@ namespace CatCommander
     {
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
         private DateTime? lastMetaKeyPress;
-        private KeyboardHookManager? _keyboardHook;
 
         public MainWindow()
         {
@@ -34,9 +33,9 @@ namespace CatCommander
         {
             try
             {
-                _keyboardHook = new KeyboardHookManager();
-                _keyboardHook.KeyPressed += OnGlobalKeyPressed;
-                _keyboardHook.Start();
+                var keyboardHook = KeyboardHookManager.Instance;
+                keyboardHook.KeyPressed += OnGlobalKeyPressed;
+                keyboardHook.Start();
                 log.Info("Keyboard hook initialized and started");
             }
             catch (Exception ex)
@@ -139,7 +138,7 @@ namespace CatCommander
             if (result == MessageBoxResult.Yes)
             {
                 // User confirmed exit, cleanup and close
-                _keyboardHook?.Dispose();
+                KeyboardHookManager.Instance.Dispose();
                 Closing -= MainWindow_Closing;
                 Close();
             }
