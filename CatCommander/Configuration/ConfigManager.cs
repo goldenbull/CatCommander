@@ -120,20 +120,22 @@ public class ConfigManager
             {
                 log.Info("Keymap file not found, creating default: {0}", KeymapFilePath);
                 Shortcuts = new ShortcutsSettings();
-                Shortcuts.InitializeDefault();
                 SaveShortcuts();
                 return;
             }
 
             var tomlContent = File.ReadAllText(KeymapFilePath);
             Shortcuts = Toml.ToModel<ShortcutsSettings>(tomlContent);
-            log.Info("Shortcuts loaded from {0} ({1} bindings)", KeymapFilePath, Shortcuts.Bindings.Count);
+
+            // Rebuild the reverse map (keystroke -> operation) for runtime lookups
+            Shortcuts.RebuildReverseMap();
+
+            log.Info("Shortcuts loaded from {0} ({1} operations)", KeymapFilePath, Shortcuts.MapOpToKey.Count);
         }
         catch (Exception ex)
         {
             log.Error(ex, "Error loading shortcuts");
             Shortcuts = new ShortcutsSettings();
-            Shortcuts.InitializeDefault();
         }
     }
 
@@ -182,7 +184,7 @@ public class ConfigManager
             EnsureDataDirectoryExists();
             var tomlString = Toml.FromModel(Shortcuts);
             File.WriteAllText(KeymapFilePath, tomlString);
-            log.Info("Shortcuts saved to {0} ({1} bindings)", KeymapFilePath, Shortcuts?.Bindings.Count ?? 0);
+            log.Info("Shortcuts saved to {0} ({1} bindings)", KeymapFilePath, Shortcuts.MapOpToKey.Count);
         }
         catch (Exception ex)
         {
