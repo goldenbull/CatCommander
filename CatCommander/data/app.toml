@@ -1,0 +1,29 @@
+# CatCommander Application Settings
+# This file contains global application configuration
+# Shortcuts are in keymap.toml
+# Panel states are in panels.toml
+
+# Application title
+title = "CatCommander"
+
+# Window dimensions
+window_width = 1200
+window_height = 800
+
+# Theme: "light" or "dark"
+theme = "dark"
+
+# Font size for file list
+font_size = 12
+
+# Show hidden files by default
+show_hidden = false
+
+# Follow symbolic links
+follow_symlinks = true
+
+# Confirm before delete
+confirm_delete = true
+
+# Confirm before overwrite
+confirm_overwrite = true

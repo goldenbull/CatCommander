@@ -11,12 +11,12 @@ namespace CatCommander.Commands;
 /// Central command manager that handles all keyboard and mouse commands
 /// for the file commander application
 /// </summary>
-public class CommandManager
+public class CommandExecutor
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
     private readonly MainWindowViewModel _viewModel;
 
-    public CommandManager(MainWindowViewModel viewModel)
+    public CommandExecutor(MainWindowViewModel viewModel)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         InitializeCommands();

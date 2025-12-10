@@ -25,11 +25,13 @@ block
       columns 1
       MainWindow
       Panels
+      ov["other views"]
     end
     block:vm:1
       columns 1
       MainWindowViewModel
       PanelViewModel
+      ovm["other view models"]
     end
   end
 

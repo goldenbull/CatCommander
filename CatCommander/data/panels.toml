@@ -1,0 +1,16 @@
+# Panel State Configuration
+# This file stores the state of all open panels and is automatically updated
+# when you navigate or change panel settings during runtime
+
+# Example panel configurations (uncomment and modify as needed):
+# [[panels]]
+# root_path = "/Users/username/Documents"
+# sort_column = "name"
+# sort_ascending = true
+#
+# [[panels]]
+# root_path = "/Users/username/Downloads"
+# sort_column = "date"
+# sort_ascending = false
+
+# Currently no panels saved - will be populated on first run

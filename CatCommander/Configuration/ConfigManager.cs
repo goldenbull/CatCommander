@@ -1,99 +1,208 @@
 using System;
 using System.IO;
+using NLog;
 using Tomlyn;
 
-namespace CatCommander.Configuration
+namespace CatCommander.Configuration;
+
+public class ConfigManager
 {
-    public class ConfigManager
+    private static readonly Logger log = LogManager.GetCurrentClassLogger();
+
+    #region singleton
+
+    private static ConfigManager? _instance;
+
+    public static ConfigManager Instance
     {
-        private static ConfigManager? _instance;
-        private static readonly object _lock = new();
-
-        public AppConfig Config { get; private set; }
-        public string ConfigFilePath { get; }
-
-        private ConfigManager(string configFilePath)
+        get
         {
-            ConfigFilePath = configFilePath;
-            Config = new AppConfig();
+            _instance ??= new ConfigManager();
+            return _instance;
         }
+    }
 
-        public static ConfigManager Instance
+    #endregion
+
+    private string ConfigFilePath { get; }
+    private string PanelsFilePath { get; }
+    private string KeymapFilePath { get; }
+
+    public ApplicationSettings Application { get; private set; } = new();
+    public ShortcutsSettings Shortcuts { get; private set; } = new();
+    public PanelSettings[] PanelSettings { get; private set; } = [];
+
+    private ConfigManager()
+    {
+        var appDir = AppDomain.CurrentDomain.BaseDirectory;
+        var dataDir = Path.Combine(appDir, "data");
+
+        ConfigFilePath = Path.Combine(dataDir, "app.toml");
+        PanelsFilePath = Path.Combine(dataDir, "panels.toml");
+        KeymapFilePath = Path.Combine(dataDir, "keymap.toml");
+
+        Load();
+    }
+
+    public void Load()
+    {
+        try
         {
-            get
+            EnsureDataDirectoryExists();
+
+            // Load each configuration component separately
+            LoadApplicationSettings();
+            LoadPanelSettings();
+            LoadShortcuts();
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Error loading configuration");
+            // Use defaults if loading fails
+            Application = new ApplicationSettings();
+            Shortcuts = new ShortcutsSettings();
+            PanelSettings = [];
+        }
+    }
+
+    private void LoadApplicationSettings()
+    {
+        try
+        {
+            if (!File.Exists(ConfigFilePath))
             {
-                if (_instance == null)
-                {
-                    lock (_lock)
-                    {
-                        _instance ??= new ConfigManager(GetDefaultConfigPath());
-                    }
-                }
-                return _instance;
+                log.Info("Config file not found, creating default: {0}", ConfigFilePath);
+                Application = new ApplicationSettings();
+                SaveApplicationSettings();
+                return;
             }
-        }
 
-        private static string GetDefaultConfigPath()
-        {
-            var appDir = AppDomain.CurrentDomain.BaseDirectory;
-            return Path.Combine(appDir, "config.toml");
+            var tomlContent = File.ReadAllText(ConfigFilePath);
+            Application = Toml.ToModel<ApplicationSettings>(tomlContent);
+            log.Info("Application settings loaded from {0}", ConfigFilePath);
         }
-
-        public void Load()
+        catch (Exception ex)
         {
-            try
+            log.Error(ex, "Error loading application settings");
+            Application = new ApplicationSettings();
+        }
+    }
+
+    private void LoadPanelSettings()
+    {
+        try
+        {
+            if (!File.Exists(PanelsFilePath))
             {
-                if (!File.Exists(ConfigFilePath))
-                {
-                    // Create default config file if it doesn't exist
-                    SaveDefaults();
-                    return;
-                }
-
-                var tomlContent = File.ReadAllText(ConfigFilePath);
-
-                // Use Tomlyn's reflection-based deserialization
-                Config = Toml.ToModel<AppConfig>(tomlContent);
+                log.Info("Panels file not found, creating default: {0}", PanelsFilePath);
+                PanelSettings = [];
+                SavePanelSettings();
+                return;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading config: {ex.Message}");
-                // Use defaults if loading fails
-                Config = new AppConfig();
-            }
+
+            var tomlContent = File.ReadAllText(PanelsFilePath);
+            var panelsWrapper = Toml.ToModel<PanelsWrapper>(tomlContent);
+            PanelSettings = panelsWrapper.Panels ?? [];
+            log.Info("Panel settings loaded from {0} ({1} panels)", PanelsFilePath, PanelSettings.Length);
         }
-
-        public void Save()
+        catch (Exception ex)
         {
-            try
-            {
-                // Use Tomlyn's reflection-based serialization
-                var tomlString = Toml.FromModel(Config);
-
-                // Ensure directory exists
-                var directory = Path.GetDirectoryName(ConfigFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                File.WriteAllText(ConfigFilePath, tomlString);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error saving config: {ex.Message}");
-            }
+            log.Error(ex, "Error loading panel settings");
+            PanelSettings = [];
         }
+    }
 
-        private void SaveDefaults()
+    private void LoadShortcuts()
+    {
+        try
         {
-            Config = new AppConfig();
-            Save();
-        }
+            if (!File.Exists(KeymapFilePath))
+            {
+                log.Info("Keymap file not found, creating default: {0}", KeymapFilePath);
+                Shortcuts = new ShortcutsSettings();
+                Shortcuts.InitializeDefault();
+                SaveShortcuts();
+                return;
+            }
 
-        public void Reload()
-        {
-            Load();
+            var tomlContent = File.ReadAllText(KeymapFilePath);
+            Shortcuts = Toml.ToModel<ShortcutsSettings>(tomlContent);
+            log.Info("Shortcuts loaded from {0} ({1} bindings)", KeymapFilePath, Shortcuts.Bindings.Count);
         }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Error loading shortcuts");
+            Shortcuts = new ShortcutsSettings();
+            Shortcuts.InitializeDefault();
+        }
+    }
+
+    public void Save()
+    {
+        SaveApplicationSettings();
+        SavePanelSettings();
+        SaveShortcuts();
+    }
+
+    public void SaveApplicationSettings()
+    {
+        try
+        {
+            EnsureDataDirectoryExists();
+            var tomlString = Toml.FromModel(Application);
+            File.WriteAllText(ConfigFilePath, tomlString);
+            log.Info("Application settings saved to {0}", ConfigFilePath);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Error saving application settings");
+        }
+    }
+
+    public void SavePanelSettings()
+    {
+        try
+        {
+            EnsureDataDirectoryExists();
+            var panelsWrapper = new PanelsWrapper { Panels = PanelSettings };
+            var tomlString = Toml.FromModel(panelsWrapper);
+            File.WriteAllText(PanelsFilePath, tomlString);
+            log.Info("Panel settings saved to {0} ({1} panels)", PanelsFilePath, PanelSettings.Length);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Error saving panel settings");
+        }
+    }
+
+    public void SaveShortcuts()
+    {
+        try
+        {
+            EnsureDataDirectoryExists();
+            var tomlString = Toml.FromModel(Shortcuts);
+            File.WriteAllText(KeymapFilePath, tomlString);
+            log.Info("Shortcuts saved to {0} ({1} bindings)", KeymapFilePath, Shortcuts?.Bindings.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Error saving shortcuts");
+        }
+    }
+
+    private void EnsureDataDirectoryExists()
+    {
+        var directory = Path.GetDirectoryName(ConfigFilePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+            log.Info("Created data directory: {0}", directory);
+        }
+    }
+
+    // Helper class for TOML serialization of panel array
+    private class PanelsWrapper
+    {
+        public PanelSettings[]? Panels { get; set; }
     }
 }

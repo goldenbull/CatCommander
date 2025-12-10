@@ -4,232 +4,222 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CatCommander is a cross-platform mouse-free file manager written in C# using Avalonia UI, inspired by Total Commander. The project is built on .NET 9.0 and uses Avalonia 11.3.7 framework for cross-platform desktop UI.
+CatCommander is a cross-platform, mouse-free file manager written in C# using Avalonia UI, inspired by Total Commander. The application runs on .NET 10.0 and targets macOS (ARM64 by default), with support for Windows and Linux.
 
-## Build and Run Commands
+## Solution Structure
+
+The solution contains three projects:
+
+- **CatCommander**: Main Avalonia UI application with MVVM architecture
+- **libcat**: Shared library containing file system utilities, models, and helpers
+- **TestCat**: xUnit test project for libcat
+
+## Build Commands
+
+### Development
 
 ```bash
-# Build the entire solution
+# Build solution
 dotnet build
 
-# Build a specific project
-dotnet build CatCommander/CatCommander.csproj
-dotnet build libcat/libcat.csproj
-
-# Run the application
+# Run application (development mode, generic .NET icon)
 dotnet run --project CatCommander/CatCommander.csproj
 
 # Run tests
 dotnet test
 
-# Run tests for specific project
-dotnet test TestCat/TestCat.csproj
-
-# Build for release
-dotnet build -c Release
+# Run specific test file
+dotnet test --filter "FullyQualifiedName~FileItemTreeNodeTests"
 ```
+
+### Production (macOS)
+
+```bash
+# Build macOS .app bundle with custom icon (ARM64)
+./build-macos-app.sh
+
+# Run the built .app
+open build/CatCommander.app
+```
+
+For Intel Macs, modify `build-macos-app.sh` to use `-r osx-x64` instead of `-r osx-arm64`.
 
 ## Architecture
 
-### Solution Structure
+### MVVM Pattern
 
-The solution consists of three projects:
+The app follows classic MVVM architecture:
 
-1. **CatCommander** (main UI application): Avalonia-based desktop application with MVVM architecture
-2. **libcat** (shared library): Platform-independent data models and utilities for file system operations, archive handling, and system integration
-3. **TestCat** (test project): xUnit-based test suite for libcat functionality
+- **Views**: Avalonia XAML files in `CatCommander/View/` and root `MainWindow.axaml`
+- **ViewModels**: In `CatCommander/ViewModels/`
+  - `MainWindowViewModel`: Global application state
+  - `MainPanelViewModel`: Panel-specific state (dual-pane model for fast UI)
+  - `ItemsBrowserViewModel`: File browsing logic
+- **Models**: In `libcat/Models/` (shared with views via ViewModels)
 
-### Architectural Layers
+### Key System Components
 
-CatCommander follows a standard Avalonia MVVM architecture with three main conceptual layers:
+1. **Configuration System** (`CatCommander/Configuration/`)
+   - `ConfigManager`: Singleton that manages three separate TOML files:
+     - `data/config.toml`: Application settings (theme, window size, etc.)
+     - `data/panels.toml`: Panel states (paths, sort order) - restored on startup
+     - `data/keymap.toml`: Keyboard shortcuts
+   - `ApplicationSettings`: Global app settings (loaded from config.toml)
+   - `PanelSettings`: Panel state array (loaded from panels.toml)
+   - `ShortcutsSettings`: Keymap with support for:
+     - Multiple alternatives (semicolon-separated: `"F5;Ctrl+C"`)
+     - Keystroke sequences (comma-separated: `"Ctrl+K,Ctrl+C"`)
+   - Config files location: `<executable-dir>/data/`
+   - See `CONFIG.md` for detailed configuration documentation
 
-1. **Data source layer** (libcat): Read files from file system, compressed archives, SFTP, FTP, etc.
-2. **UI layer** (CatCommander): Dual-pane file browser interface
-3. **Command management layer** (CatCommander): Centralized command handling via `CommandManager` that bridges keyboard/mouse events to file operations
+2. **Command System** (`CatCommander/Commands/`)
+   - `CommandExecutor`: Central command dispatcher using ReactiveUI commands
+   - All file operations (Copy, Move, Rename, Delete, navigation) are ReactiveCommands
+   - Commands are delegated from `MainWindowViewModel` to `CommandExecutor`
+   - Each command has three parts:
+     - `Execute*()`: Command implementation
+     - `CanExecute*()`: Validation logic
+     - `CanExecute*Observable`: ReactiveUI observable for binding
 
-### Key Components
+3. **Keyboard Hook System** (`CatCommander/Commands/KeyboardHookManager.cs`)
+   - Uses SharpHook for global low-level keyboard hooks
+   - Tracks modifier keys (Ctrl, Alt, Shift, Meta/Cmd)
+   - Normalizes key combinations to consistent format (e.g., `"ctrl+alt+a"`)
+   - Raises `KeyPressed` event with `CatKeyEventArgs` containing modifiers and key code
+   - Handles multi-keystroke sequences from configuration
 
-**Entry Point**: `Program.cs` configures the Avalonia app with platform detection, Inter font, and logging.
+4. **File System Layer** (`libcat/`)
+   - `FileSystemHelper`: Core file operations (navigation, read/write)
+   - `ArchiveFileHelper`: Archive file browsing (7z support via `lib/7z.dylib|so`)
+   - `SystemIconProvider`: Platform-specific file icons
+   - `FileItemTreeNode`: Tree structure for hierarchical file browsing
+   - `FileItemModel` & `IFileSystemItem`: Abstraction over files, folders, archives, and future remote sources (SFTP/FTP)
 
-**Application Initialization**: `App.axaml.cs:OnFrameworkInitializationCompleted` loads configuration via `ConfigManager` singleton and creates the main window. Configuration is saved on application exit.
-
-**Main Window**: `MainWindow.axaml` defines the dual-pane layout with:
-- Platform-specific native menu bar (macOS uses native menu, Windows/Linux use fallback)
-- Toolbar with navigation buttons and icons
-- Two `MainPanel` instances (left/right panes) separated by grid splitters and a vertical button menu
-- Each `MainPanel` contains an `ItemsBrowser` control
-
-**File Browser**: `ItemsBrowser` (UI component) paired with `ItemsBrowserViewModel`:
-- Displays files/folders in a TreeDataGrid with columns: Name, Extension, Size, Modified
-- AutoCompleteBox for path navigation with history dropdown
-- Loads directory contents on path change
-- Maintains path history (last 20 paths)
-
-**View Models**:
-- `MainWindowViewModel`: Root view model for the main window
-- `MainPanelViewModel`: Manages individual panel state (left/right panes)
-- `ItemsBrowserViewModel`: Manages file system browsing, directory loading, and path history
-
-**Command Management**:
-- `CommandManager`: Centralized command coordinator that owns all ReactiveCommands (Open, Copy, Move, Rename, Delete, navigation, etc.)
-  - Created with reference to `MainWindowViewModel`
-  - All commands follow pattern: Execute method, CanExecute method, and CanExecute observable
-  - Commands are currently stubs awaiting implementation
-- `KeyboardHookManager`: Low-level global keyboard hook using SharpHook library
-  - Tracks modifier keys (Ctrl, Alt, Shift, Meta) across key presses
-  - Normalizes key combinations to consistent format for comparison
-  - Raises `KeyPressed` events with `CatKeyEventArgs` containing modifiers and key code
-
-**Data Models (libcat project)**:
-- `IFileSystemItem`: Interface for file system items from various sources (disk, zip, SFTP, FTP)
-  - Properties: Name, FullPath, Extension, Size, timestamps, permissions, ItemType, DisplaySize, DisplayIcon
-  - `FileSystemItemType` enum: File, Directory, SymbolicLink, Special
-- `FileItemModel`: Concrete implementation of IFileSystemItem for local file system
-- `FileItemTreeNode`: Tree structure for hierarchical file browsing
-
-**Utilities (libcat project)**:
-- `FileSystemHelper`: Cross-platform file system operations
-  - Drive enumeration (all, local, removable, network, optical)
-  - Special locations (Home, Desktop, Documents, Downloads, etc.)
-  - Platform detection (Windows, macOS, Linux)
-  - File size formatting
-  - System icon retrieval (platform-specific)
-- `SystemIconProvider`: Platform-specific icon retrieval for files/folders
-- `ArchiveFileHelper`: Archive file operations using SharpCompress (view, compress, decompress)
-
-**Configuration System**: TOML-based configuration loaded from `config.toml`:
-- `ConfigManager`: Singleton that loads/saves configuration using Tomlyn library
-- `AppConfig`: Structured configuration with sections for Application, UI, Behavior, Shortcuts, and Logging
-- `ShortcutsSettings`: Supports complex keybindings with alternatives (semicolon-separated) and multi-keystroke sequences (comma-separated)
-  - Example: `Copy = "F5;Ctrl+C"` (two alternatives)
-  - Example: `Copy = "Ctrl+K,Ctrl+C"` (keystroke sequence)
-- `Shortcuts` enum defines available operations
-
-**Logging**: NLog configured via `NLog.config`, injected throughout the application (logger instances in ViewModels and MainWindow)
-
-### Key Dependencies
-
-**CatCommander (UI project)**:
-- **Avalonia 11.3.7**: Core UI framework with Desktop, Fluent theme, Inter fonts
-- **Avalonia.Controls.TreeDataGrid**: File list display
-- **Semi.Avalonia**: Theme and extended controls (AvaloniaEdit, ColorPicker, DataGrid, Dock, TreeDataGrid)
-- **ReactiveUI 22.1.1**: Command handling and reactive patterns (MVVM infrastructure)
-- **SharpHook 7.0.3**: Global keyboard hook for capturing system-wide keyboard events
-- **Tomlyn 0.19.0**: TOML configuration parsing
-- **NLog 6.0.5**: Logging framework with Microsoft.Extensions.Logging integration
-
-**libcat (data/utilities library)**:
-- **Avalonia 11.3.7**: For platform-independent types
-- **SharpCompress 0.41.0**: Archive file support (ZIP, RAR, 7z, tar, etc.)
-- **NLog 6.0.5**: Logging
-- **System.Drawing.Common 9.0.0**: Icon extraction and image handling
-
-**TestCat (test project)**:
-- **xUnit 2.9.2**: Test framework
-- **Microsoft.NET.Test.Sdk 17.12.0**: Test infrastructure
-- **coverlet.collector 6.0.2**: Code coverage
-
-### Project Structure
+### Dependency Flow
 
 ```
-/
-├── CatCommander/              # Main UI application
-│   ├── Commands/              # Command management
-│   │   ├── CommandManager.cs     # Centralized command coordinator
-│   │   └── KeyboardHookManager.cs # Global keyboard hook handler
-│   ├── Configuration/         # TOML configuration management
-│   │   ├── ConfigManager.cs   # Singleton loader/saver
-│   │   ├── AppConfig.cs       # Configuration data structures
-│   │   └── Shortcuts.cs       # Keyboard shortcuts enum
-│   ├── ViewModels/            # MVVM view models
-│   │   ├── MainWindowViewModel.cs
-│   │   ├── MainPanelViewModel.cs
-│   │   └── ItemsBrowserViewModel.cs
-│   ├── View/                  # Reusable UI controls
-│   │   ├── ItemsBrowser.axaml/.cs
-│   │   └── MainPanel.axaml/.cs
-│   ├── Images/                # PNG icons for toolbar/menus
-│   ├── Program.cs             # Application entry point
-│   ├── App.axaml/.cs          # Application resources and initialization
-│   ├── MainWindow.axaml/.cs   # Main dual-pane window
-│   ├── config.toml            # User configuration file
-│   └── NLog.config            # Logging configuration
-│
-├── libcat/                    # Shared library (data + utilities)
-│   ├── Models/                # Data models
-│   │   ├── IFileSystemItem.cs # Interface for file system items
-│   │   └── FileItemModel.cs   # Local file system implementation
-│   └── Utils/                 # Cross-platform utilities
-│       ├── FileSystemHelper.cs       # Drive/location enumeration
-│       ├── SystemIconProvider.cs     # Platform-specific icons
-│       ├── ArchiveFileHelper.cs      # Archive operations
-│       └── FileItemTreeNode.cs       # Tree structure for files
-│
-└── TestCat/                   # Test project
-    └── UnitTest1.cs           # xUnit tests
+UI Layer (Views/XAML)
+    ↓ binds to
+ViewModels (MainWindowViewModel, PanelViewModel)
+    ↓ delegates commands to
+CommandExecutor
+    ↓ uses
+FileSystemHelper / ArchiveFileHelper
+    ↓ operates on
+FileItemModel / FileItemTreeNode
 ```
+
+## Configuration System
+
+The app uses three TOML files for configuration, managed by `ConfigManager` singleton:
+- `data/config.toml`: Application settings (accessed via `ConfigManager.Instance.Application`)
+- `data/panels.toml`: Panel states (accessed via `ConfigManager.Instance.PanelSettings`)
+- `data/keymap.toml`: Keyboard shortcuts (accessed via `ConfigManager.Instance.Shortcuts`)
+
+**Important conventions**:
+- Shortcuts use enums (`Shortcuts` enum in `Configuration/Shortcuts.cs`)
+- Enum names match both config keys AND command names in `CommandExecutor`
+- Shortcut format supports:
+  - Single key: `"F5"`
+  - Multiple alternatives: `"F5;Ctrl+C"` (semicolon-separated)
+  - Keystroke sequences: `"Ctrl+K,Ctrl+C"` (comma-separated for chords)
+  - Combined: `"F5;Ctrl+K,Ctrl+C"` (both alternatives and sequences)
+
+**Loading and saving**:
+```csharp
+ConfigManager.Instance.Load();                    // Load all config files on startup
+ConfigManager.Instance.Save();                    // Save all config files
+ConfigManager.Instance.SaveApplicationSettings(); // Save only config.toml
+ConfigManager.Instance.SavePanelSettings();       // Save only panels.toml
+ConfigManager.Instance.SaveShortcuts();           // Save only keymap.toml
+```
+
+## Key Technologies
+
+- **Avalonia 11.3.9**: Cross-platform UI framework
+- **ReactiveUI 22.3.1**: MVVM with reactive commands
+- **Metalama.Patterns.Observability**: Automatic INotifyPropertyChanged implementation (AOP)
+- **SharpHook 7.1.0**: Low-level global keyboard hooks
+- **Tomlyn 0.19.0**: TOML serialization/deserialization
+- **NLog 6.0.6**: Logging framework (config in `NLog.config`)
+- **SharpCompress 0.42.0**: Archive file support (7z, zip, etc.)
+- **Semi.Avalonia**: UI theme library (Fluent design)
+
+## Code Patterns
+
+### Adding a New Command
+
+1. Add enum value to `Shortcuts` in `Configuration/Shortcuts.cs`
+2. Add default binding to `ShortcutsSettings.InitializeDefault()` method
+3. Add ReactiveCommand property to `CommandExecutor.cs`
+4. Implement three methods in `CommandExecutor.cs`:
+   - `Execute*()`: Logic
+   - `CanExecute*()`: Validation
+   - `CanExecute*Observable`: Observable for bindings
+5. Initialize in `InitializeCommands()`
+6. Expose command as property in `MainWindowViewModel.cs`
+
+### Working with Configuration
+
+```csharp
+// Access configuration settings directly from ConfigManager singleton
+var appSettings = ConfigManager.Instance.Application;
+var shortcuts = ConfigManager.Instance.Shortcuts;
+var panels = ConfigManager.Instance.PanelSettings;
+
+// Read application settings
+string theme = appSettings.Theme;
+int windowWidth = appSettings.Window_Width;
+bool showHidden = appSettings.Show_Hidden;
+
+// Modify application settings
+appSettings.Theme = "light";
+appSettings.Window_Width = 1600;
+ConfigManager.Instance.SaveApplicationSettings();
+
+// Read shortcuts
+string[] copyShortcuts = shortcuts.GetShortcuts(Shortcuts.Copy);
+Shortcuts? operation = shortcuts.GetOperation("F5");
+
+// Modify shortcuts
+shortcuts.SetKeys(Shortcuts.Copy, "F5", "Ctrl+C");
+shortcuts.AddKey(Shortcuts.Copy, "Shift+F5");
+ConfigManager.Instance.SaveShortcuts();
+
+// Work with panel settings
+foreach (var panel in panels)
+{
+    Console.WriteLine($"Panel: {panel.Root_Path}, Sort: {panel.Sort_Column}");
+}
+
+// Save all configuration files
+ConfigManager.Instance.Save();
+```
+
+### Using Metalama Observability
+
+The project uses Metalama for automatic property change notifications. Properties in ViewModels are automatically instrumented with INotifyPropertyChanged:
+
+```csharp
+// No need for manual OnPropertyChanged calls in most cases
+public string MyProperty { get; set; }
+```
+
+## File Locations
+
+- Config files (created on first run):
+  - `<executable-dir>/data/config.toml`: Application settings
+  - `<executable-dir>/data/panels.toml`: Panel states
+  - `<executable-dir>/data/keymap.toml`: Keyboard shortcuts
+- Logs: Configured in `NLog.config` (default: console)
+- Native libraries: `lib/7z.dylib` (macOS), `lib/7z.so` (Linux)
+- macOS .app bundle: `build/CatCommander.app` (after running build script)
 
 ## Development Notes
 
-### Project References
-
-- **CatCommander** depends on **libcat** (for data models and utilities)
-- **TestCat** depends on **libcat** (tests library functionality)
-- Add new platform-independent utilities to **libcat**
-- Add new UI components and ViewModels to **CatCommander**
-
-### Command Pattern
-
-All user actions flow through `CommandManager`:
-1. Commands are ReactiveCommands created in `CommandManager` constructor
-2. Each command has three parts:
-   - `Execute{CommandName}()`: Implementation (currently stubs)
-   - `CanExecute{CommandName}()`: Boolean check if command can run
-   - `CanExecute{CommandName}Observable`: Observable wrapper for ReactiveUI
-3. Commands are bound to keyboard shortcuts via configuration and to UI elements
-
-To add a new command:
-1. Add command property to `CommandManager`
-2. Initialize in `InitializeCommands()`
-3. Create Execute/CanExecute methods and observable
-4. Wire up in UI (MainWindow.axaml or keybindings)
-
-### Keyboard Hook System
-
-The `KeyboardHookManager` uses SharpHook to capture global keyboard events:
-- Tracks modifier key states (Ctrl, Alt, Shift, Meta) across key presses/releases
-- Normalizes key combinations using `Normalized()` method for consistent comparison
-- Key normalization handles different formats (e.g., "Ctrl+Alt+A", "alt+ctrl+vca" both normalize to "ctrl+alt+a")
-- Modifier-only key presses do not trigger events (only actual key+modifier combinations)
-- Must call `Start()` to begin capturing events and `Dispose()` to clean up
-
-### Configuration System
-
-The keymap configuration supports flexible keyboard shortcuts:
-- **Alternative shortcuts**: Separate with semicolons (`;`) - e.g., `"F5;Ctrl+C"`
-- **Keystroke sequences**: Separate with commas (`,`) - e.g., `"Ctrl+K,Ctrl+C"` for Vim-style chords
-- Helper methods in `ShortcutsSettings` parse these formats
-
-### Platform-Specific Behavior
-
-The UI adapts based on platform:
-- macOS: Uses native menu bar via `NativeMenuBar` and `NativeMenu.Menu`
-- Windows/Linux: Uses Avalonia menu controls with fallback styling
-
-File system operations in `FileSystemHelper` provide platform-specific implementations for:
-- System icon retrieval (Windows SHGetFileInfo approach, macOS UTI identifiers, Linux MIME types)
-- Special folder locations (different paths for each OS)
-- Drive enumeration (handles differences in drive/volume representation)
-
-### Planned Features (from README TODO)
-
-The application is in active development with planned features including:
-- Compressed file operations (view, compress, decompress)
-- File preview (text, markdown, office, image, hex)
-- Terminal integration (cmd/PowerShell/bash/zsh)
-- Folder comparison, filtering, sorting
-- Navigation history (back/forward)
-- Tabs with duplication and favorites
-- Fast filtering by filename
-- SFTP/FTP support
-- Customizable themes
+- The app uses compiled bindings by default (`AvaloniaUseCompiledBindingsByDefault=true`)
+- Avalonia.Diagnostics is included in Debug builds only
+- All commands currently have TODO placeholders - file operations are not fully implemented
+- Configuration system is fully functional
+- Keyboard hook manager is fully functional
+- Platform-specific icon rendering is implemented via `SystemIconProvider`

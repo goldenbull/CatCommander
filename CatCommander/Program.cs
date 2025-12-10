@@ -1,5 +1,10 @@
 ﻿using System;
+using System.IO;
 using Avalonia;
+using NLog;
+using NLog.Config;
+using Tomlyn;
+using CatCommander.Configuration;
 
 namespace CatCommander
 {
@@ -11,7 +16,30 @@ namespace CatCommander
         [STAThread]
         public static void Main(string[] args)
         {
+            // Initialize nlog before anything else
+            InitializeNLog();
+
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+
+        private static void InitializeNLog()
+        {
+            try
+            {
+                // Get NLog config path from app.toml
+                var appDir = AppDomain.CurrentDomain.BaseDirectory;
+                var nlogConfigPath = Path.Combine(appDir, "data", "NLog.config");
+                // Load NLog configuration
+                if (File.Exists(nlogConfigPath))
+                {
+                    LogManager.Configuration = new XmlLoggingConfiguration(nlogConfigPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing NLog: {ex.Message}");
+                // Continue with auto-discovery
+            }
         }
 
         // Avalonia configuration, don't remove; also used by visual designer.
