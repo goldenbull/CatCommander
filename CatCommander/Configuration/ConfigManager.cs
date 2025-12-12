@@ -24,9 +24,9 @@ public class ConfigManager
 
     #endregion
 
-    private string ConfigFilePath { get; }
-    private string PanelsFilePath { get; }
-    private string KeymapFilePath { get; }
+    private string AppConfigFilePath { get; }
+    private string PanelsConfigFilePath { get; }
+    private string KeymapConfigFilePath { get; }
 
     public ApplicationSettings Application { get; private set; } = new();
     public ShortcutsSettings Shortcuts { get; private set; } = new();
@@ -37,9 +37,9 @@ public class ConfigManager
         var appDir = AppDomain.CurrentDomain.BaseDirectory;
         var dataDir = Path.Combine(appDir, "data");
 
-        ConfigFilePath = Path.Combine(dataDir, "app.toml");
-        PanelsFilePath = Path.Combine(dataDir, "panels.toml");
-        KeymapFilePath = Path.Combine(dataDir, "keymap.toml");
+        AppConfigFilePath = Path.Combine(dataDir, "app.toml");
+        KeymapConfigFilePath = Path.Combine(dataDir, "keymap.toml");
+        PanelsConfigFilePath = Path.Combine(dataDir, "panels.toml");
 
         Load();
     }
@@ -52,8 +52,8 @@ public class ConfigManager
 
             // Load each configuration component separately
             LoadApplicationSettings();
-            LoadPanelSettings();
             LoadShortcuts();
+            LoadPanelSettings();
         }
         catch (Exception ex)
         {
@@ -65,21 +65,31 @@ public class ConfigManager
         }
     }
 
+    private void EnsureDataDirectoryExists()
+    {
+        var directory = Path.GetDirectoryName(AppConfigFilePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+            log.Info("Created data directory: {0}", directory);
+        }
+    }
+
     private void LoadApplicationSettings()
     {
         try
         {
-            if (!File.Exists(ConfigFilePath))
+            if (!File.Exists(AppConfigFilePath))
             {
-                log.Info("Config file not found, creating default: {0}", ConfigFilePath);
+                log.Info("Config file not found, creating default: {0}", AppConfigFilePath);
                 Application = new ApplicationSettings();
                 SaveApplicationSettings();
                 return;
             }
 
-            var tomlContent = File.ReadAllText(ConfigFilePath);
+            var tomlContent = File.ReadAllText(AppConfigFilePath);
             Application = Toml.ToModel<ApplicationSettings>(tomlContent);
-            log.Info("Application settings loaded from {0}", ConfigFilePath);
+            log.Info("Application settings loaded from {0}", AppConfigFilePath);
         }
         catch (Exception ex)
         {
@@ -88,49 +98,25 @@ public class ConfigManager
         }
     }
 
-    private void LoadPanelSettings()
-    {
-        try
-        {
-            if (!File.Exists(PanelsFilePath))
-            {
-                log.Info("Panels file not found, creating default: {0}", PanelsFilePath);
-                PanelSettings = [];
-                SavePanelSettings();
-                return;
-            }
-
-            var tomlContent = File.ReadAllText(PanelsFilePath);
-            var panelsWrapper = Toml.ToModel<PanelsWrapper>(tomlContent);
-            PanelSettings = panelsWrapper.Panels ?? [];
-            log.Info("Panel settings loaded from {0} ({1} panels)", PanelsFilePath, PanelSettings.Length);
-        }
-        catch (Exception ex)
-        {
-            log.Error(ex, "Error loading panel settings");
-            PanelSettings = [];
-        }
-    }
-
     private void LoadShortcuts()
     {
         try
         {
-            if (!File.Exists(KeymapFilePath))
+            if (!File.Exists(KeymapConfigFilePath))
             {
-                log.Info("Keymap file not found, creating default: {0}", KeymapFilePath);
+                log.Info("Keymap file not found, creating default: {0}", KeymapConfigFilePath);
                 Shortcuts = new ShortcutsSettings();
                 SaveShortcuts();
                 return;
             }
 
-            var tomlContent = File.ReadAllText(KeymapFilePath);
+            var tomlContent = File.ReadAllText(KeymapConfigFilePath);
             Shortcuts = Toml.ToModel<ShortcutsSettings>(tomlContent);
 
             // Rebuild the reverse map (keystroke -> operation) for runtime lookups
             Shortcuts.RebuildReverseMap();
 
-            log.Info("Shortcuts loaded from {0} ({1} operations)", KeymapFilePath, Shortcuts.MapOpToKey.Count);
+            log.Info("Shortcuts loaded from {0} ({1} operations)", KeymapConfigFilePath, Shortcuts.Bindings.Count);
         }
         catch (Exception ex)
         {
@@ -139,11 +125,35 @@ public class ConfigManager
         }
     }
 
+    private void LoadPanelSettings()
+    {
+        try
+        {
+            if (!File.Exists(PanelsConfigFilePath))
+            {
+                log.Info("Panels file not found, creating default: {0}", PanelsConfigFilePath);
+                PanelSettings = [];
+                SavePanelSettings();
+                return;
+            }
+
+            var tomlContent = File.ReadAllText(PanelsConfigFilePath);
+            var panelsWrapper = Toml.ToModel<PanelsWrapper>(tomlContent);
+            PanelSettings = panelsWrapper.Panels ?? [];
+            log.Info("Panel settings loaded from {0} ({1} panels)", PanelsConfigFilePath, PanelSettings.Length);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Error loading panel settings");
+            PanelSettings = [];
+        }
+    }
+
     public void Save()
     {
         SaveApplicationSettings();
-        SavePanelSettings();
         SaveShortcuts();
+        SavePanelSettings();
     }
 
     public void SaveApplicationSettings()
@@ -152,12 +162,27 @@ public class ConfigManager
         {
             EnsureDataDirectoryExists();
             var tomlString = Toml.FromModel(Application);
-            File.WriteAllText(ConfigFilePath, tomlString);
-            log.Info("Application settings saved to {0}", ConfigFilePath);
+            File.WriteAllText(AppConfigFilePath, tomlString);
+            log.Info("Application settings saved to {0}", AppConfigFilePath);
         }
         catch (Exception ex)
         {
             log.Error(ex, "Error saving application settings");
+        }
+    }
+
+    public void SaveShortcuts()
+    {
+        try
+        {
+            EnsureDataDirectoryExists();
+            var tomlString = Toml.FromModel(Shortcuts);
+            File.WriteAllText(KeymapConfigFilePath, tomlString);
+            log.Info("Shortcuts saved to {0} ({1} bindings)", KeymapConfigFilePath, Shortcuts.Bindings.Count);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Error saving shortcuts");
         }
     }
 
@@ -168,37 +193,12 @@ public class ConfigManager
             EnsureDataDirectoryExists();
             var panelsWrapper = new PanelsWrapper { Panels = PanelSettings };
             var tomlString = Toml.FromModel(panelsWrapper);
-            File.WriteAllText(PanelsFilePath, tomlString);
-            log.Info("Panel settings saved to {0} ({1} panels)", PanelsFilePath, PanelSettings.Length);
+            File.WriteAllText(PanelsConfigFilePath, tomlString);
+            log.Info("Panel settings saved to {0} ({1} panels)", PanelsConfigFilePath, PanelSettings.Length);
         }
         catch (Exception ex)
         {
             log.Error(ex, "Error saving panel settings");
-        }
-    }
-
-    public void SaveShortcuts()
-    {
-        try
-        {
-            EnsureDataDirectoryExists();
-            var tomlString = Toml.FromModel(Shortcuts);
-            File.WriteAllText(KeymapFilePath, tomlString);
-            log.Info("Shortcuts saved to {0} ({1} bindings)", KeymapFilePath, Shortcuts.MapOpToKey.Count);
-        }
-        catch (Exception ex)
-        {
-            log.Error(ex, "Error saving shortcuts");
-        }
-    }
-
-    private void EnsureDataDirectoryExists()
-    {
-        var directory = Path.GetDirectoryName(ConfigFilePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-            log.Info("Created data directory: {0}", directory);
         }
     }
 

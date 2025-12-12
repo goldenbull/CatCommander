@@ -5,34 +5,36 @@ using NLog;
 using SharpHook;
 using SharpHook.Data;
 
+/*
+There are two keyboard event type systems:
+
+Avalonia has two enums: Avalonia.Input.KeyModifiers and Avalonia.Input.Key,
+which are used in Avalonia.Input.KeyEventArgs class.
+This is quite simple and straightforward.
+
+SharpHook works in a lower layer, and has more details.
+1. KeyPressed and KeyReleased events are triggered separately,
+2. Alt, Control, Meta, Shift keys distinguish between left and right
+think about the complex series of key events:
+  left alt down, right alt down, left alt up, letter 'A' down, right alt up, letter 'A' up
+practically, an 'alt+A' event should raise on letter 'A' down
+so we need to track each low level key event and raise events to app layer properly
+
+In config file, key shortcuts are in string format, but we use a normalized record struct internally for performance
+
+*/
+
 namespace CatCommander.Commands;
 
-public class CatKeyEventArgs
+/// <summary>
+/// internal record struct for key events
+/// we use SharpHook KeyCode directly to avoid unnecessary SharpHook KeyCode to Avalonia Key translation
+/// </summary>
+public record CatKeyEventArgs(KeyModifiers Modifiers, KeyCode Key)
 {
-    public required KeyModifiers Modifiers { get; init; }
-    public required KeyCode KeyCode { get; init; }
-
     public override string ToString()
     {
-        var parts = new List<string>();
-
-        // Add modifiers in consistent order
-        if (Modifiers.HasFlag(KeyModifiers.Control))
-            parts.Add("Ctrl");
-        if (Modifiers.HasFlag(KeyModifiers.Alt))
-            parts.Add("Alt");
-        if (Modifiers.HasFlag(KeyModifiers.Shift))
-            parts.Add("Shift");
-        if (Modifiers.HasFlag(KeyModifiers.Meta))
-            parts.Add("Meta");
-
-        // Add the key code
-        parts.Add(KeyCode.ToString());
-
-        var keyCombination = string.Join("+", parts);
-
-        // Normalize the result
-        return KeyboardHookManager.Normalized(keyCombination);
+        return KeyboardHookManager.NormalizedString(this);
     }
 }
 
@@ -60,8 +62,12 @@ public class KeyboardHookManager : IDisposable
 
     #endregion
 
+    // underlying object
     private readonly SimpleGlobalHook _globalHook;
+
+    // keep track of current modifiers status, distinguish left and right
     private readonly HashSet<KeyCode> _pressedModifiers = new();
+    private KeyModifiers _modifiers = KeyModifiers.None;
 
     // Map KeyCode to KeyModifiers for efficient modifier tracking
     private static readonly Dictionary<KeyCode, KeyModifiers> ModifierKeyMap = new()
@@ -76,6 +82,7 @@ public class KeyboardHookManager : IDisposable
         { KeyCode.VcRightMeta, KeyModifiers.Meta }
     };
 
+    // raise event to app layer
     public event EventHandler<CatKeyEventArgs>? KeyPressed;
 
     private KeyboardHookManager()
@@ -101,7 +108,7 @@ public class KeyboardHookManager : IDisposable
         }
     }
 
-    public void Stop()
+    private void Stop()
     {
         try
         {
@@ -114,130 +121,128 @@ public class KeyboardHookManager : IDisposable
         }
     }
 
+    public void Dispose()
+    {
+        Stop();
+    }
+
     private void OnKeyPressed(object? sender, KeyboardHookEventArgs e)
     {
+        var keyCode = e.Data.KeyCode;
+
         // Track modifier keys
-        UpdateModifiers(e.Data.KeyCode, true);
-
-        // Build key modifiers and event args
-        var modifiers = BuildKeyModifiers();
-        var eventArgs = new CatKeyEventArgs
+        if (ModifierKeyMap.ContainsKey(keyCode))
         {
-            Modifiers = modifiers,
-            KeyCode = e.Data.KeyCode
-        };
-
-        log.Debug($"Key pressed: {eventArgs} (e.Data: {e.Data})");
-
-        // Raise event for subscribers
-        if (!IsModifierKey(e.Data.KeyCode))
-        {
-            // do not raise events on modifier key only
-            KeyPressed?.Invoke(this, eventArgs);
+            UpdateModifiers(keyCode, true);
+            return;
         }
+
+        // not modifier keys, raise events
+        var eventArgs = new CatKeyEventArgs(_modifiers, keyCode);
+        log.Debug($"Key pressed: {eventArgs} (e.Data: {e.Data})");
+        KeyPressed?.Invoke(this, eventArgs);
     }
 
     private void OnKeyReleased(object? sender, KeyboardHookEventArgs e)
     {
-        // Update modifier keys
-        UpdateModifiers(e.Data.KeyCode, false);
+        if (ModifierKeyMap.ContainsKey(e.Data.KeyCode))
+        {
+            UpdateModifiers(e.Data.KeyCode, false);
+        }
     }
 
     private void UpdateModifiers(KeyCode code, bool isPressed)
     {
-        if (IsModifierKey(code))
-        {
-            if (isPressed)
-                _pressedModifiers.Add(code);
-            else
-                _pressedModifiers.Remove(code);
-        }
+        if (isPressed)
+            _pressedModifiers.Add(code);
+        else
+            _pressedModifiers.Remove(code);
+        UpdateKeyModifiers();
     }
 
-    private bool IsModifierKey(KeyCode code)
+    private void UpdateKeyModifiers()
     {
-        return ModifierKeyMap.ContainsKey(code);
-    }
-
-    private KeyModifiers BuildKeyModifiers()
-    {
-        var modifiers = KeyModifiers.None;
+        _modifiers = KeyModifiers.None;
         foreach (var keyCode in _pressedModifiers)
         {
             if (ModifierKeyMap.TryGetValue(keyCode, out var modifier))
             {
-                modifiers |= modifier;
-            }
-        }
-        return modifiers;
-    }
-
-    /// <summary>
-    /// Normalizes a key combination string to a uniform format for comparison.
-    /// Converts different representations (ctrl+alt+a, Alt+Ctrl+A, Alt+Ctrl+VcA) to a consistent format.
-    /// </summary>
-    /// <param name="keyCombination">The key combination string to normalize</param>
-    /// <returns>Normalized string in the format: ctrl+alt+shift+meta+key</returns>
-    public static string Normalized(string keyCombination)
-    {
-        if (string.IsNullOrWhiteSpace(keyCombination))
-            return string.Empty;
-
-        // Split by '+' and process each part
-        var parts = keyCombination.Split('+', StringSplitOptions.RemoveEmptyEntries);
-        var modifiers = new HashSet<string>();
-        string? mainKey = null;
-
-        foreach (var part in parts)
-        {
-            var normalized = part.Trim().ToLowerInvariant();
-
-            // Remove 'Vc' prefix if present (e.g., VcA -> a, VcTab -> tab)
-            if (normalized.StartsWith("vc"))
-                normalized = normalized.Substring(2);
-
-            // Check if it's a modifier
-            if (normalized == "ctrl" || normalized == "control")
-            {
-                modifiers.Add("ctrl");
-            }
-            else if (normalized == "alt")
-            {
-                modifiers.Add("alt");
-            }
-            else if (normalized == "shift")
-            {
-                modifiers.Add("shift");
-            }
-            else if (normalized == "meta" || normalized == "cmd" || normalized == "command")
-            {
-                modifiers.Add("meta");
+                _modifiers |= modifier;
             }
             else
             {
-                // It's the main key (take the last non-modifier)
-                mainKey = normalized;
+                throw new SystemException($"unexpected: Modifier {keyCode} not found");
             }
         }
+    }
 
+    /// <summary>
+    /// get the normalized string representation
+    /// </summary>
+    public static string NormalizedString(CatKeyEventArgs evt)
+    {
         // Build normalized string: modifiers in consistent order + main key
         var result = new List<string>();
 
         // Add modifiers in consistent order
-        if (modifiers.Contains("ctrl")) result.Add("ctrl");
-        if (modifiers.Contains("alt")) result.Add("alt");
-        if (modifiers.Contains("shift")) result.Add("shift");
-        if (modifiers.Contains("meta")) result.Add("meta");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Control)) result.Add("ctrl");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Alt)) result.Add("alt");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Shift)) result.Add("shift");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Meta)) result.Add("meta");
 
         // Add the main key at the end
-        if (!string.IsNullOrEmpty(mainKey))
-            result.Add(mainKey);
+        var keyStr = evt.Key.ToString().ToLowerInvariant();
+        if (keyStr.StartsWith("vc")) keyStr = keyStr.Substring(2);
+        result.Add(keyStr);
 
         return string.Join("+", result);
     }
 
-    public void Dispose()
+    /// <summary>
+    /// Normalizes a key combination string to an internal CatKeyEventArgs record
+    /// </summary>
+    public static CatKeyEventArgs? Parse(string shortcutsStr)
     {
-        Stop();
+        if (string.IsNullOrWhiteSpace(shortcutsStr))
+            return null;
+
+        // Split by '+' and process each part
+        var modifiers = KeyModifiers.None;
+        var keyCode = KeyCode.VcUndefined;
+        var parts = shortcutsStr.Split('+', StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var part in parts)
+        {
+            var keyStr = part.Trim().ToLowerInvariant();
+
+            // Check if it's a modifier
+            if (keyStr == "ctrl" || keyStr == "control")
+            {
+                modifiers |= KeyModifiers.Control;
+            }
+            else if (keyStr == "alt")
+            {
+                modifiers |= KeyModifiers.Alt;
+            }
+            else if (keyStr == "shift")
+            {
+                modifiers |= KeyModifiers.Shift;
+            }
+            else if (keyStr == "meta" || keyStr == "cmd" || keyStr == "command")
+            {
+                modifiers |= KeyModifiers.Meta;
+            }
+            else
+            {
+                // It's the main key (take the last non-modifier)
+                // parse KeyStr to SharpHook.KeyCode
+                if (!Enum.TryParse("vc" + keyStr, true, out keyCode))
+                {
+                    throw new ArgumentException($"can not recognize key: {keyStr}");
+                }
+            }
+        }
+
+        return new CatKeyEventArgs(modifiers, keyCode);
     }
 }
