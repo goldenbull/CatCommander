@@ -139,7 +139,7 @@ public class KeyboardHookManager : IDisposable
 
         // not modifier keys, raise events
         var eventArgs = new CatKeyEventArgs(_modifiers, keyCode);
-        log.Debug($"Key pressed: {eventArgs} (e.Data: {e.Data})");
+        //log.Debug($"Key pressed: {eventArgs} (e.Data: {e.Data})");
         KeyPressed?.Invoke(this, eventArgs);
     }
 
@@ -234,7 +234,7 @@ public class KeyboardHookManager : IDisposable
             }
             else
             {
-                // It's the main key (take the last non-modifier)
+                // It's the main key
                 // parse KeyStr to SharpHook.KeyCode
                 if (!Enum.TryParse("vc" + keyStr, true, out keyCode))
                 {

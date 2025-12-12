@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using CatCommander.Commands;
+using CatCommander.Configuration;
 using CatCommander.Utils;
 using CatCommander.View;
 using CatCommander.ViewModels;
@@ -42,7 +43,8 @@ namespace CatCommander
             {
                 log.Error(ex, "Failed to initialize keyboard hook. Falling back to Avalonia events.");
                 // Fallback to Avalonia's keyboard events if hook fails
-                AddHandler(KeyDownEvent, Window_PreviewKeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
+                AddHandler(KeyDownEvent, Window_PreviewKeyDown,
+                    RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
                 AddHandler(KeyUpEvent, Window_PreviewKeyUp, RoutingStrategies.Tunnel, true);
             }
         }
@@ -50,12 +52,25 @@ namespace CatCommander
         private void OnGlobalKeyPressed(object? sender, CatKeyEventArgs e)
         {
             // Run on UI thread
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnSharpHookKeyPressed(e));
+        }
+
+        void OnSharpHookKeyPressed(CatKeyEventArgs e)
+        {
+            var keyCombination = e.ToString();
+            tbKeyPreview.Text = keyCombination;
+            var op = ConfigManager.Instance.Shortcuts.GetOperation(e);
+            if (op != Operation.Nop)
             {
-                var keyCombination = e.ToString();
-                tbKeyPreview.Text = keyCombination;
-                log.Debug($"Global key pressed: {keyCombination}");
-            });
+                log.Debug($"OnSharpHookKeyPressed: {keyCombination} {op}");
+                // execute operation
+            }
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            log.Debug($"OnKeyDown: {e.KeyModifiers} {e.Key} {e.KeySymbol} {e.PhysicalKey} ");
         }
 
         private void Button_OnClick(object? sender, RoutedEventArgs e)
