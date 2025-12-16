@@ -1,47 +1,38 @@
-using System.ComponentModel;
-using System.Reactive;
-using System.Runtime.CompilerServices;
 using CatCommander.Commands;
+using Metalama.Patterns.Observability;
 using NLog;
-using ReactiveUI;
 
 namespace CatCommander.ViewModels;
 
-public class MainWindowViewModel : INotifyPropertyChanged
+[Observable]
+public partial class MainWindowViewModel
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
-    private readonly CommandExecutor _commandExecutor;
 
     public MainWindowViewModel()
     {
-        _commandExecutor = new CommandExecutor(this);
+        // Initialize the two panels (left and right)
+        LeftPanel = new MainPanelViewModel();
+        RightPanel = new MainPanelViewModel();
+
+        // Set left panel as active by default
+        LeftPanel.IsActive = true;
+
+        // Set the reference to this view model in CommandExecutor
+        CommandExecutor.Instance.MainWindowViewModel = this;
+
         log.Info("MainWindowViewModel initialized");
     }
 
-    #region Commands - Delegated to CommandManager
+    #region Panel ViewModels
 
-    public ReactiveCommand<Unit, Unit> OpenCommand => _commandExecutor.OpenCommand;
-    public ReactiveCommand<Unit, Unit> CopyCommand => _commandExecutor.CopyCommand;
-    public ReactiveCommand<Unit, Unit> MoveCommand => _commandExecutor.MoveCommand;
-    public ReactiveCommand<Unit, Unit> RenameCommand => _commandExecutor.RenameCommand;
-    public ReactiveCommand<Unit, Unit> DeleteCommand => _commandExecutor.DeleteCommand;
-    public ReactiveCommand<Unit, Unit> ExpandCurrentFolderCommand => _commandExecutor.ExpandCurrentFolderCommand;
-    public ReactiveCommand<Unit, Unit> ExpandSelectedFoldersCommand => _commandExecutor.ExpandSelectedFoldersCommand;
-    public ReactiveCommand<Unit, Unit> GoIntoCurrentFolderCommand => _commandExecutor.GoIntoCurrentFolderCommand;
-    public ReactiveCommand<Unit, Unit> GoBackToParentFolderCommand => _commandExecutor.GoBackToParentFolderCommand;
-    public ReactiveCommand<Unit, Unit> GotoFirstItemCommand => _commandExecutor.GotoFirstItemCommand;
-    public ReactiveCommand<Unit, Unit> GotoLastItemCommand => _commandExecutor.GotoLastItemCommand;
+    public MainPanelViewModel LeftPanel { get; }
+    public MainPanelViewModel RightPanel { get; }
 
     #endregion
 
-    #region INotifyPropertyChanged
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    #endregion
+    /// <summary>
+    /// Provides access to all application commands through the CommandExecutor singleton
+    /// </summary>
+    public CommandExecutor CmdExecutor => CommandExecutor.Instance;
 }

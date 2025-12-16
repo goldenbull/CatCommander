@@ -1,60 +1,64 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Reactive;
-using System.Reactive.Linq;
-using System.Runtime.CompilerServices;
+using CatCommander.Commands;
 using CatCommander.Models;
 using CatCommander.Utils;
+using Metalama.Patterns.Observability;
 using NLog;
-using ReactiveUI;
 
 namespace CatCommander.ViewModels;
 
 /// <summary>
 /// ViewModel for MainPanel - represents one file browser pane
 /// </summary>
-public class MainPanelViewModel : INotifyPropertyChanged
+[Observable]
+public partial class MainPanelViewModel
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
-
-    private string _currentPath = string.Empty;
-    private FileItemTreeNode? _fileTree;
-    private ObservableCollection<IFileSystemItem> _items = new();
-    private IFileSystemItem? _selectedItem;
-    private bool _isActive;
 
     public MainPanelViewModel()
     {
         log.Info("MainPanelViewModel initialized");
 
+        // Initialize the collection of browser view models (for future tabs support)
+        ItemsBrowsers = new ObservableCollection<ItemsBrowserViewModel>();
+
+        // Add the first browser instance (default tab)
+        var initialBrowser = new ItemsBrowserViewModel();
+        ItemsBrowsers.Add(initialBrowser);
+        ActiveBrowser = initialBrowser;
+
         // Initialize with home directory
         var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         NavigateToPath(homePath);
-
-        // Initialize commands
-        RefreshCommand = ReactiveCommand.Create(ExecuteRefresh, outputScheduler: RxApp.MainThreadScheduler);
-        NavigateUpCommand = ReactiveCommand.Create(ExecuteNavigateUp, CanExecuteNavigateUpObservable, RxApp.MainThreadScheduler);
-        NavigateToCommand = ReactiveCommand.Create<string>(ExecuteNavigateTo, outputScheduler: RxApp.MainThreadScheduler);
     }
 
     #region Properties
 
     /// <summary>
-    /// Current directory path
+    /// Collection of ItemsBrowser view models (for tabs support)
+    /// </summary>
+    public ObservableCollection<ItemsBrowserViewModel> ItemsBrowsers { get; }
+
+    /// <summary>
+    /// Currently active browser tab
+    /// </summary>
+    public ItemsBrowserViewModel? ActiveBrowser { get; set; }
+
+    /// <summary>
+    /// Current directory path (delegates to active browser)
     /// </summary>
     public string CurrentPath
     {
-        get => _currentPath;
+        get => ActiveBrowser?.CurrentPath ?? string.Empty;
         private set
         {
-            if (_currentPath != value)
+            if (ActiveBrowser != null)
             {
-                _currentPath = value;
-                OnPropertyChanged();
+                ActiveBrowser.CurrentPath = value;
             }
         }
     }
@@ -62,64 +66,27 @@ public class MainPanelViewModel : INotifyPropertyChanged
     /// <summary>
     /// File tree for the current directory (for archives/virtual filesystems)
     /// </summary>
-    public FileItemTreeNode? FileTree
-    {
-        get => _fileTree;
-        private set
-        {
-            _fileTree = value;
-            OnPropertyChanged();
-        }
-    }
+    public FileItemTreeNode? FileTree { get; private set; }
 
     /// <summary>
     /// Items to display in the file browser (current directory contents)
     /// </summary>
-    public ObservableCollection<IFileSystemItem> Items
-    {
-        get => _items;
-        private set
-        {
-            _items = value;
-            OnPropertyChanged();
-        }
-    }
+    public ObservableCollection<IFileSystemItem> Items { get; private set; } = new();
 
     /// <summary>
     /// Currently selected item
     /// </summary>
-    public IFileSystemItem? SelectedItem
-    {
-        get => _selectedItem;
-        set
-        {
-            if (_selectedItem != value)
-            {
-                _selectedItem = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    public IFileSystemItem? SelectedItem { get; set; }
 
     /// <summary>
     /// Whether this panel is the active/focused panel
     /// </summary>
-    public bool IsActive
-    {
-        get => _isActive;
-        set
-        {
-            if (_isActive != value)
-            {
-                _isActive = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    public bool IsActive { get; set; }
 
     /// <summary>
     /// Whether current path is at root (cannot navigate up)
     /// </summary>
+    [NotObservable]
     public bool IsAtRoot
     {
         get
@@ -141,13 +108,10 @@ public class MainPanelViewModel : INotifyPropertyChanged
 
     #endregion
 
-    #region Commands
-
-    public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
-    public ReactiveCommand<Unit, Unit> NavigateUpCommand { get; }
-    public ReactiveCommand<string, Unit> NavigateToCommand { get; }
-
-    #endregion
+    /// <summary>
+    /// Provides access to all application commands through the CommandExecutor singleton
+    /// </summary>
+    public CommandExecutor CmdExecutor => CommandExecutor.Instance;
 
     #region Navigation Methods
 
@@ -333,43 +297,6 @@ public class MainPanelViewModel : INotifyPropertyChanged
             Items = new ObservableCollection<IFileSystemItem>();
             FileTree = null;
         }
-    }
-
-    #endregion
-
-    #region Command Implementations
-
-    private IObservable<bool> CanExecuteNavigateUpObservable =>
-        this.WhenAnyValue(x => x.CurrentPath)
-            .Select(_ => !IsAtRoot);
-
-    private void ExecuteRefresh()
-    {
-        log.Info("Refresh command executed");
-        Refresh();
-    }
-
-    private void ExecuteNavigateUp()
-    {
-        log.Info("NavigateUp command executed");
-        NavigateUp();
-    }
-
-    private void ExecuteNavigateTo(string path)
-    {
-        log.Info($"NavigateTo command executed: {path}");
-        NavigateToPath(path);
-    }
-
-    #endregion
-
-    #region INotifyPropertyChanged
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
     #endregion

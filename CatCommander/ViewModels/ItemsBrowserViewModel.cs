@@ -1,26 +1,25 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.Selection;
 using CatCommander.Models;
+using Metalama.Patterns.Observability;
 using NLog;
 
 namespace CatCommander.ViewModels;
 
-public class ItemsBrowserViewModel : INotifyPropertyChanged
+[Observable]
+public partial class ItemsBrowserViewModel
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
     private string _currentPath = string.Empty;
-    private HierarchicalTreeDataGridSource<FileItemModel>? _fileItems;
-    private int _selectedCount;
+    private string _filterText = string.Empty;
+    private ObservableCollection<FileItemModel> _allItems = new();
 
     public ItemsBrowserViewModel()
     {
@@ -40,7 +39,6 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
             if (_currentPath != value)
             {
                 _currentPath = value;
-                OnPropertyChanged();
                 LoadDirectory(value);
 
                 // Add to path history if not already present
@@ -58,44 +56,45 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> PathHistory { get; }
 
-    public HierarchicalTreeDataGridSource<FileItemModel>? FileItems
-    {
-        get => _fileItems;
-        private set
-        {
-            _fileItems = value;
-            OnPropertyChanged();
-        }
-    }
+    public HierarchicalTreeDataGridSource<FileItemModel>? FileItems { get; private set; }
 
     /// <summary>
     /// Number of selected items
     /// </summary>
-    public int SelectedCount
+    public int SelectedCount { get; private set; }
+
+    /// <summary>
+    /// Filter text for filtering file items
+    /// </summary>
+    public string FilterText
     {
-        get => _selectedCount;
-        private set
+        get => _filterText;
+        set
         {
-            if (_selectedCount != value)
+            if (_filterText != value)
             {
-                _selectedCount = value;
-                OnPropertyChanged();
+                _filterText = value;
+                ApplyFilter();
             }
         }
     }
 
     /// <summary>
+    /// Whether the filter bar is visible
+    /// </summary>
+    public bool IsFilterVisible { get; set; }
+
+    /// <summary>
     /// Gets the currently selected items
     /// </summary>
-    public IEnumerable<FileItemModel> SelectedItems
+    [NotObservable]
+    private List<FileItemModel> SelectedItems
     {
         get
         {
             if (FileItems?.Selection is TreeDataGridRowSelectionModel<FileItemModel> selection)
-            {
-                return selection.SelectedItems.Where(item => item != null)!;
-            }
-            return Enumerable.Empty<FileItemModel>();
+                return selection.SelectedItems.Where(item => item != null).ToList()!;
+            return [];
         }
     }
 
@@ -107,7 +106,7 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
             {
                 new HierarchicalExpanderColumn<FileItemModel>(
                     new TextColumn<FileItemModel, string>("Name", x => x.Name, GridLength.Star),
-                    x => null), // No children for now (flat list)
+                    _ => null), // No children for now (flat list)
                 new TextColumn<FileItemModel, string>("Extension", x => x.Extension, new GridLength(100)),
                 new TextColumn<FileItemModel, string>("Size", x => x.DisplaySize, new GridLength(100)),
                 new TextColumn<FileItemModel, DateTime>("Modified", x => x.Modified, new GridLength(150))
@@ -157,12 +156,12 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
                     if (selection.IsSelected(focusedIndex))
                     {
                         selection.Deselect(focusedIndex);
-                        log.Debug($"Deselected item: {item?.Name}");
+                        log.Debug($"Deselected item: {item.Name}");
                     }
                     else
                     {
                         selection.Select(focusedIndex);
-                        log.Debug($"Selected item: {item?.Name}");
+                        log.Debug($"Selected item: {item.Name}");
                     }
                 }
             }
@@ -246,22 +245,11 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
 
             log.Debug($"Loaded directory {path}: {dirCount} directories, {fileCount} files");
 
-            // Update the TreeDataGrid source
-            var source = new HierarchicalTreeDataGridSource<FileItemModel>(items)
-            {
-                Columns =
-                {
-                    new HierarchicalExpanderColumn<FileItemModel>(
-                        new TextColumn<FileItemModel, string>("Name", x => x.Name, GridLength.Star),
-                        x => null),
-                    new TextColumn<FileItemModel, string>("Extension", x => x.Extension, new GridLength(100)),
-                    new TextColumn<FileItemModel, string>("Size", x => x.DisplaySize, new GridLength(100)),
-                    new TextColumn<FileItemModel, DateTime>("Modified", x => x.Modified, new GridLength(150))
-                }
-            };
+            // Store all items for filtering
+            _allItems = items;
 
-            ConfigureSelection(source);
-            FileItems = source;
+            // Apply current filter (if any) and update the TreeDataGrid source
+            ApplyFilter();
         }
         catch (Exception ex)
         {
@@ -269,10 +257,75 @@ public class ItemsBrowserViewModel : INotifyPropertyChanged
         }
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    /// <summary>
+    /// Applies the current filter to the file items
+    /// </summary>
+    private void ApplyFilter()
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        if (_allItems.Count == 0)
+        {
+            return;
+        }
+
+        ObservableCollection<FileItemModel> filteredItems;
+
+        if (string.IsNullOrWhiteSpace(_filterText))
+        {
+            // No filter - show all items
+            filteredItems = _allItems;
+        }
+        else
+        {
+            // Apply filter - case-insensitive search in file name
+            var filterLower = _filterText.ToLowerInvariant();
+            filteredItems = new ObservableCollection<FileItemModel>(
+                _allItems.Where(item =>
+                    item.Name.ToLowerInvariant().Contains(filterLower)
+                )
+            );
+            log.Debug($"Filtered {_allItems.Count} items to {filteredItems.Count} using filter: {_filterText}");
+        }
+
+        // Update the TreeDataGrid source with filtered items
+        var source = new HierarchicalTreeDataGridSource<FileItemModel>(filteredItems)
+        {
+            Columns =
+            {
+                new HierarchicalExpanderColumn<FileItemModel>(
+                    new TextColumn<FileItemModel, string>("Name", x => x.Name, GridLength.Star),
+                    _ => null),
+                new TextColumn<FileItemModel, string>("Extension", x => x.Extension, new GridLength(100)),
+                new TextColumn<FileItemModel, string>("Size", x => x.DisplaySize, new GridLength(100)),
+                new TextColumn<FileItemModel, DateTime>("Modified", x => x.Modified, new GridLength(150))
+            }
+        };
+
+        ConfigureSelection(source);
+        FileItems = source;
+    }
+
+    /// <summary>
+    /// Clears the filter text and hides the filter popup
+    /// </summary>
+    private void ClearFilter()
+    {
+        FilterText = string.Empty;
+        IsFilterVisible = false;
+        log.Debug("Filter cleared and hidden");
+    }
+
+    /// <summary>
+    /// Toggles the visibility of the filter bar
+    /// </summary>
+    public void ToggleFilter()
+    {
+        IsFilterVisible = !IsFilterVisible;
+        log.Debug($"Filter visibility toggled to: {IsFilterVisible}");
+
+        // Clear filter when hiding
+        if (!IsFilterVisible)
+        {
+            ClearFilter();
+        }
     }
 }

@@ -9,22 +9,39 @@ namespace CatCommander.Commands;
 
 /// <summary>
 /// Central command manager that handles all keyboard and mouse commands
-/// for the file commander application
+/// for the file commander application. Implemented as a singleton.
 /// </summary>
-public class CommandExecutor
+public sealed class CommandExecutor
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
-    private readonly MainWindowViewModel _viewModel;
+    private static readonly Lazy<CommandExecutor> _instance = new(() => new CommandExecutor());
 
-    public CommandExecutor(MainWindowViewModel viewModel)
+    /// <summary>
+    /// Gets the singleton instance of CommandExecutor
+    /// </summary>
+    public static CommandExecutor Instance => _instance.Value;
+
+    /// <summary>
+    /// The main window view model that contains the panels
+    /// </summary>
+    public MainWindowViewModel? MainWindowViewModel { get; set; }
+
+    /// <summary>
+    /// Gets the currently active panel
+    /// </summary>
+    private MainPanelViewModel? ActivePanel => MainWindowViewModel?.LeftPanel.IsActive == true
+        ? MainWindowViewModel?.LeftPanel
+        : MainWindowViewModel?.RightPanel;
+
+    private CommandExecutor()
     {
-        _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         InitializeCommands();
-        log.Info("CommandManager initialized");
+        log.Info("CommandExecutor singleton initialized");
     }
 
     #region Command Properties
 
+    // File operation commands
     public ReactiveCommand<Unit, Unit> OpenCommand { get; private set; } = null!;
     public ReactiveCommand<Unit, Unit> CopyCommand { get; private set; } = null!;
     public ReactiveCommand<Unit, Unit> MoveCommand { get; private set; } = null!;
@@ -37,12 +54,18 @@ public class CommandExecutor
     public ReactiveCommand<Unit, Unit> GotoFirstItemCommand { get; private set; } = null!;
     public ReactiveCommand<Unit, Unit> GotoLastItemCommand { get; private set; } = null!;
 
+    // Panel navigation commands
+    public ReactiveCommand<Unit, Unit> RefreshCommand { get; private set; } = null!;
+    public ReactiveCommand<Unit, Unit> NavigateUpCommand { get; private set; } = null!;
+    public ReactiveCommand<string, Unit> NavigateToCommand { get; private set; } = null!;
+
     #endregion
 
     #region Command Initialization
 
     private void InitializeCommands()
     {
+        // File operation commands
         OpenCommand = ReactiveCommand.Create(ExecuteOpen, CanExecuteOpenObservable, RxApp.MainThreadScheduler);
         CopyCommand = ReactiveCommand.Create(ExecuteCopy, CanExecuteCopyObservable, RxApp.MainThreadScheduler);
         MoveCommand = ReactiveCommand.Create(ExecuteMove, CanExecuteMoveObservable, RxApp.MainThreadScheduler);
@@ -60,6 +83,11 @@ public class CommandExecutor
             RxApp.MainThreadScheduler);
         GotoLastItemCommand = ReactiveCommand.Create(ExecuteGotoLastItem, CanExecuteGotoLastItemObservable,
             RxApp.MainThreadScheduler);
+
+        // Panel navigation commands
+        RefreshCommand = ReactiveCommand.Create(ExecuteRefresh, CanExecuteRefreshObservable, RxApp.MainThreadScheduler);
+        NavigateUpCommand = ReactiveCommand.Create(ExecuteNavigateUp, CanExecuteNavigateUpObservable, RxApp.MainThreadScheduler);
+        NavigateToCommand = ReactiveCommand.Create<string>(ExecuteNavigateTo, outputScheduler: RxApp.MainThreadScheduler);
     }
 
     #endregion
@@ -267,6 +295,50 @@ public class CommandExecutor
     {
         // TODO: Add logic to determine if command can execute (e.g., items exist)
         return true;
+    }
+
+    #endregion
+
+    #region Refresh Command
+
+    private IObservable<bool> CanExecuteRefreshObservable => Observable.Return(CanExecuteRefresh());
+
+    private void ExecuteRefresh()
+    {
+        log.Info("Refresh command executed");
+        ActivePanel?.Refresh();
+    }
+
+    private bool CanExecuteRefresh()
+    {
+        return ActivePanel != null;
+    }
+
+    #endregion
+
+    #region NavigateUp Command
+
+    private IObservable<bool> CanExecuteNavigateUpObservable => Observable.Return(CanExecuteNavigateUp());
+
+    private void ExecuteNavigateUp()
+    {
+        log.Info("NavigateUp command executed");
+        ActivePanel?.NavigateUp();
+    }
+
+    private bool CanExecuteNavigateUp()
+    {
+        return ActivePanel != null && !ActivePanel.IsAtRoot;
+    }
+
+    #endregion
+
+    #region NavigateTo Command
+
+    private void ExecuteNavigateTo(string path)
+    {
+        log.Info($"NavigateTo command executed: {path}");
+        ActivePanel?.NavigateToPath(path);
     }
 
     #endregion

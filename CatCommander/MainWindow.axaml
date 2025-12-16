@@ -17,7 +17,7 @@
         <NativeMenu>
             <NativeMenuItem Header="文件">
                 <NativeMenu>
-                    <NativeMenuItem Header="Open" Gesture="Meta+O" Command="{Binding OpenCommand}" />
+                    <NativeMenuItem Header="Open" Gesture="Meta+O" Command="{Binding CmdExecutor.OpenCommand}" />
                     <NativeMenuItem Header="Save" Gesture="Meta+S" />
                     <NativeMenuItem Header="Close" Gesture="Meta+W" />
                 </NativeMenu>
@@ -25,7 +25,7 @@
             <NativeMenuItem Header="Edit">
                 <NativeMenu>
                     <NativeMenuItem Header="Cut" Gesture="Meta+X" />
-                    <NativeMenuItem Header="Copy" Gesture="Meta+C" />
+                    <NativeMenuItem Header="Copy" Gesture="Meta+C" Command="{Binding CmdExecutor.CopyCommand}" />
                     <NativeMenuItem Header="Past" Gesture="Meta+V" />
                 </NativeMenu>
             </NativeMenuItem>
@@ -100,7 +100,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Left Pane -->
-            <view:MainPanel Grid.Column="0" />
+            <view:MainPanel Grid.Column="0" DataContext="{Binding LeftPanel}" />
 
             <!-- Vertical Menu and two splitters Between Panes -->
             <GridSplitter Grid.Column="1"
@@ -142,7 +142,7 @@
             </GridSplitter>
 
             <!-- Right Pane -->
-            <view:MainPanel Grid.Column="2" />
+            <view:MainPanel Grid.Column="2" DataContext="{Binding RightPanel}" />
 
         </Grid>
     </DockPanel>
