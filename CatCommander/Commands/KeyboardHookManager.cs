@@ -36,6 +36,8 @@ public record CatKeyEventArgs(KeyModifiers Modifiers, KeyCode Key)
     {
         return KeyboardHookManager.NormalizedString(this);
     }
+
+    public static CatKeyEventArgs Empty { get; } = new(KeyModifiers.None, KeyCode.VcUndefined);
 }
 
 /// <summary>
@@ -185,14 +187,15 @@ public class KeyboardHookManager : IDisposable
         var result = new List<string>();
 
         // Add modifiers in consistent order
-        if (evt.Modifiers.HasFlag(KeyModifiers.Control)) result.Add("ctrl");
-        if (evt.Modifiers.HasFlag(KeyModifiers.Alt)) result.Add("alt");
-        if (evt.Modifiers.HasFlag(KeyModifiers.Shift)) result.Add("shift");
-        if (evt.Modifiers.HasFlag(KeyModifiers.Meta)) result.Add("meta");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Control)) result.Add("Ctrl");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Alt)) result.Add("Alt");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Shift)) result.Add("Shift");
+        if (evt.Modifiers.HasFlag(KeyModifiers.Meta)) result.Add("Meta");
 
         // Add the main key at the end
         var keyStr = evt.Key.ToString().ToLowerInvariant();
         if (keyStr.StartsWith("vc")) keyStr = keyStr.Substring(2);
+        if (keyStr.Length > 0) keyStr = char.ToUpper(keyStr[0]) + keyStr.Substring(1);
         result.Add(keyStr);
 
         return string.Join("+", result);
@@ -201,10 +204,10 @@ public class KeyboardHookManager : IDisposable
     /// <summary>
     /// Normalizes a key combination string to an internal CatKeyEventArgs record
     /// </summary>
-    public static CatKeyEventArgs? Parse(string shortcutsStr)
+    public static CatKeyEventArgs Parse(string shortcutsStr)
     {
         if (string.IsNullOrWhiteSpace(shortcutsStr))
-            return null;
+            return CatKeyEventArgs.Empty;
 
         // Split by '+' and process each part
         var modifiers = KeyModifiers.None;

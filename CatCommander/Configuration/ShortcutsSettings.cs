@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CatCommander.Commands;
 using NLog;
 
@@ -19,6 +20,8 @@ public enum Operation
     GoBackToParentFolder,
     GotoFirstItem,
     GotoLastItem,
+    SwitchTabInSamePanel,
+    SwitchPanel
 }
 
 public class ShortcutsSettings
@@ -40,27 +43,30 @@ public class ShortcutsSettings
     public ShortcutsSettings()
     {
         // Set default shortcuts matching Total Commander conventions
-        Bindings = new();
-        Bindings[Operation.Copy] = "Ctrl+C";
-        Bindings[Operation.Move] = "F5";
-        Bindings[Operation.Rename] = "Shift+F6;F2";
-        Bindings[Operation.Delete] = "F8;Delete";
-        Bindings[Operation.ExpandCurrentFolder] = "Right";
-        Bindings[Operation.ExpandSelectedFolders] = "Ctrl+Right";
-        Bindings[Operation.GoIntoCurrentFolder] = "Enter;Ctrl+Down";
-        Bindings[Operation.GoBackToParentFolder] = "Backspace;Ctrl+Up";
-        Bindings[Operation.GotoFirstItem] = "Home;Ctrl+Home";
-        Bindings[Operation.GotoLastItem] = "End;Ctrl+End";
+        Bindings = new()
+        {
+            [Operation.Copy] = "Ctrl+C",
+            [Operation.Move] = "F5",
+            [Operation.Rename] = "Shift+F6;F2",
+            [Operation.Delete] = "F8;Delete",
+            [Operation.ExpandCurrentFolder] = "Ctrl+B",
+            [Operation.ExpandSelectedFolders] = "Ctrl+Shift+B",
+            [Operation.GoIntoCurrentFolder] = "Enter;Right",
+            [Operation.GoBackToParentFolder] = "Left",
+            [Operation.GotoFirstItem] = "Home",
+            [Operation.GotoLastItem] = "End"
+        };
 
-        RebuildReverseMap();
+        RebuildNormalized();
     }
 
     /// <summary>
-    /// Rebuilds the reverse map
+    /// Rebuilds the reverse map and then update binding map
     /// Should be called after loading from TOML or modifying shortcuts
     /// </summary>
-    public void RebuildReverseMap()
+    public void RebuildNormalized()
     {
+        // rebuild key --> op map from binding map
         MapKeyToOp.Clear();
 
         foreach (var (operation, keysString) in Bindings)
@@ -75,16 +81,47 @@ public class ShortcutsSettings
             {
                 // Normalize the keystroke for consistent lookup
                 var keyEvt = KeyboardHookManager.Parse(keyStr);
-                if (keyEvt == null) continue;
-                
+                if (keyEvt == CatKeyEventArgs.Empty) continue;
+
                 // If key already exists, last one wins with warning
-                if (MapKeyToOp.TryGetValue(keyEvt, out var value))
+                if (MapKeyToOp.TryGetValue(keyEvt, out var value) && operation != value)
                 {
                     log.Warn($"overwrite {keyEvt}, {value} --> {operation}");
                 }
 
                 MapKeyToOp[keyEvt] = operation;
             }
+        }
+
+        // apply pre-defined shortcuts
+        var predefined = new Dictionary<CatKeyEventArgs, Operation>()
+        {
+            [KeyboardHookManager.Parse("right")] = Operation.GoIntoCurrentFolder,
+            [KeyboardHookManager.Parse("left")] = Operation.GoBackToParentFolder,
+            [KeyboardHookManager.Parse("home")] = Operation.GotoFirstItem,
+            [KeyboardHookManager.Parse("end")] = Operation.GotoLastItem,
+            [KeyboardHookManager.Parse("ctrl+tab")] = Operation.SwitchTabInSamePanel,
+            [KeyboardHookManager.Parse("tab")] = Operation.SwitchPanel,
+        };
+
+        foreach (var (keyEvt, operation) in predefined)
+        {
+            if (MapKeyToOp.TryGetValue(keyEvt, out var value) && operation != value)
+            {
+                log.Warn($"prefined shortcuts overwrite {keyEvt}, {value} --> {operation}");
+            }
+
+            MapKeyToOp[keyEvt] = operation;
+        }
+
+        // update binding dict from key->op map to elimination conflictions
+        Bindings.Clear();
+        foreach (var op in MapKeyToOp.Values.Distinct())
+        {
+            var keys = MapKeyToOp.Where(kvp => kvp.Value == op)
+                .Select(kvp => kvp.Key.ToString())
+                .ToList();
+            Bindings[op] = string.Join(";", keys);
         }
     }
 

@@ -114,7 +114,7 @@ public class ConfigManager
             Shortcuts = Toml.ToModel<ShortcutsSettings>(tomlContent);
 
             // Rebuild the reverse map (keystroke -> operation) for runtime lookups
-            Shortcuts.RebuildReverseMap();
+            Shortcuts.RebuildNormalized();
 
             log.Info("Shortcuts loaded from {0} ({1} operations)", KeymapConfigFilePath, Shortcuts.Bindings.Count);
         }

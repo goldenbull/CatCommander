@@ -20,10 +20,6 @@ namespace CatCommander
 
         public override void OnFrameworkInitializationCompleted()
         {
-            // Load configuration
-            var configManager = ConfigManager.Instance;
-            configManager.Load();
-
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.MainWindow = new MainWindow();
@@ -32,7 +28,7 @@ namespace CatCommander
                 desktop.Exit += (sender, args) =>
                 {
                     // Save configuration on exit if needed
-                    configManager.Save();
+                    ConfigManager.Instance.Save();
                 };
             }
 
