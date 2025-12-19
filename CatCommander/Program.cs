@@ -28,7 +28,7 @@ namespace CatCommander
             {
                 // Get NLog config path from app.toml
                 var appDir = AppDomain.CurrentDomain.BaseDirectory;
-                var nlogConfigPath = Path.Combine(appDir, "data", "NLog.config");
+                var nlogConfigPath = Path.Combine(appDir, "Config", "NLog.config");
                 // Load NLog configuration
                 if (File.Exists(nlogConfigPath))
                 {

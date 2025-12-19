@@ -35,11 +35,11 @@ public class ConfigManager
     private ConfigManager()
     {
         var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        var dataDir = Path.Combine(appDir, "data");
+        var configDir = Path.Combine(appDir, "Config");
 
-        AppConfigFilePath = Path.Combine(dataDir, "app.toml");
-        KeymapConfigFilePath = Path.Combine(dataDir, "keymap.toml");
-        PanelsConfigFilePath = Path.Combine(dataDir, "panels.toml");
+        AppConfigFilePath = Path.Combine(configDir, "app.toml");
+        KeymapConfigFilePath = Path.Combine(configDir, "keymap.toml");
+        PanelsConfigFilePath = Path.Combine(configDir, "panels.toml");
 
         Load();
     }
@@ -71,7 +71,7 @@ public class ConfigManager
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
-            log.Info("Created data directory: {0}", directory);
+            log.Info("Created config directory: {0}", directory);
         }
     }
 

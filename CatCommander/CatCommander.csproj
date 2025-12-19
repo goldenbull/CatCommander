@@ -48,16 +48,16 @@
         <None Update="lib\7z.so">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="data\app.toml">
+        <None Update="Config\app.toml">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="data\panels.toml">
+        <None Update="Config\keymap.toml">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="data\keymap.toml">
+        <None Update="Config\NLog.config">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="data\NLog.config">
+        <None Update="Config\panels.toml">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
