@@ -16,7 +16,6 @@ namespace CatCommander
     public partial class MainWindow : Window
     {
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
-        private DateTime? lastMetaKeyPress;
 
         public MainWindow()
         {
@@ -34,18 +33,18 @@ namespace CatCommander
         {
             try
             {
+                // register SharpHook
                 var keyboardHook = KeyboardHookManager.Instance;
                 keyboardHook.KeyPressed += OnGlobalKeyPressed;
                 keyboardHook.Start();
                 log.Info("Keyboard hook initialized and started");
+
+                // and also register PreviewKeyDown
+                AddHandler(KeyDownEvent, Window_PreviewKeyDown, RoutingStrategies.Tunnel, true);
             }
             catch (Exception ex)
             {
-                log.Error(ex, "Failed to initialize keyboard hook. Falling back to Avalonia events.");
-                // Fallback to Avalonia's keyboard events if hook fails
-                AddHandler(KeyDownEvent, Window_PreviewKeyDown,
-                    RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
-                AddHandler(KeyUpEvent, Window_PreviewKeyUp, RoutingStrategies.Tunnel, true);
+                log.Error(ex, "Failed to initialize keyboard hook");
             }
         }
 
@@ -67,70 +66,12 @@ namespace CatCommander
             }
         }
 
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-            log.Debug($"OnKeyDown: {e.KeyModifiers} {e.Key} {e.KeySymbol} {e.PhysicalKey} ");
-        }
-
-        private void Button_OnClick(object? sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            if (btn == null)
-                return;
-            log.Debug($"Button: {btn.Name}");
-        }
-
         private void Window_PreviewKeyDown(object? sender, KeyEventArgs e)
         {
-            var keyInfo = $"{e.KeyModifiers} {e.Key}";
+            var keyInfo = $"Window_PreviewKeyDown {e.KeyModifiers} {e.Key}";
 
-            // Track Meta key presses for Meta+Q detection
-            if (e.Key == Key.LWin || e.Key == Key.RWin)
-            {
-                lastMetaKeyPress = DateTime.Now;
-            }
-
-            // Check for Meta+Q combination
-            if (e.Key == Key.Q && e.KeyModifiers.HasFlag(KeyModifiers.Meta))
-            {
-                keyInfo = $"{e.KeyModifiers} {e.Key} (Meta+Q CAPTURED!)";
-                e.Handled = true; // Try to prevent default quit behavior
-                tbKeyPreview.Text = keyInfo;
-                log.Debug(keyInfo);
-                return;
-            }
-
-            // Special handling for Control+Tab to prevent tab navigation
-            // Check both Control and Shift+Control combinations
-            if (e.Key == Key.Tab && e.KeyModifiers.HasFlag(KeyModifiers.Control))
-            {
-                keyInfo = $"{e.KeyModifiers} {e.Key} (Ctrl+Tab CAPTURED in PreviewKeyDown!)";
-                e.Handled = true; // Prevent default tab navigation
-                tbKeyPreview.Text = keyInfo;
-                log.Debug(keyInfo);
-                return;
-            }
-
-            // Also capture plain Tab to see if it's reaching here
-            if (e.Key == Key.Tab)
-            {
-                keyInfo = $"{e.KeyModifiers} {e.Key} (Tab key detected)";
-            }
-
-            tbKeyPreview.Text = keyInfo;
+            // tbKeyPreview.Text = keyInfo;
             log.Debug(keyInfo);
-        }
-
-        private void Window_PreviewKeyUp(object? sender, KeyEventArgs e)
-        {
-            // Optional: Log key releases for debugging
-            if (e.Key == Key.Q && lastMetaKeyPress.HasValue &&
-                (DateTime.Now - lastMetaKeyPress.Value).TotalMilliseconds < 1000)
-            {
-                var keyInfo = "Meta+Q released (detected in KeyUp)";
-                log.Debug(keyInfo);
-            }
         }
 
         private async void MainWindow_Closing(object? sender, WindowClosingEventArgs e)

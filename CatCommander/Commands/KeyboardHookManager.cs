@@ -6,21 +6,8 @@ using SharpHook;
 using SharpHook.Data;
 
 /*
-There are two keyboard event type systems:
 
-Avalonia has two enums: Avalonia.Input.KeyModifiers and Avalonia.Input.Key,
-which are used in Avalonia.Input.KeyEventArgs class.
-This is quite simple and straightforward.
-
-SharpHook works in a lower layer, and has more details.
-1. KeyPressed and KeyReleased events are triggered separately,
-2. Alt, Control, Meta, Shift keys distinguish between left and right
-think about the complex series of key events:
-  left alt down, right alt down, left alt up, letter 'A' down, right alt up, letter 'A' up
-practically, an 'alt+A' event should raise on letter 'A' down
-so we need to track each low level key event and raise events to app layer properly
-
-In config file, key shortcuts are in string format, but we use a normalized record struct internally for performance
+See readme.md
 
 */
 
