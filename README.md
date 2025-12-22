@@ -59,7 +59,7 @@ Avalonia works at app layer, and has two enums: Avalonia.Input.KeyModifiers and 
 
 ### SharpHook
 
-But Avalonia key event system can not process some shortcuts like Ctrl+F6 or Meta+F7, etc. These shortcuts are processed by MacOS, the OS has 'eaten' them and will not send them to Avalonia app. So we need SharpHook which works in a lower layer, and thus introduces more details.
+But Avalonia key event system can not process some shortcuts like Ctrl+F1 or Meta+F7, etc. These shortcuts are processed by MacOS, the OS has 'eaten' them and will not send them to Avalonia app. So we need SharpHook which works in a lower layer, and thus introduces more details.
 
 - KeyPressed and KeyReleased events are triggered separately
 - Alt, Control, Meta, Shift keys distinguish between left and right
@@ -84,14 +84,21 @@ In config file, key shortcuts are in string format, but we use a normalized reco
 UI app is complicated, because user interactions are complicated by nature.
 Think about a simple case: when user pressed Ctrl+A, app need to deal with the key events in different cases. 
 
-- UI is in 'text input mode', Ctrl+A meaning select all editing text, for example:
+- UI is in 'text editor mode', Ctrl+A meaning select all editing text, for example:
   - renaming files
-  - creating new folders
+  - input name when creating new folders
   - input arbitrary path directly
   - input filter text in a panel
 - UI is in 'shortcut mode', Ctrl+A meaning select all items in the panel
 
 Theoretically, we can process all keyboard events in SharpHook, but it needs a lot of unnecessary work like translating low level key strokes into character input events, which is already done by Avalonia event system (see [Avalonia source code on github](https://github.com/AvaloniaUI/Avalonia/blob/master/native/Avalonia.Native/src/OSX/KeyTransform.mm)). 
+
+So we process keyboard input in this way:
+
+1. smart switch between text editor mode and shortcut mode.
+2. when in text editor mode, all KeyDown events (and also TextInput events, string data bindings) are processed normally
+3. when in shortcut mode, registered shortcuts are triggered and KeyDown event is stopped in routed event tunnel stage (see [Routed Events](https://docs.avaloniaui.net/docs/concepts/input/routed-events))
+4. apply for all top level dialogs and windows.
 
 # TODO
 
