@@ -98,6 +98,8 @@ public partial class ItemsBrowserViewModel
         }
     }
 
+    public string StatusText { get; private set; } = "selected 123/999 bytes, 2/5 files, 4/20 folders";
+
     private void InitializeFileItems()
     {
         var source = new HierarchicalTreeDataGridSource<FileItemModel>(Array.Empty<FileItemModel>())

@@ -1,12 +1,9 @@
 using System;
-using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using CatCommander.Commands;
 using CatCommander.Configuration;
-using CatCommander.Utils;
 using CatCommander.View;
 using CatCommander.ViewModels;
 using NLog;
@@ -48,6 +45,8 @@ namespace CatCommander
             }
         }
 
+        #region keyboard processing
+
         private void OnGlobalKeyPressed(object? sender, CatKeyEventArgs e)
         {
             // Run on UI thread
@@ -74,6 +73,8 @@ namespace CatCommander
             log.Debug(keyInfo);
         }
 
+        #endregion
+
         private async void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
         {
             // This will be called when Meta+Q triggers application quit
@@ -85,11 +86,11 @@ namespace CatCommander
 
             // Show confirmation dialog using MessageBox utility
             var result = await MessageBox.Show(
-                this,
-                "Are you sure you want to exit CatCommander?",
-                "Confirm Exit",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                                               this,
+                                               "Are you sure you want to exit CatCommander?",
+                                               "Confirm Exit",
+                                               MessageBoxButton.YesNo,
+                                               MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {

@@ -36,7 +36,7 @@
         <!-- main menu -->
         <OnPlatform>
             <OnPlatform.macOS>
-                <NativeMenuBar x:Name="NativeMenuBar"/>
+                <NativeMenuBar x:Name="NativeMenuBar" />
             </OnPlatform.macOS>
             <OnPlatform.Default>
                 <DockPanel DockPanel.Dock="Top">
@@ -77,6 +77,9 @@
                     <PathIcon Data="{StaticResource SemiIconClose}" />
                 </Button>
                 <Button>
+                    <PathIcon Data="{StaticResource SemiIconHistory}" />
+                </Button>
+                <Button>
                     <Image Source="/Images/left_32x32.png" />
                 </Button>
                 <Separator Width="1" Height="14" Background="DarkGray" VerticalAlignment="Center" Margin="2" />
@@ -86,7 +89,7 @@
                 <Button>
                     <Image Source="/Images/download_32x32.png" />
                 </Button>
-                
+
                 <TextBlock x:Name="tbKeyPreview"></TextBlock>
             </StackPanel>
         </Border>

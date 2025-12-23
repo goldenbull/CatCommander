@@ -43,7 +43,7 @@ public partial class ItemsBrowser : UserControl
                 _filterWasHidden = false;
             }
 
-            FilterTextBox.Focus();
+            tbFilter.Focus();
             e.Handled = true;
         }
     }
