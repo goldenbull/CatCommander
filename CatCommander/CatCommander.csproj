@@ -63,9 +63,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Update="View\ItemsBrowser.axaml.cs">
+        <Compile Update="View\ItemBrowser.axaml.cs">
             <DependentUpon>ItemsBrowser.axaml</DependentUpon>
             <SubType>Code</SubType>
+        </Compile>
+        <Compile Update="View\MainWindow.axaml.cs">
+          <DependentUpon>MainWindow.axaml</DependentUpon>
+          <SubType>Code</SubType>
         </Compile>
     </ItemGroup>
 

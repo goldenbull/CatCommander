@@ -6,6 +6,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.Selection;
+using CatCommander.Commands;
 using CatCommander.Models;
 using Metalama.Patterns.Observability;
 using NLog;
@@ -13,7 +14,7 @@ using NLog;
 namespace CatCommander.ViewModels;
 
 [Observable]
-public partial class ItemsBrowserViewModel
+public partial class ItemBrowserViewModel
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
@@ -21,13 +22,12 @@ public partial class ItemsBrowserViewModel
     private string _filterText = string.Empty;
     private ObservableCollection<FileItemModel> _allItems = new();
 
-    public ItemsBrowserViewModel()
+    public ItemBrowserViewModel()
     {
         log.Info("Initializing ItemsBrowserViewModel");
 
         // Initialize with the user's home directory
         InitializeFileItems();
-        PathHistory = new ObservableCollection<string>();
         CurrentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     }
 
@@ -54,9 +54,10 @@ public partial class ItemsBrowserViewModel
         }
     }
 
-    public ObservableCollection<string> PathHistory { get; }
+    public ObservableCollection<string> PathHistory => CommandExecutor.Instance.PathHistory;
 
     public HierarchicalTreeDataGridSource<FileItemModel>? FileItems { get; private set; }
+    public string StatusText { get; private set; } = "selected 123/999 bytes, 2/5 files, 4/20 folders";
 
     /// <summary>
     /// Number of selected items
@@ -98,7 +99,7 @@ public partial class ItemsBrowserViewModel
         }
     }
 
-    public string StatusText { get; private set; } = "selected 123/999 bytes, 2/5 files, 4/20 folders";
+    public bool IsAtRoot { get; }
 
     private void InitializeFileItems()
     {
@@ -329,5 +330,17 @@ public partial class ItemsBrowserViewModel
         {
             ClearFilter();
         }
+    }
+
+    public void Refresh()
+    {
+    }
+
+    public void NavigateUp()
+    {
+    }
+
+    public void NavigateToPath(string path)
+    {
     }
 }

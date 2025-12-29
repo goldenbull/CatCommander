@@ -29,6 +29,18 @@
                     <NativeMenuItem Header="Past" Gesture="Meta+V" />
                 </NativeMenu>
             </NativeMenuItem>
+            <!-- 'About' menu for mac only  -->
+            <OnPlatform>
+                <OnPlatform.macOS>
+                    <NativeMenuItem Header="About">
+                        <NativeMenu>
+                            <NativeMenuItem Header="About" />
+                            <NativeMenuItem Header="Help" />
+                            <NativeMenuItem Header="Check Update" />
+                        </NativeMenu>
+                    </NativeMenuItem>
+                </OnPlatform.macOS>
+            </OnPlatform>
         </NativeMenu>
     </NativeMenu.Menu>
 

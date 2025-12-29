@@ -7,5 +7,9 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="CatCommander.View.MainPanel"
              x:DataType="vm:MainPanelViewModel">
-    <view:ItemsBrowser DataContext="{Binding ActiveBrowser}" />
+    <DockPanel>
+        <TabStrip DockPanel.Dock="Top" ItemsSource="{Binding DeviceList}"></TabStrip>
+        <TabStrip DockPanel.Dock="Top" ItemsSource="{Binding RootFileItems}"></TabStrip>
+        <view:ItemBrowser DataContext="{Binding ActiveFileItem}" />
+    </DockPanel>
 </UserControl>

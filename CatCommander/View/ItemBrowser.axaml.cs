@@ -5,12 +5,12 @@ using CatCommander.ViewModels;
 
 namespace CatCommander.View;
 
-public partial class ItemsBrowser : UserControl
+public partial class ItemBrowser : UserControl
 {
-    private ItemsBrowserViewModel? ViewModel => DataContext as ItemsBrowserViewModel;
+    private ItemBrowserViewModel? ViewModel => DataContext as ItemBrowserViewModel;
     private bool _filterWasHidden;
 
-    public ItemsBrowser()
+    public ItemBrowser()
     {
         InitializeComponent();
         // DataContext is set from parent (MainPanel)

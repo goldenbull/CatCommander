@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using CatCommander.ViewModels;
@@ -306,7 +307,7 @@ public sealed class CommandExecutor
     private void ExecuteRefresh()
     {
         log.Info("Refresh command executed");
-        ActivePanel?.Refresh();
+        ActivePanel?.ActiveFileItem?.Refresh();
     }
 
     private bool CanExecuteRefresh()
@@ -318,17 +319,19 @@ public sealed class CommandExecutor
 
     #region NavigateUp Command
 
+    public ObservableCollection<string> PathHistory { get; } = new();
+
     private IObservable<bool> CanExecuteNavigateUpObservable => Observable.Return(CanExecuteNavigateUp());
 
     private void ExecuteNavigateUp()
     {
         log.Info("NavigateUp command executed");
-        ActivePanel?.NavigateUp();
+        ActivePanel?.ActiveFileItem?.NavigateUp();
     }
 
     private bool CanExecuteNavigateUp()
     {
-        return ActivePanel != null && !ActivePanel.IsAtRoot;
+        return ActivePanel?.ActiveFileItem != null && ActivePanel.ActiveFileItem.IsAtRoot;
     }
 
     #endregion
@@ -338,7 +341,7 @@ public sealed class CommandExecutor
     private void ExecuteNavigateTo(string path)
     {
         log.Info($"NavigateTo command executed: {path}");
-        ActivePanel?.NavigateToPath(path);
+        ActivePanel?.ActiveFileItem?.NavigateToPath(path);
     }
 
     #endregion
