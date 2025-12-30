@@ -1,4 +1,5 @@
 using CatCommander.Commands;
+using CatCommander.Config;
 using Metalama.Patterns.Observability;
 using NLog;
 

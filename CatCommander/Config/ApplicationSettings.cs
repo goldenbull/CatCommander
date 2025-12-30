@@ -1,4 +1,6 @@
-namespace CatCommander.Configuration;
+using System.Collections.ObjectModel;
+
+namespace CatCommander.Config;
 
 /// <summary>
 /// Global application settings loaded from app.toml
@@ -14,4 +16,16 @@ public class ApplicationSettings
     public bool Confirm_Delete { get; set; } = true;
     public bool Confirm_Overwrite { get; set; } = true;
     public bool Follow_Symlinks { get; set; } = true;
+    
+    // and some context info
+    public ObservableCollection<string> DeviceList { get; } = new();
+    public ObservableCollection<string> PathHistory { get; } = new();
+
+    public void UpdateDeviceList()
+    {
+        DeviceList.Clear();
+        DeviceList.Add("/");
+        DeviceList.Add("/Users");
+        DeviceList.Add("/Volumes/Data");
+    }
 }

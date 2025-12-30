@@ -1,10 +1,7 @@
-using System;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using CatCommander.Configuration;
+using CatCommander.Config;
 using NLog;
 
 namespace CatCommander
@@ -22,7 +19,7 @@ namespace CatCommander
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                desktop.MainWindow = new MainWindow();
+                desktop.MainWindow = new View.MainWindow();
 
                 // Handle application exit
                 desktop.Exit += (sender, args) =>

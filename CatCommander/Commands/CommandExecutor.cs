@@ -318,9 +318,7 @@ public sealed class CommandExecutor
     #endregion
 
     #region NavigateUp Command
-
-    public ObservableCollection<string> PathHistory { get; } = new();
-
+    
     private IObservable<bool> CanExecuteNavigateUpObservable => Observable.Return(CanExecuteNavigateUp());
 
     private void ExecuteNavigateUp()

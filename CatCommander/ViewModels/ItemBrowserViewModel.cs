@@ -6,7 +6,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.Selection;
-using CatCommander.Commands;
+using CatCommander.Config;
 using CatCommander.Models;
 using Metalama.Patterns.Observability;
 using NLog;
@@ -28,7 +28,6 @@ public partial class ItemBrowserViewModel
 
         // Initialize with the user's home directory
         InitializeFileItems();
-        CurrentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     }
 
     public string CurrentPath
@@ -39,22 +38,23 @@ public partial class ItemBrowserViewModel
             if (_currentPath != value)
             {
                 _currentPath = value;
+                Title = Path.GetFileName(value);
                 LoadDirectory(value);
 
-                // Add to path history if not already present
-                if (!PathHistory.Contains(value))
+                // Add to path history if not already present, or move to top if already exists
+                var idx = PathHistory.IndexOf(value);
+                if (idx >= 0) PathHistory.RemoveAt(idx);
+
+                PathHistory.Insert(0, value);
+                if (PathHistory.Count > 20) // Keep only last 20 paths
                 {
-                    PathHistory.Insert(0, value);
-                    if (PathHistory.Count > 20) // Keep only last 20 paths
-                    {
-                        PathHistory.RemoveAt(PathHistory.Count - 1);
-                    }
+                    PathHistory.RemoveAt(PathHistory.Count - 1);
                 }
             }
         }
     }
 
-    public ObservableCollection<string> PathHistory => CommandExecutor.Instance.PathHistory;
+    public ObservableCollection<string> PathHistory => ConfigManager.Instance.Application.PathHistory;
 
     public HierarchicalTreeDataGridSource<FileItemModel>? FileItems { get; private set; }
     public string StatusText { get; private set; } = "selected 123/999 bytes, 2/5 files, 4/20 folders";
@@ -100,6 +100,7 @@ public partial class ItemBrowserViewModel
     }
 
     public bool IsAtRoot { get; }
+    public string Title { get; private set; } = string.Empty;
 
     private void InitializeFileItems()
     {

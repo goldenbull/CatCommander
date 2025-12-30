@@ -1,4 +1,4 @@
-namespace CatCommander.Configuration;
+namespace CatCommander.Config;
 
 /// <summary>
 /// Panel state settings loaded from panels.toml

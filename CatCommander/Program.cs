@@ -4,7 +4,6 @@ using Avalonia;
 using NLog;
 using NLog.Config;
 using Tomlyn;
-using CatCommander.Configuration;
 
 namespace CatCommander
 {

@@ -4,7 +4,7 @@ using System.Linq;
 using CatCommander.Commands;
 using NLog;
 
-namespace CatCommander.Configuration;
+namespace CatCommander.Config;
 
 // use enums as the identifier for both keys in config file and commands in CommandExecutor.cs
 public enum Operation

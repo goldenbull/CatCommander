@@ -1,7 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
-using System.IO;
-using CatCommander.Commands;
+using CatCommander.Config;
 using Metalama.Patterns.Observability;
 using NLog;
 
@@ -20,24 +19,28 @@ public partial class MainPanelViewModel
         log.Info("MainPanelViewModel initialized");
 
         // Add the first browser instance (default tab)
-        var initialBrowser = new ItemBrowserViewModel();
+        var vmTabItem = new ItemBrowserViewModel();
+        RootFileItems.Add(vmTabItem);
         // Initialize with home directory. TODO: load from saved history
-        initialBrowser.CurrentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        vmTabItem.CurrentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        ActiveFileItem = vmTabItem;
 
-        RootFileItems.Add(initialBrowser);
-        ActiveFileItem = initialBrowser;
+        // add second tab for test
+        vmTabItem = new ItemBrowserViewModel();
+        RootFileItems.Add(vmTabItem);
+        vmTabItem.CurrentPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
     }
 
     #region Properties
 
-    public ObservableCollection<string> DeviceList { get; } = new();
+    public ApplicationSettings Settings => ConfigManager.Instance.Application;
 
+    public bool IsActive { get; set; }
+    
     /// <summary>
     /// Collection of ItemsBrowser view models (for tabs support)
     /// </summary>
     public ObservableCollection<ItemBrowserViewModel> RootFileItems { get; } = new();
-
-    public bool IsActive { get; set; }
 
     /// <summary>
     /// Currently active browser tab

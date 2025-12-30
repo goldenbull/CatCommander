@@ -3,7 +3,7 @@ using System.IO;
 using NLog;
 using Tomlyn;
 
-namespace CatCommander.Configuration;
+namespace CatCommander.Config;
 
 public class ConfigManager
 {
@@ -89,6 +89,7 @@ public class ConfigManager
 
             var tomlContent = File.ReadAllText(AppConfigFilePath);
             Application = Toml.ToModel<ApplicationSettings>(tomlContent);
+            Application.UpdateDeviceList();
             log.Info("Application settings loaded from {0}", AppConfigFilePath);
         }
         catch (Exception ex)
