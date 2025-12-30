@@ -329,7 +329,7 @@ public sealed class CommandExecutor
 
     private bool CanExecuteNavigateUp()
     {
-        return ActivePanel?.ActiveFileItem != null && ActivePanel.ActiveFileItem.IsAtRoot;
+        return ActivePanel?.ActiveFileItem != null && ActivePanel.ActiveFileItem.CanNavigateUp;
     }
 
     #endregion

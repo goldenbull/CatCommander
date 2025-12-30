@@ -29,7 +29,7 @@
 
             <!-- textbox for current folder path -->
             <TextBox Grid.Column="1"
-                     Text="{Binding CurrentPath, Mode=TwoWay}"
+                     Text="{Binding RootPath, Mode=TwoWay}"
                      Height="24"
                      MinHeight="0"
                      Watermark="Enter folder path...">
@@ -47,7 +47,7 @@
                     <Flyout Placement="BottomEdgeAlignedLeft">
                         <Border MinWidth="300" MaxHeight="400">
                             <ListBox ItemsSource="{Binding PathHistory}"
-                                     SelectedItem="{Binding CurrentPath, Mode=TwoWay}">
+                                     SelectedItem="{Binding RootPath, Mode=TwoWay}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding}" />
@@ -68,7 +68,8 @@
         </DockPanel>
 
         <!-- TreeDataGrid for file listing -->
-        <TreeDataGrid Source="{Binding FileItems}"
+        <TreeDataGrid x:Name="grid"
+                      Source="{Binding VisibleItemsSource}"
                       AutoDragDropRows="False"
                       CanUserResizeColumns="True"
                       CanUserSortColumns="True"

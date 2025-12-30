@@ -7,8 +7,9 @@ namespace CatCommander.View;
 
 public partial class ItemBrowser : UserControl
 {
-    private ItemBrowserViewModel? ViewModel => DataContext as ItemBrowserViewModel;
-    private bool _filterWasHidden;
+    private ItemBrowserViewModel? vm => DataContext as ItemBrowserViewModel;
+
+    private bool editingFilter;
 
     public ItemBrowser()
     {
@@ -22,80 +23,40 @@ public partial class ItemBrowser : UserControl
 
     private void OnPreviewTextInput(object? sender, TextInputEventArgs e)
     {
-        if (ViewModel == null || string.IsNullOrEmpty(e.Text))
+        if (vm == null || string.IsNullOrEmpty(e.Text))
             return;
 
-        // If filter is not visible and we receive printable text input, show the filter
-        if (!ViewModel.IsFilterVisible && !string.IsNullOrWhiteSpace(e.Text))
+        // If we receive printable text input, means we are editing the filter
+        if (!string.IsNullOrWhiteSpace(e.Text))
         {
-            ViewModel.IsFilterVisible = true;
-
-            // If we have existing filter text (was hidden with text), append; otherwise start new
-            if (_filterWasHidden && !string.IsNullOrEmpty(ViewModel.FilterText))
-            {
-                // Continue with existing filter text (append new input)
-                ViewModel.FilterText += e.Text;
-            }
-            else
-            {
-                // Start new filter
-                ViewModel.FilterText = e.Text;
-                _filterWasHidden = false;
-            }
-
+            editingFilter = true;
             tbFilter.Focus();
+            vm.FilterText += e.Text;
             e.Handled = true;
         }
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (ViewModel == null)
+        if (vm == null)
             return;
 
         // Handle Escape with two-stage behavior
-        if (e.Key == Key.Escape && ViewModel.IsFilterVisible)
+        if (e.Key == Key.Escape)
         {
-            // Check if filter was previously hidden with text (second ESC scenario)
-            if (_filterWasHidden && !string.IsNullOrEmpty(ViewModel.FilterText))
+            if (editingFilter)
             {
-                // Second ESC: clear filter text and hide
-                ViewModel.FilterText = string.Empty;
-                ViewModel.IsFilterVisible = false;
-                _filterWasHidden = false;
-            }
-            else if (!string.IsNullOrEmpty(ViewModel.FilterText))
-            {
-                // First ESC: hide popup but keep filter text
-                ViewModel.IsFilterVisible = false;
-                _filterWasHidden = true;
+                // exit filter edit
+                grid.Focus();
+                editingFilter = false;
             }
             else
             {
-                // No filter text, just hide
-                ViewModel.IsFilterVisible = false;
-                _filterWasHidden = false;
+                // clear filter
+                vm.FilterText = string.Empty;
             }
-            e.Handled = true;
-            return;
-        }
 
-        // Handle Space for selection only when filter is not visible
-        if (e.Key == Key.Space && !ViewModel.IsFilterVisible)
-        {
-            ViewModel.ToggleCurrentItemSelection();
             e.Handled = true;
         }
-    }
-
-    private void OnClearFilterClick(object? sender, RoutedEventArgs e)
-    {
-        if (ViewModel == null)
-            return;
-
-        // Clear filter text and hide popup
-        ViewModel.FilterText = string.Empty;
-        ViewModel.IsFilterVisible = false;
-        _filterWasHidden = false;
     }
 }

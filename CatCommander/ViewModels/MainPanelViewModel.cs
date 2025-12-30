@@ -21,13 +21,13 @@ public partial class MainPanelViewModel
         var vmTabItem = new ItemBrowserViewModel();
         RootFileItems.Add(vmTabItem);
         // Initialize with home directory. TODO: load from saved history
-        vmTabItem.CurrentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        vmTabItem.RootPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         ActiveFileItem = vmTabItem;
 
         // add second tab for test
         vmTabItem = new ItemBrowserViewModel();
         RootFileItems.Add(vmTabItem);
-        vmTabItem.CurrentPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        vmTabItem.RootPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
     }
 
     #region Properties

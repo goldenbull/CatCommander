@@ -55,7 +55,6 @@ public partial class MainWindow : Window
     void OnSharpHookKeyPressed(CatKeyEventArgs e)
     {
         var keyCombination = e.ToString();
-        tbKeyPreview.Text = keyCombination;
         var op = ConfigManager.Instance.Shortcuts.GetOperation(e);
         if (op != Operation.Nop)
         {

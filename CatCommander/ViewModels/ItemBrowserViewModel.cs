@@ -8,167 +8,89 @@ using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.Selection;
 using CatCommander.Config;
 using CatCommander.Models;
+using DynamicData;
 using Metalama.Patterns.Observability;
 using NLog;
 
 namespace CatCommander.ViewModels;
 
+/// <summary>
+/// represents all data shown in the panel.
+/// most important properties:
+///     1. RootPath. Could be:
+///         - an ordinary folder
+///         - fullpath of a zip file
+///         - String.Empty for special cases, like the search result, or flatten file list of folders
+///     2. AllItems. Could be:
+///         - normal filesystem
+///         - zip entries, which are organized into trees
+///         - an arbitrary list of file items for some special cases
+///     3. FilterText and VisibleItems. There are two kinds of filter:
+///         - smart mode, apply all words in filter to the item list one by one
+///         - regex mode
+///     4. SelectedItems. Always select the visible items, invisible items are always un-selected.
+/// </summary>
 [Observable]
 public partial class ItemBrowserViewModel
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
-    private string _currentPath = string.Empty;
-    private string _filterText = string.Empty;
-    private ObservableCollection<FileItemModel> _allItems = new();
-
     public ItemBrowserViewModel()
     {
         log.Info("Initializing ItemsBrowserViewModel");
-
-        // Initialize with the user's home directory
-        InitializeFileItems();
-    }
-
-    public string CurrentPath
-    {
-        get => _currentPath;
-        set
-        {
-            if (_currentPath != value)
-            {
-                _currentPath = value;
-                Title = Path.GetFileName(value);
-                LoadDirectory(value);
-
-                // Add to path history if not already present, or move to top if already exists
-                var idx = PathHistory.IndexOf(value);
-                if (idx >= 0) PathHistory.RemoveAt(idx);
-
-                PathHistory.Insert(0, value);
-                if (PathHistory.Count > 20) // Keep only last 20 paths
-                {
-                    PathHistory.RemoveAt(PathHistory.Count - 1);
-                }
-            }
-        }
-    }
-
-    public ObservableCollection<string> PathHistory => ConfigManager.Instance.Application.PathHistory;
-
-    public HierarchicalTreeDataGridSource<FileItemModel>? FileItems { get; private set; }
-    public string StatusText { get; private set; } = "selected 123/999 bytes, 2/5 files, 4/20 folders";
-
-    /// <summary>
-    /// Number of selected items
-    /// </summary>
-    public int SelectedCount { get; private set; }
-
-    /// <summary>
-    /// Filter text for filtering file items
-    /// </summary>
-    public string FilterText
-    {
-        get => _filterText;
-        set
-        {
-            if (_filterText != value)
-            {
-                _filterText = value;
-                ApplyFilter();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Whether the filter bar is visible
-    /// </summary>
-    public bool IsFilterVisible { get; set; }
-
-    /// <summary>
-    /// Gets the currently selected items
-    /// </summary>
-    [NotObservable]
-    private List<FileItemModel> SelectedItems
-    {
-        get
-        {
-            if (FileItems?.Selection is TreeDataGridRowSelectionModel<FileItemModel> selection)
-                return selection.SelectedItems.Where(item => item != null).ToList()!;
-            return [];
-        }
-    }
-
-    public bool IsAtRoot { get; }
-    public string Title { get; private set; } = string.Empty;
-
-    private void InitializeFileItems()
-    {
-        var source = new HierarchicalTreeDataGridSource<FileItemModel>(Array.Empty<FileItemModel>())
+        VisibleItemsSource = new(VisibleItems)
         {
             Columns =
             {
-                new HierarchicalExpanderColumn<FileItemModel>(
-                    new TextColumn<FileItemModel, string>("Name", x => x.Name, GridLength.Star),
-                    _ => null), // No children for now (flat list)
+                new TextColumn<FileItemModel, string>("Name", x => x.Name, GridLength.Star),
                 new TextColumn<FileItemModel, string>("Extension", x => x.Extension, new GridLength(100)),
                 new TextColumn<FileItemModel, string>("Size", x => x.DisplaySize, new GridLength(100)),
                 new TextColumn<FileItemModel, DateTime>("Modified", x => x.Modified, new GridLength(150))
             }
         };
 
-        ConfigureSelection(source);
-        FileItems = source;
+        VisibleItemsSource.RowSelection!.SingleSelect = false;
+        VisibleItemsSource.RowSelection!.SelectionChanged += OnSelectionChanged;
     }
 
-    private void ConfigureSelection(HierarchicalTreeDataGridSource<FileItemModel> source)
+    // point to global data
+    public ObservableCollection<string> PathHistory => ConfigManager.Instance.Application.PathHistory;
+
+    #region RootPath
+
+    private string _rootPath = string.Empty;
+
+    public string RootPath
     {
-        // RowSelection is auto-initialized, just configure it
-        if (source.RowSelection != null)
+        get => _rootPath;
+        set
         {
-            source.RowSelection.SingleSelect = false;
-            source.RowSelection.SelectionChanged += OnSelectionChanged;
+            if (_rootPath == value)
+                return;
+
+            _rootPath = value;
+            Title = Path.GetFileName(value);
+            LoadDirectory(value);
+
+            // Add to path history if not already present, or move to top if already exists
+            PathHistory.Remove(value);
+            PathHistory.Insert(0, value);
+            if (PathHistory.Count > 30) // Keep only last several paths
+            {
+                PathHistory.RemoveAt(PathHistory.Count - 1);
+            }
+
+            OnPropertyChanged(nameof(RootPath));
         }
     }
 
-    private void OnSelectionChanged(object? sender, TreeSelectionModelSelectionChangedEventArgs<FileItemModel> e)
+    public bool CanNavigateUp
     {
-        SelectedCount = SelectedItems.Count();
-        log.Debug($"Selection changed: {SelectedCount} items selected");
-    }
-
-    /// <summary>
-    /// Toggles the selection of the currently focused item (Space key handler)
-    /// </summary>
-    public void ToggleCurrentItemSelection()
-    {
-        if (FileItems?.RowSelection is TreeDataGridRowSelectionModel<FileItemModel> selection)
+        get
         {
-            // Get the current focused row index
-            var focusedIndex = selection.AnchorIndex;
-            if (focusedIndex.Count > 0)
-            {
-                var rowIndex = focusedIndex[0];
-
-                // Get the item at that index
-                var items = FileItems.Items.ToList();
-                if (rowIndex >= 0 && rowIndex < items.Count)
-                {
-                    var item = items[rowIndex];
-
-                    // Toggle selection
-                    if (selection.IsSelected(focusedIndex))
-                    {
-                        selection.Deselect(focusedIndex);
-                        log.Debug($"Deselected item: {item.Name}");
-                    }
-                    else
-                    {
-                        selection.Select(focusedIndex);
-                        log.Debug($"Selected item: {item.Name}");
-                    }
-                }
-            }
+            if (string.IsNullOrWhiteSpace(_rootPath))
+                return false;
+            return !Path.IsPathRooted(_rootPath);
         }
     }
 
@@ -184,7 +106,7 @@ public partial class ItemBrowserViewModel
 
         try
         {
-            var items = new ObservableCollection<FileItemModel>();
+            var items = new List<FileItemModel>();
 
             // Add parent directory entry if not at root
             var dirInfo = new DirectoryInfo(path);
@@ -250,7 +172,8 @@ public partial class ItemBrowserViewModel
             log.Debug($"Loaded directory {path}: {dirCount} directories, {fileCount} files");
 
             // Store all items for filtering
-            _allItems = items;
+            allItems.Clear();
+            allItems.AddRange(items);
 
             // Apply current filter (if any) and update the TreeDataGrid source
             ApplyFilter();
@@ -261,77 +184,100 @@ public partial class ItemBrowserViewModel
         }
     }
 
+    #endregion
+
+    #region all items and filter
+
+    private readonly List<FileItemModel> allItems = new();
+    private readonly ObservableCollection<FileItemModel> VisibleItems = new();
+    public FlatTreeDataGridSource<FileItemModel> VisibleItemsSource { get; }
+
+    // Filter text for filtering file items
+    private string _filterText = string.Empty;
+
+    public string FilterText
+    {
+        get => _filterText;
+        set
+        {
+            if (_filterText != value)
+            {
+                _filterText = value;
+                ApplyFilter();
+            }
+        }
+    }
+
     /// <summary>
     /// Applies the current filter to the file items
     /// </summary>
     private void ApplyFilter()
     {
-        if (_allItems.Count == 0)
+        if (allItems.Count == 0)
         {
             return;
         }
 
-        ObservableCollection<FileItemModel> filteredItems;
-
+        VisibleItems.Clear();
         if (string.IsNullOrWhiteSpace(_filterText))
         {
             // No filter - show all items
-            filteredItems = _allItems;
+            VisibleItems.AddRange(allItems);
         }
         else
         {
             // Apply filter - case-insensitive search in file name
             var filterLower = _filterText.ToLowerInvariant();
-            filteredItems = new ObservableCollection<FileItemModel>(
-                _allItems.Where(item =>
-                    item.Name.ToLowerInvariant().Contains(filterLower)
-                )
-            );
-            log.Debug($"Filtered {_allItems.Count} items to {filteredItems.Count} using filter: {_filterText}");
-        }
 
-        // Update the TreeDataGrid source with filtered items
-        var source = new HierarchicalTreeDataGridSource<FileItemModel>(filteredItems)
-        {
-            Columns =
+            // smart mode
+            var filterWords = filterLower.Split();
+            foreach (var item in allItems)
             {
-                new HierarchicalExpanderColumn<FileItemModel>(
-                    new TextColumn<FileItemModel, string>("Name", x => x.Name, GridLength.Star),
-                    _ => null),
-                new TextColumn<FileItemModel, string>("Extension", x => x.Extension, new GridLength(100)),
-                new TextColumn<FileItemModel, string>("Size", x => x.DisplaySize, new GridLength(100)),
-                new TextColumn<FileItemModel, DateTime>("Modified", x => x.Modified, new GridLength(150))
+                var name = item.Name.ToLowerInvariant();
+                if (filterWords.All(w => name.Contains(w)))
+                {
+                    VisibleItems.Add(item);
+                }
             }
-        };
 
-        ConfigureSelection(source);
-        FileItems = source;
+            log.Debug($"Filtered {allItems.Count} items to {VisibleItems.Count} using filter: {_filterText}");
+        }
+
+        // TODO update selection
+        // ConfigureSelection(source);
     }
 
-    /// <summary>
-    /// Clears the filter text and hides the filter popup
-    /// </summary>
-    private void ClearFilter()
-    {
-        FilterText = string.Empty;
-        IsFilterVisible = false;
-        log.Debug("Filter cleared and hidden");
-    }
+    #endregion
 
-    /// <summary>
-    /// Toggles the visibility of the filter bar
-    /// </summary>
-    public void ToggleFilter()
-    {
-        IsFilterVisible = !IsFilterVisible;
-        log.Debug($"Filter visibility toggled to: {IsFilterVisible}");
+    #region selection
 
-        // Clear filter when hiding
-        if (!IsFilterVisible)
+    [NotObservable]
+    private List<FileItemModel> SelectedItems
+    {
+        get
         {
-            ClearFilter();
+            if (VisibleItemsSource.Selection is TreeDataGridRowSelectionModel<FileItemModel> selection)
+                return selection.SelectedItems.Where(item => item != null).ToList()!;
+            return [];
         }
     }
+
+    public int SelectedCount { get; private set; }
+
+    private void OnSelectionChanged(object? sender, TreeSelectionModelSelectionChangedEventArgs<FileItemModel> e)
+    {
+        SelectedCount = SelectedItems.Count;
+        log.Debug($"Selection changed: {SelectedCount} items selected");
+    }
+
+    #endregion
+
+    #region other properties
+
+    public string StatusText { get; private set; } = "selected 123/999 bytes, 2/5 files, 4/20 folders";
+    public string Title { get; private set; } = string.Empty;
+
+    #endregion
 
     public void Refresh()
     {
