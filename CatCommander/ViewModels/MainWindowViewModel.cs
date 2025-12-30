@@ -1,5 +1,7 @@
+using System.Collections.ObjectModel;
 using CatCommander.Commands;
-using CatCommander.Config;
+using CatCommander.Models;
+using CatCommander.Utils;
 using Metalama.Patterns.Observability;
 using NLog;
 
@@ -15,12 +17,11 @@ public partial class MainWindowViewModel
         // Initialize the two panels (left and right)
         LeftPanel = new MainPanelViewModel();
         RightPanel = new MainPanelViewModel();
-
-        // Set left panel as active by default
-        LeftPanel.IsActive = true;
-
+        FileSystemHelper.UpdateDeviceList();
+        
         // Set the reference to this view model in CommandExecutor
         CommandExecutor.Instance.MainWindowViewModel = this;
+        CommandExecutor.Instance.ActivePanel = LeftPanel;
 
         log.Info("MainWindowViewModel initialized");
     }
@@ -29,7 +30,8 @@ public partial class MainWindowViewModel
 
     public MainPanelViewModel LeftPanel { get; }
     public MainPanelViewModel RightPanel { get; }
-
+    public ObservableCollection<DriveInfoModel> DeviceList => FileSystemHelper.DeviceList;
+    
     #endregion
 
     /// <summary>

@@ -8,7 +8,6 @@
              x:Class="CatCommander.View.MainPanel"
              x:DataType="vm:MainPanelViewModel">
     <DockPanel>
-        <TabStrip DockPanel.Dock="Top" ItemsSource="{Binding Settings.DeviceList}"></TabStrip>
         <TabStrip DockPanel.Dock="Top" ItemsSource="{Binding RootFileItems}">
             <TabStrip.ItemTemplate>
                 <DataTemplate x:DataType="vm:ItemBrowserViewModel">

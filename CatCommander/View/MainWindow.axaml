@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:view="clr-namespace:CatCommander.View"
         xmlns:vm="clr-namespace:CatCommander.ViewModels"
+        xmlns:models="clr-namespace:CatCommander.Models;assembly=libcat"
         mc:Ignorable="d"
         d:DesignWidth="800" d:DesignHeight="450"
         MinWidth="500" MinHeight="400"
@@ -94,7 +95,9 @@
                 <Button>
                     <Image Source="/Images/left_32x32.png" />
                 </Button>
+               
                 <Separator Width="1" Height="20" Background="DarkGray" VerticalAlignment="Center" Margin="2" />
+                
                 <Button ToolTip.Tip="forward">
                     <Image Source="/Images/right_32x32.png" />
                 </Button>
@@ -103,6 +106,27 @@
                 </Button>
 
                 <TextBlock x:Name="tbKeyPreview"></TextBlock>
+                
+                <Separator Width="1" Height="20" Background="DarkGray" VerticalAlignment="Center" Margin="2" />
+                
+                <TextBlock VerticalAlignment="Center">Drives</TextBlock>
+                <ItemsControl ItemsSource="{Binding DeviceList}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="1"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:DriveInfoModel">
+                            <Button ToolTip.Tip="{Binding RootDirectory}" Padding="0" Margin="0">
+                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                    <Image Source="{Binding Icon}" Width="20" Height="20" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Border>
 

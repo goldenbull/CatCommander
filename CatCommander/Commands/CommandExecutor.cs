@@ -30,9 +30,7 @@ public sealed class CommandExecutor
     /// <summary>
     /// Gets the currently active panel
     /// </summary>
-    private MainPanelViewModel? ActivePanel => MainWindowViewModel?.LeftPanel.IsActive == true
-        ? MainWindowViewModel?.LeftPanel
-        : MainWindowViewModel?.RightPanel;
+    public MainPanelViewModel? ActivePanel { get; set; }
 
     private CommandExecutor()
     {
@@ -87,8 +85,10 @@ public sealed class CommandExecutor
 
         // Panel navigation commands
         RefreshCommand = ReactiveCommand.Create(ExecuteRefresh, CanExecuteRefreshObservable, RxApp.MainThreadScheduler);
-        NavigateUpCommand = ReactiveCommand.Create(ExecuteNavigateUp, CanExecuteNavigateUpObservable, RxApp.MainThreadScheduler);
-        NavigateToCommand = ReactiveCommand.Create<string>(ExecuteNavigateTo, outputScheduler: RxApp.MainThreadScheduler);
+        NavigateUpCommand =
+            ReactiveCommand.Create(ExecuteNavigateUp, CanExecuteNavigateUpObservable, RxApp.MainThreadScheduler);
+        NavigateToCommand =
+            ReactiveCommand.Create<string>(ExecuteNavigateTo, outputScheduler: RxApp.MainThreadScheduler);
     }
 
     #endregion
@@ -318,7 +318,7 @@ public sealed class CommandExecutor
     #endregion
 
     #region NavigateUp Command
-    
+
     private IObservable<bool> CanExecuteNavigateUpObservable => Observable.Return(CanExecuteNavigateUp());
 
     private void ExecuteNavigateUp()

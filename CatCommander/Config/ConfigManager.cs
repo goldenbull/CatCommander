@@ -89,7 +89,6 @@ public class ConfigManager
 
             var tomlContent = File.ReadAllText(AppConfigFilePath);
             Application = Toml.ToModel<ApplicationSettings>(tomlContent);
-            Application.UpdateDeviceList();
             log.Info("Application settings loaded from {0}", AppConfigFilePath);
         }
         catch (Exception ex)

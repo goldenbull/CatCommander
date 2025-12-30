@@ -1,6 +1,5 @@
 using System;
 using System.Collections.ObjectModel;
-using CatCommander.Config;
 using Metalama.Patterns.Observability;
 using NLog;
 
@@ -33,10 +32,6 @@ public partial class MainPanelViewModel
 
     #region Properties
 
-    public ApplicationSettings Settings => ConfigManager.Instance.Application;
-
-    public bool IsActive { get; set; }
-    
     /// <summary>
     /// Collection of ItemsBrowser view models (for tabs support)
     /// </summary>

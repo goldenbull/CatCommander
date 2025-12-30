@@ -1,4 +1,7 @@
+using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using CatCommander.Models;
 
 namespace CatCommander.Config;
 
@@ -18,14 +21,5 @@ public class ApplicationSettings
     public bool Follow_Symlinks { get; set; } = true;
     
     // and some context info
-    public ObservableCollection<string> DeviceList { get; } = new();
     public ObservableCollection<string> PathHistory { get; } = new();
-
-    public void UpdateDeviceList()
-    {
-        DeviceList.Clear();
-        DeviceList.Add("/");
-        DeviceList.Add("/Users");
-        DeviceList.Add("/Volumes/Data");
-    }
 }
