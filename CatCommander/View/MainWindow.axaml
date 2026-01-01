@@ -78,7 +78,7 @@
                     <Style Selector="Button">
                         <Setter Property="MinHeight" Value="0" />
                         <Setter Property="Height" Value="24" />
-                        <Setter Property="Width" Value="24" />
+                        <!-- <Setter Property="Width" Value="24" /> -->
                         <Setter Property="Padding" Value="0" />
                         <Setter Property="Margin" Value="1" />
                     </Style>
@@ -111,13 +111,13 @@
                 <ItemsControl ItemsSource="{Binding DeviceList}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="1"/>
+                            <StackPanel Orientation="Horizontal" Spacing="2"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:DriveInfoModel">
                             <Button ToolTip.Tip="{Binding RootDirectory}" Padding="0" Margin="0">
-                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                <StackPanel Orientation="Horizontal" Spacing="1">
                                     <Image Source="{Binding Icon}" Width="20" Height="20" VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
                                 </StackPanel>

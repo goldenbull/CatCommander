@@ -19,46 +19,16 @@ public static class FileSystemHelper
     {
         DeviceList.Clear();
 
-        if (OperatingSystem.IsMacOS())
+        var drives = DriveInfo.GetDrives();
+        foreach (var drive in drives)
         {
-            // On macOS, add root drive
-            var rootDrive = new DriveInfo("/");
-            DeviceList.Add(DriveInfoModel.FromDriveInfo(rootDrive));
-
-            // Add external drives from /Volumes
-            var volumesPath = "/Volumes";
-            if (Directory.Exists(volumesPath))
+            // special filter for MacOS. TODO: linux?
+            if (OperatingSystem.IsMacOS())
             {
-                foreach (var volumeDir in Directory.GetDirectories(volumesPath))
-                {
-                    try
-                    {
-                        var volumeName = Path.GetFileName(volumeDir);
-                        // Skip Macintosh HD as it's usually a symlink to /
-                        if (volumeName != "Macintosh HD")
-                        {
-                            DeviceList.Add(new DriveInfoModel
-                            {
-                                Name = volumeName,
-                                VolumeLabel = volumeName,
-                                DriveType = DriveType.Removable, // Assume external volumes are removable
-                                RootDirectory = volumeDir,
-                                IsReady = true
-                            });
-                        }
-                    }
-                    catch
-                    {
-                        // Skip volumes that can't be accessed
-                    }
-                }
+                if (drive.Name == "/" || drive.Name.StartsWith("/Volumes/"))
+                    DeviceList.Add(DriveInfoModel.FromDriveInfo(drive));
             }
-        }
-        else
-        {
-            // On Windows and Linux, use DriveInfo.GetDrives()
-            var drives = DriveInfo.GetDrives();
-            foreach (var drive in drives)
+            else
             {
                 DeviceList.Add(DriveInfoModel.FromDriveInfo(drive));
             }
@@ -149,7 +119,7 @@ public static class FileSystemHelper
             AddSpecialLocation(locations, "Home", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
             AddSpecialLocation(locations, "Desktop", Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
             AddSpecialLocation(locations, "Documents",
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+                               Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
             AddSpecialLocation(locations, "Downloads", GetDownloadsFolder());
             AddSpecialLocation(locations, "Music", Environment.GetFolderPath(Environment.SpecialFolder.MyMusic));
             AddSpecialLocation(locations, "Pictures", Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
@@ -163,15 +133,16 @@ public static class FileSystemHelper
                 case OperatingSystemType.Windows:
                     AddSpecialLocation(locations, "This PC", "");
                     AddSpecialLocation(locations, "Program Files",
-                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+                                       Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
                     AddSpecialLocation(locations, "Windows",
-                        Environment.GetFolderPath(Environment.SpecialFolder.Windows));
+                                       Environment.GetFolderPath(Environment.SpecialFolder.Windows));
                     break;
 
                 case OperatingSystemType.MacOS:
                     AddSpecialLocation(locations, "Applications", "/Applications");
                     AddSpecialLocation(locations, "Library",
-                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library"));
+                                       Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                                                    "Library"));
                     AddSpecialLocation(locations, "Volumes", "/Volumes");
                     break;
 
@@ -386,11 +357,11 @@ public static class FileSystemHelper
     private static DriveInformation CreateDriveInformation(DriveInfo drive)
     {
         var info = new DriveInformation
-        {
-            Name = drive.Name,
-            Type = drive.DriveType,
-            IsReady = drive.IsReady
-        };
+                   {
+                       Name = drive.Name,
+                       Type = drive.DriveType,
+                       IsReady = drive.IsReady
+                   };
 
         if (drive.IsReady)
         {
@@ -421,10 +392,10 @@ public static class FileSystemHelper
         if (!string.IsNullOrEmpty(path) && (string.IsNullOrEmpty(path) || Directory.Exists(path) || path == ""))
         {
             locations.Add(new SpecialLocation
-            {
-                Name = name,
-                Path = path
-            });
+                          {
+                              Name = name,
+                              Path = path
+                          });
         }
     }
 

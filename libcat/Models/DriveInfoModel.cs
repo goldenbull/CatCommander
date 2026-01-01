@@ -17,19 +17,26 @@ public class DriveInfoModel
     public static DriveInfoModel FromDriveInfo(DriveInfo driveInfo)
     {
         return new DriveInfoModel
-        {
-            Name = driveInfo.Name,
-            VolumeLabel = driveInfo.IsReady ? driveInfo.VolumeLabel : driveInfo.Name,
-            DriveType = driveInfo.DriveType,
-            RootDirectory = driveInfo.RootDirectory.FullName,
-            IsReady = driveInfo.IsReady
-        };
+               {
+                   Name = driveInfo.Name,
+                   VolumeLabel = driveInfo.IsReady ? driveInfo.VolumeLabel : driveInfo.Name,
+                   DriveType = driveInfo.DriveType,
+                   RootDirectory = driveInfo.RootDirectory.FullName,
+                   IsReady = driveInfo.IsReady
+               };
     }
 
     /// <summary>
     /// Returns a display name for the drive (volume label or name)
     /// </summary>
-    public string DisplayName => Path.GetFileName(string.IsNullOrEmpty(VolumeLabel) ? Name : VolumeLabel);
+    public string DisplayName
+    {
+        get
+        {
+            var name = string.IsNullOrEmpty(VolumeLabel) ? Name : VolumeLabel;
+            return name != "/" ? Path.GetFileName(name) : name;
+        }
+    }
 
     /// <summary>
     /// Returns a Bitmap for the drive icon
@@ -47,7 +54,7 @@ public class DriveInfoModel
                 DriveType.Ram => "hard_disk.png",
                 _ => "empty.png"
             };
-            
+
             var uri = new Uri($"avares://CatCommander/Images/{iconPath}");
             return new Bitmap(AssetLoader.Open(uri));
         }
