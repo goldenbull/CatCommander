@@ -90,87 +90,89 @@ public static class MessageBox
         MessageBoxImage icon = MessageBoxImage.None)
     {
         var dialog = new Window
-        {
-            Title = caption,
-            Width = 400,
-            MinWidth = 300,
-            MaxWidth = 600,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
-            CanResize = false,
-            ShowInTaskbar = false
-        };
+                     {
+                         Title = caption,
+                         Width = 400,
+                         MinWidth = 300,
+                         MaxWidth = 600,
+                         SizeToContent = SizeToContent.Height,
+                         WindowStartupLocation = owner != null
+                                                     ? WindowStartupLocation.CenterOwner
+                                                     : WindowStartupLocation.CenterScreen,
+                         CanResize = false,
+                         ShowInTaskbar = false
+                     };
 
-        MessageBoxResult result = MessageBoxResult.None;
+        var result = MessageBoxResult.None;
         var mainPanel = new StackPanel
-        {
-            Margin = new Thickness(20),
-            Spacing = 20
-        };
+                        {
+                            Margin = new Thickness(20),
+                            Spacing = 20
+                        };
 
         // Content panel with icon and message
         var contentPanel = new DockPanel
-        {
-            Margin = new Thickness(0, 0, 0, 10)
-        };
+                           {
+                               Margin = new Thickness(0, 0, 0, 10)
+                           };
 
         // Add icon if specified
         if (icon != MessageBoxImage.None)
         {
             var iconText = new TextBlock
-            {
-                Text = GetIconSymbol(icon),
-                FontSize = 32,
-                Foreground = GetIconColor(icon),
-                Margin = new Thickness(0, 0, 15, 0),
-                VerticalAlignment = VerticalAlignment.Top
-            };
+                           {
+                               Text = GetIconSymbol(icon),
+                               FontSize = 32,
+                               Foreground = GetIconColor(icon),
+                               Margin = new Thickness(0, 0, 15, 0),
+                               VerticalAlignment = VerticalAlignment.Top
+                           };
             DockPanel.SetDock(iconText, Avalonia.Controls.Dock.Left);
             contentPanel.Children.Add(iconText);
         }
 
         // Message text
         var messageText = new TextBlock
-        {
-            Text = messageBoxText,
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 14,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+                          {
+                              Text = messageBoxText,
+                              TextWrapping = TextWrapping.Wrap,
+                              FontSize = 14,
+                              VerticalAlignment = VerticalAlignment.Center
+                          };
         contentPanel.Children.Add(messageText);
 
         mainPanel.Children.Add(contentPanel);
 
         // Button panel
         var buttonPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 10
-        };
+                          {
+                              Orientation = Orientation.Horizontal,
+                              HorizontalAlignment = HorizontalAlignment.Right,
+                              Spacing = 10
+                          };
 
         // Add buttons based on MessageBoxButton parameter
         switch (button)
         {
-            case MessageBoxButton.OK:
-                AddButton(buttonPanel, "OK", MessageBoxResult.OK, true, dialog, r => result = r);
-                break;
+        case MessageBoxButton.OK:
+            AddButton(buttonPanel, "OK", MessageBoxResult.OK, true, dialog, r => result = r);
+            break;
 
-            case MessageBoxButton.OKCancel:
-                AddButton(buttonPanel, "OK", MessageBoxResult.OK, true, dialog, r => result = r);
-                AddButton(buttonPanel, "Cancel", MessageBoxResult.Cancel, false, dialog, r => result = r);
-                break;
+        case MessageBoxButton.OKCancel:
+            AddButton(buttonPanel, "OK", MessageBoxResult.OK, true, dialog, r => result = r);
+            AddButton(buttonPanel, "Cancel", MessageBoxResult.Cancel, false, dialog, r => result = r);
+            break;
 
-            case MessageBoxButton.YesNo:
-                AddButton(buttonPanel, "Yes", MessageBoxResult.Yes, false, dialog, r => result = r);
-                AddButton(buttonPanel, "No", MessageBoxResult.No, true, dialog, r => result = r);
-                break;
+        case MessageBoxButton.YesNo:
+            AddButton(buttonPanel, "Yes", MessageBoxResult.Yes, true, dialog, r => result = r);
+            AddButton(buttonPanel, "No", MessageBoxResult.No, false, dialog, r => result = r);
+            break;
 
-            case MessageBoxButton.YesNoCancel:
-                AddButton(buttonPanel, "Yes", MessageBoxResult.Yes, false, dialog, r => result = r);
-                AddButton(buttonPanel, "No", MessageBoxResult.No, true, dialog, r => result = r);
-                AddButton(buttonPanel, "Cancel", MessageBoxResult.Cancel, false, dialog, r => result = r);
-                break;
+        case MessageBoxButton.YesNoCancel:
+            AddButton(buttonPanel, "Yes", MessageBoxResult.Yes, true, dialog, r => result = r);
+            AddButton(buttonPanel, "No", MessageBoxResult.No, false, dialog, r => result = r);
+            AddButton(buttonPanel, "Cancel", MessageBoxResult.Cancel, false, dialog, r => result = r);
+            break;
         }
 
         mainPanel.Children.Add(buttonPanel);
@@ -200,12 +202,12 @@ public static class MessageBox
         Action<MessageBoxResult> setResult)
     {
         var button = new Button
-        {
-            Content = content,
-            Width = 80,
-            Height = 32,
-            IsDefault = isDefault
-        };
+                     {
+                         Content = content,
+                         Width = 80,
+                         Height = 32,
+                         IsDefault = isDefault
+                     };
 
         button.Click += (s, e) =>
         {

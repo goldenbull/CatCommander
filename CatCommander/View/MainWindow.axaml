@@ -41,6 +41,9 @@
                         </NativeMenu>
                     </NativeMenuItem>
                 </OnPlatform.macOS>
+                <OnPlatform.Default>
+                    <NativeMenuItem Header="placeholder" IsVisible="False" />
+                </OnPlatform.Default>
             </OnPlatform>
         </NativeMenu>
     </NativeMenu.Menu>
@@ -95,9 +98,9 @@
                 <Button>
                     <Image Source="/Images/left_32x32.png" />
                 </Button>
-               
+
                 <Separator Width="1" Height="20" Background="DarkGray" VerticalAlignment="Center" Margin="2" />
-                
+
                 <Button ToolTip.Tip="forward">
                     <Image Source="/Images/right_32x32.png" />
                 </Button>
@@ -106,7 +109,7 @@
                 </Button>
 
                 <Separator Width="1" Height="20" Background="DarkGray" VerticalAlignment="Center" Margin="2" />
-                
+
                 <TextBlock VerticalAlignment="Center">Drives</TextBlock>
                 <ItemsControl ItemsSource="{Binding DeviceList}">
                     <ItemsControl.ItemsPanel>

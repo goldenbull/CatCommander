@@ -33,8 +33,15 @@ public class DriveInfoModel
     {
         get
         {
-            var name = string.IsNullOrEmpty(VolumeLabel) ? Name : VolumeLabel;
-            return name != "/" ? Path.GetFileName(name) : name;
+            if (OperatingSystem.IsWindows())
+            {
+                return Name.TrimEnd('\\');
+            }
+            else
+            {
+                var name = string.IsNullOrEmpty(VolumeLabel) ? Name : VolumeLabel;
+                return name != "/" ? Path.GetFileName(name) : name;
+            }
         }
     }
 
