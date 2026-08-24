@@ -63,7 +63,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Assets\*.png" />
+        <AvaloniaResource Include="Assets\**\*.png" />
     </ItemGroup>
 
 </Project>

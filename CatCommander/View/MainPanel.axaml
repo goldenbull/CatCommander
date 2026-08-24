@@ -1,6 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CatCommander.ViewModels"
+             xmlns:qa="using:CatCommander.QuickAccess"
+             xmlns:conv="using:CatCommander.Converters"
+             xmlns:view="using:CatCommander.View"
              x:Class="CatCommander.View.MainPanel"
              x:DataType="vm:MainPanelViewModel"
              Focusable="True">
@@ -13,10 +16,43 @@
         </Style>
     </UserControl.Styles>
 
-    <!-- Empty for now - file listing/browsing is a later milestone. The border exists only to
-         make ActivePanel switching (Tab) visible while there's nothing else to look at.
-         Background="Transparent" (not left null) is required for the interior to be hit-test
+    <!-- Background="Transparent" (not left null) is required for the interior to be hit-test
          visible at all - otherwise clicks inside it don't register as hitting this control. -->
     <Border Classes="activePanel" Classes.active="{Binding IsActive}" BorderThickness="2" Background="Transparent">
+        <DockPanel>
+            <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding QuickAccessEntries}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="qa:QuickAccessEntry">
+                        <Button Margin="1"
+                                Command="{Binding $parent[ItemsControl].((vm:MainPanelViewModel)DataContext).NavigateToQuickAccessCommand}"
+                                CommandParameter="{Binding}"
+                                ToolTip.Tip="{Binding Path}">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <TextBlock Text="{Binding Kind, Converter={x:Static conv:QuickAccessKindToGlyphConverter.Instance}}" />
+                                <TextBlock Text="{Binding DisplayName}" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TabControl ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab}">
+                <TabControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ItemBrowserViewModel">
+                        <TextBlock Text="{Binding CurrentPath}" />
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:ItemBrowserViewModel">
+                        <view:ItemBrowser />
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+        </DockPanel>
     </Border>
 </UserControl>

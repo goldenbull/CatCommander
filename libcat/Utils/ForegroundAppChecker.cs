@@ -29,6 +29,8 @@ public static class ForegroundAppChecker
 
         try
         {
+            MacOSFrameworkLoader.EnsureAppKitLoaded();
+
             autoreleasePool = objc_msgSend(objc_getClass("NSAutoreleasePool"), sel_registerName("alloc"));
             autoreleasePool = objc_msgSend(autoreleasePool, sel_registerName("init"));
 

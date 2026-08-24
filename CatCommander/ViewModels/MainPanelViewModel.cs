@@ -1,12 +1,16 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Windows.Input;
+using CatCommander.QuickAccess;
 using Metalama.Patterns.Observability;
+using ReactiveUI;
 
 namespace CatCommander.ViewModels;
 
 /// <summary>
-/// ViewModel for one MainPanel (one side of the dual-pane view). Empty for now - the file
-/// listing/browsing logic is a later milestone. Exists so the shortcut system and active-panel
-/// tracking have something real to wire up to.
+/// ViewModel for one MainPanel (one side of the dual-pane view): a quick access row and a
+/// tab strip of ItemBrowserViewModel content.
 /// </summary>
 [Observable]
 public partial class MainPanelViewModel
@@ -25,4 +29,22 @@ public partial class MainPanelViewModel
     /// </summary>
     [NotObservable]
     public Action? OnActivated { get; set; }
+
+    public IReadOnlyList<QuickAccessEntry> QuickAccessEntries { get; } = QuickAccessService.GetEntries();
+    public ObservableCollection<ItemBrowserViewModel> Tabs { get; } = new();
+    public ItemBrowserViewModel? ActiveTab { get; set; }
+
+    public ICommand NavigateToQuickAccessCommand { get; }
+
+    public MainPanelViewModel(Func<ItemBrowserViewModel> itemBrowserFactory)
+    {
+        NavigateToQuickAccessCommand = ReactiveCommand.Create<QuickAccessEntry>(entry =>
+            _ = ActiveTab?.NavigateToAsync(entry.Path));
+
+        // Just one tab to start - old-ref opened two "for testing", which isn't a real default.
+        var tab = itemBrowserFactory();
+        Tabs.Add(tab);
+        ActiveTab = tab;
+        _ = tab.NavigateToAsync(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+    }
 }

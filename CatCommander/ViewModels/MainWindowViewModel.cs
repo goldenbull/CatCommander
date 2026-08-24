@@ -50,17 +50,16 @@ public partial class MainWindowViewModel : IShortcutCommandSource
 
     public MainWindowViewModel(
         ConfigManager configManager,
+        Func<MainPanelViewModel> mainPanelFactory,
         Func<FindWindow> findWindowFactory,
         Func<BatchRenameWindow> batchRenameWindowFactory)
     {
         _configManager = configManager;
 
-        // MainPanelViewModel has no dependencies of its own yet, so it's simplest to just new()
-        // two instances directly rather than route them through DI (which would need keyed
-        // registrations to hand out two distinct instances of the same type to one constructor).
-        // Revisit if MainPanelViewModel grows real dependencies.
-        LeftPanel = new MainPanelViewModel();
-        RightPanel = new MainPanelViewModel();
+        // Two distinct instances of the same type - needs a factory, not direct constructor
+        // injection, same reasoning as MainPanelViewModel needing one for ItemBrowserViewModel.
+        LeftPanel = mainPanelFactory();
+        RightPanel = mainPanelFactory();
         _findWindowFactory = findWindowFactory;
         _batchRenameWindowFactory = batchRenameWindowFactory;
 
@@ -108,5 +107,10 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // the same command. Real ActivePanel-scoped file logic is a later milestone.
     private void LogStubOperation(Operation operation) => log.Info("{0} command executed (stub, ActivePanel={1})", operation, ActivePanel == LeftPanel ? "Left" : "Right");
 
-    public ICommand? GetCommand(Operation operation) => _commands.GetValueOrDefault(operation);
+    // Window-level commands (SwitchPanel/OpenFind/.../Copy stubs) get first refusal; anything not
+    // found there falls through to whichever tab is currently active in the active panel - this
+    // is how navigation Operations (GoIntoCurrentFolder, GotoFirstItem, ...) reach
+    // ItemBrowserViewModel without ShortcutRouter needing to know panels/tabs exist at all.
+    public ICommand? GetCommand(Operation operation) =>
+        _commands.GetValueOrDefault(operation) ?? ActivePanel?.ActiveTab?.GetCommand(operation);
 }

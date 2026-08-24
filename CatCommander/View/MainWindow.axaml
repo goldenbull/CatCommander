@@ -19,16 +19,16 @@
         <NativeMenu>
             <NativeMenuItem Header="File">
                 <NativeMenu>
-                    <NativeMenuItem Header="Find..." Gesture="Alt+F7" Command="{Binding OpenFindCommand}" />
-                    <NativeMenuItem Header="Batch Rename..." Command="{Binding OpenBatchRenameCommand}" />
+                    <NativeMenuItem Header="Find..." Gesture="Alt+F7" Command="{Binding OpenFindCommand}" Icon="/Assets/Icons/find.png" />
+                    <NativeMenuItem Header="Batch Rename..." Command="{Binding OpenBatchRenameCommand}" Icon="/Assets/Icons/batch_rename.png" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="Edit">
                 <NativeMenu>
-                    <NativeMenuItem Header="Copy" Gesture="F5" Command="{Binding CopyCommand}" />
-                    <NativeMenuItem Header="Move" Gesture="F6" Command="{Binding MoveCommand}" />
-                    <NativeMenuItem Header="Rename" Gesture="F2" Command="{Binding RenameCommand}" />
-                    <NativeMenuItem Header="Delete" Gesture="F8" Command="{Binding DeleteCommand}" />
+                    <NativeMenuItem Header="Copy" Gesture="F5" Command="{Binding CopyCommand}" Icon="/Assets/Icons/copy.png" />
+                    <NativeMenuItem Header="Move" Gesture="F6" Command="{Binding MoveCommand}" Icon="/Assets/Icons/move.png" />
+                    <NativeMenuItem Header="Rename" Gesture="F2" Command="{Binding RenameCommand}" Icon="/Assets/Icons/rename.png" />
+                    <NativeMenuItem Header="Delete" Gesture="F8" Command="{Binding DeleteCommand}" Icon="/Assets/Icons/delete.png" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="Settings">
@@ -57,13 +57,56 @@
         <!-- Toolbar -->
         <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="4">
             <StackPanel Orientation="Horizontal" Spacing="4">
-                <Button Content="Copy (F5)" Command="{Binding CopyCommand}" />
-                <Button Content="Move (F6)" Command="{Binding MoveCommand}" />
-                <Button Content="Rename (F2)" Command="{Binding RenameCommand}" />
-                <Button Content="Delete (F8)" Command="{Binding DeleteCommand}" />
+                <StackPanel.Styles>
+                    <Style Selector="Button > StackPanel">
+                        <Setter Property="Orientation" Value="Horizontal" />
+                        <Setter Property="Spacing" Value="4" />
+                    </Style>
+                    <Style Selector="Button Image">
+                        <Setter Property="Width" Value="16" />
+                        <Setter Property="Height" Value="16" />
+                    </Style>
+                </StackPanel.Styles>
+
+                <Button Command="{Binding CopyCommand}">
+                    <StackPanel>
+                        <Image Source="/Assets/Icons/copy.png" />
+                        <TextBlock Text="Copy (F5)" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding MoveCommand}">
+                    <StackPanel>
+                        <Image Source="/Assets/Icons/move.png" />
+                        <TextBlock Text="Move (F6)" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding RenameCommand}">
+                    <StackPanel>
+                        <Image Source="/Assets/Icons/rename.png" />
+                        <TextBlock Text="Rename (F2)" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding DeleteCommand}">
+                    <StackPanel>
+                        <Image Source="/Assets/Icons/delete.png" />
+                        <TextBlock Text="Delete (F8)" />
+                    </StackPanel>
+                </Button>
+
                 <Separator Width="1" />
-                <Button Content="Find" Command="{Binding OpenFindCommand}" />
-                <Button Content="Batch Rename" Command="{Binding OpenBatchRenameCommand}" />
+
+                <Button Command="{Binding OpenFindCommand}">
+                    <StackPanel>
+                        <Image Source="/Assets/Icons/find.png" />
+                        <TextBlock Text="Find" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenBatchRenameCommand}">
+                    <StackPanel>
+                        <Image Source="/Assets/Icons/batch_rename.png" />
+                        <TextBlock Text="Batch Rename" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
 
