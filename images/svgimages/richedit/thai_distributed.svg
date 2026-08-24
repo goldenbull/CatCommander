@@ -1,0 +1,11 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Red{fill:#D11C1C;}
+	.Black{fill:#727272;}
+	.Blue{fill:#1177D7;}
+</style>
+<path id="Justify_x5F_High_2_" class="Black" d="M26,10h-8v2h8V10z M26,6h-8v2h8V6z M26,18H6v2h20V18z M14,22H6v2h8V22z M14,26H6v2
+	h8V26z M26,14H6v2h20V14z"/>
+<path class="Blue" d="M16,10h-4v3L6,9l6-4v3h4V10z M16,26h4v3l6-4l-6-4v3h-4V26z M4,4H2v24h2V4z M30,4h-2v24h2V4z"/>
+</svg>

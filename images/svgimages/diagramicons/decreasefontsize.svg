@@ -1,0 +1,19 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737374;}
+	.Yellow{fill:#FCB01B;}
+	.Green{fill:#129C49;}
+	.Blue{fill:#387CB7;}
+	.Red{fill:#D02127;}
+	.White{fill:#FFFFFF;}
+	.st0{opacity:0.5;}
+	.st1{opacity:0.75;}
+	.st2{opacity:0.25;}
+	.st3{display:none;fill:#737374;}
+</style>
+<polygon class="Blue" points="22,4 30,4 26,8 "/>
+<path class="Black" d="M20.6,25.4L15.9,12h-3.7L7.5,25.4H6.4c-0.2,0-0.4,0.1-0.4,0.4v1.9C6,27.9,6.1,28,6.4,28H12
+	c0.2,0,0.4-0.1,0.4-0.4v-1.9c0-0.2-0.1-0.4-0.4-0.4h-1.2l0.6-1.7h5.2l0.6,1.7H16c-0.2,0-0.4,0.1-0.4,0.4v1.9c0,0.2,0.1,0.4,0.4,0.4
+	h5.6c0.2,0,0.4-0.1,0.4-0.4v-1.9c0-0.2-0.1-0.4-0.4-0.4H20.6z M14,15.4L14,15.4l1.7,5.3h-3.2L14,15.4z"/>
+</svg>

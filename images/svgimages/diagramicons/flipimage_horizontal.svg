@@ -1,0 +1,20 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737374;}
+	.Yellow{fill:#FCB01B;}
+	.Green{fill:#129C49;}
+	.Blue{fill:#387CB7;}
+	.Red{fill:#D02127;}
+	.White{fill:#FFFFFF;}
+	.st0{opacity:0.5;}
+	.st1{opacity:0.75;}
+	.st2{opacity:0.25;}
+	.st3{display:none;fill:#737374;}
+</style>
+<path class="Black" d="M16,6h-2V2h2V6z M16,8h-2v4h2V8z M16,14h-2v4h2V14z M16,20h-2v4h2V20z M16,26h-2v4h2V26z"/>
+<g class="st0">
+	<polygon class="Black" points="10,6 10,26 0,16 	"/>
+</g>
+<polygon class="Blue" points="20,6 20,26 30,16 "/>
+</svg>

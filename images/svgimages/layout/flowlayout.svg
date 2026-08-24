@@ -1,0 +1,15 @@
+<svg x="0px" y="0px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" enable-background="new 0 0 32 32" xml:space="preserve" id="Layer_1">
+  <style type="text/css">
+	.Blue{fill:#1177D7;}
+	.st0{opacity:0.5;}
+</style>
+  <g opacity="0.5" class="st0">
+    <path d="M6,12V6h8V2H1C0.4,2,0,2.4,0,3v10c0,0.6,0.4,1,1,1h11.7l1.3-1.6l0.3-0.4H14H6z" fill="#1177D7" opacity="0.5" class="Blue" />
+    <path d="M6,22l5-6H1c-0.6,0-1,0.4-1,1v10c0,0.6,0.4,1,1,1h13v-4H6V22z" fill="#1177D7" opacity="0.5" class="Blue" />
+    <polygon points="16,17.5 15.6,18 16,18 18,18 18,16 18,15.1 17.3,16  " fill="#1177D7" opacity="0.5" class="Blue" />
+    <rect x="16" y="24" width="2" height="4" rx="0" ry="0" fill="#1177D7" opacity="0.5" class="Blue" />
+    <path d="M29,16h-6l6,5l-8,7h8c0.6,0,1-0.4,1-1V17C30,16.4,29.6,16,29,16z" fill="#1177D7" opacity="0.5" class="Blue" />
+    <path d="M29,2H16v4h8v2l-4.9,5.8L19,14h0.4H29c0.6,0,1-0.4,1-1V3C30,2.4,29.6,2,29,2z" fill="#1177D7" opacity="0.5" class="Blue" />
+  </g>
+  <polygon points="26,21 20,16 20,20 12,20 22,8 8,8 8,10 18,10 8,22 10,22 20,22 20,26 " fill="#1177D7" class="Blue" />
+</svg>

@@ -1,0 +1,9 @@
+<svg id="Layer_4" data-name="Layer 4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+	<defs>
+		<style>.Black,.cls-1{fill:#727272;}.Blue{fill:#1177d7;}.cls-1{opacity:0.35;}</style>
+	</defs>
+	<polygon class="Black" points="18.76 28 12.67 28 12 30 20 30 22 24 20.1 24 18.76 28"/>
+	<rect class="Blue" x="2" y="10" width="18" height="8"/>
+	<path class="Black" d="M28,6V22H12.76l-2,6H4V6H28m0-2H4A2,2,0,0,0,2,6V28a2,2,0,0,0,2,2h8l2-6H28a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z"/>
+	<polygon class="cls-1" points="28 12 28 10 20 10 20 6 18 6 18 10 4 10 4 12 18 12 18 16 4 16 4 18 18 18 18 22 20 22 20 18 28 18 28 16 20 16 20 12 28 12"/>
+</svg>

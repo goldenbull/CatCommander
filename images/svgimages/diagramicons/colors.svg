@@ -1,0 +1,22 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+     viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737374;}
+	.Yellow{fill:#FCB01B;}
+	.Green{fill:#129C49;}
+	.Blue{fill:#387CB7;}
+	.Red{fill:#D02127;}
+	.White{fill:#FFFFFF;}
+	.st0{opacity:0.5;}
+	.st1{opacity:0.75;}
+	.st2{opacity:0.25;}
+	.st3{display:none;fill:#737374;}
+</style>
+<g class="st0">
+	<rect x="2" y="26" class="Black" width="28" height="6"/>
+</g>
+<path class="Black" d="M8.8,17.2c-1.1,1.1-2.9,1.1-4,0l-4-4c-1.1-1.1-1.1-2.9,0-4L6,4l8,8L8.8,17.2z"/>
+<path class="Blue" d="M12,8c2.2,0,4,3.6,4,8c0,1.1,0.9,2,2,2s2-0.9,2-2C20,11.6,16.4,8,12,8z"/>
+<path class="Black" d="M27,0H5C4.4,0,4,0.5,4,1v1h1.2H6h0.8H26v20H6v-2.1c-0.7-0.1-1.4-0.4-2-0.8V23c0,0.5,0.5,1,1,1h22
+	c0.5,0,1-0.5,1-1V1C28,0.5,27.5,0,27,0z"/>
+</svg>

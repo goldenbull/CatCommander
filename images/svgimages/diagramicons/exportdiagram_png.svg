@@ -1,0 +1,23 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737374;}
+	.Yellow{fill:#FCB01B;}
+	.Green{fill:#129C49;}
+	.Blue{fill:#387CB7;}
+	.Red{fill:#D02127;}
+	.White{fill:#FFFFFF;}
+	.st0{opacity:0.5;}
+	.st1{opacity:0.75;}
+	.st2{opacity:0.25;}
+	.st3{display:none;fill:#737374;}
+</style>
+<path class="Black" d="M4,6V3c0-0.5,0.5-1,1-1h22c0.5,0,1,0.5,1,1v3h-2V4H6v2H4z M26,18v10H6V18H4v11c0,0.5,0.5,1,1,1h22
+	c0.5,0,1-0.5,1-1V18H26z"/>
+<path class="Green" d="M9.6,10.6c0,1-0.4,1.2-1,1.2H7.2V9.4h1.4C9.3,9.4,9.6,9.5,9.6,10.6z M30,6v12H2V6H30z M11.4,10.6
+	c0-2.3-1.1-2.6-2.7-2.6H5.5H4.6v1.3h0.9v5.4H4.6V16h0.9h2.6v-1.3H7.2v-1.6h1.4C10.3,13.1,11.4,12.9,11.4,10.6z M20.1,8h-3.6v1.3h0.9
+	v3.6h0L14.8,8h-2.8v1.3H13v5.4h-0.9V16h3.6v-1.3h-0.9v-3.6h0l2.7,4.9h1.8V9.3h0.9V8z M27.4,11.7h-3.2V13h1.6v1.4
+	c-0.4,0.2-1,0.3-1.5,0.3c-0.3,0-0.6-0.1-0.8-0.1c-0.8-0.2-0.9-1.1-0.9-1.6V11c0-1.7,1.2-1.7,2.2-1.7c0.1,0,0.3,0,0.6,0v0.9h1.5V8.1
+	c-0.8-0.2-1.6-0.2-2.4-0.2c-0.5,0-0.9,0-1.4,0.1c-2.2,0.5-2.2,2.1-2.2,3v1.9c0,0.9,0.1,2.5,2.2,3c0.4,0.1,0.8,0.1,1.2,0.2
+	c1.2,0,2.2-0.4,2.9-0.8l0.2-0.1V11.7z"/>
+</svg>

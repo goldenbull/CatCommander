@@ -1,0 +1,28 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+     viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737374;}
+	.Yellow{fill:#FCB01B;}
+	.Green{fill:#129C49;}
+	.Blue{fill:#387CB7;}
+	.Red{fill:#D02127;}
+	.White{fill:#FFFFFF;}
+	.st0{opacity:0.5;}
+	.st1{opacity:0.75;}
+	.st2{opacity:0.25;}
+	.st3{display:none;fill:#737374;}
+</style>
+<path class="Blue" d="M5,16H1c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-4C6,16.4,5.6,16,5,16z M4,20H2v-2h2V20z"/>
+<path class="Blue" d="M19,6h-4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1V7C20,6.4,19.6,6,19,6z M18,10h-2V8h2V10z
+	 M19,26h-4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-4C20,26.4,19.6,26,19,26z M18,30h-2v-2h2V30z"/>
+<path class="Blue" d="M31,16h-4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-4C32,16.4,31.6,16,31,16z M30,20h-2v-2h2V20
+	z"/>
+<polygon class="Black" points="4,2 4,0 1,3 4,6 4,4 30,4 30,2 "/>
+<g class="st0">
+	<polygon class="Black" points="6,12 4,12 4,10 14,10 14,8 2,8 2,12 0,12 3,15 	"/>
+	<polygon class="Black" points="7,19 10,22 10,20 26,20 26,18 10,18 10,16 	"/>
+	<polygon class="Black" points="24,8 24,6 21,9 24,12 24,10 28,10 28,16 30,16 30,8 	"/>
+	<polygon class="Black" points="28,28 24,28 24,26 21,29 24,32 24,30 30,30 30,22 28,22 	"/>
+	<polygon class="Black" points="4,26 6,26 3,23 0,26 2,26 2,30 14,30 14,28 4,28 	"/>
+</g>
+</svg>

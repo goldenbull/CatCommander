@@ -1,0 +1,17 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Green{fill:#039C23;}
+	.Black{fill:#727272;}
+	.Blue{fill:#1177D7;}
+	.st0{fill:none;}
+</style>
+<rect x="6" y="6" class="Black" width="10" height="2"/>
+<rect x="6" y="12" class="st0" width="10" height="2"/>
+<path class="Black" d="M2,26V4h18v8.84c0.64-0.28,1.3-0.5,2-0.64V3c0-0.55-0.45-1-1-1H1C0.45,2,0,2.45,0,3v24c0,0.55,0.45,1,1,1
+	h15.01c-0.46-0.62-0.86-1.28-1.18-2H2z"/>
+<path class="Black" d="M6,18v2h8.2c0.14-0.7,0.36-1.36,0.64-2H6z"/>
+<path class="Blue" d="M18,14.01V10H4v6h12.01C16.58,15.25,17.25,14.58,18,14.01z M16,14H6v-2h10V14z"/>
+<path class="Black" d="M6,22v2h8.2c-0.13-0.65-0.2-1.32-0.2-2H6z"/>
+<path class="Green" d="M24,14c-4.42,0-8,3.58-8,8s3.58,8,8,8s8-3.58,8-8S28.42,14,24,14z M22,26v-8l6,4L22,26z"/>
+</svg>

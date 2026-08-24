@@ -1,0 +1,13 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Blue{fill:#1177D7;}
+	.Black{fill:#727272;}
+</style>
+<rect x="8" y="20" class="Blue" width="2" height="2"/>
+<rect x="8" y="24" class="Blue" width="2" height="2"/>
+<rect x="12" y="24" class="Blue" width="12" height="2"/>
+<path class="Black" d="M27,2H5C4.4,2,4,2.4,4,3v26c0,0.6,0.4,1,1,1h22c0.6,0,1-0.4,1-1V3C28,2.4,27.6,2,27,2z M26,28H6V18h20V28z
+	 M26,16H6V4h20V16z"/>
+<rect x="12" y="20" class="Blue" width="12" height="2"/>
+</svg>

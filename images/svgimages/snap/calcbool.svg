@@ -1,0 +1,9 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 16 16" style="enable-background:new 0 0 16 16;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737373;}
+	.Green{fill:#119B49;}
+</style>
+<path class="Black" d="M0,1v14h16V1H0z M15,14H1V2h14V14z"/>
+<path class="Green" d="M4,8l1-1l2,2l4-4l1,1l-5,5L4,8z"/>
+</svg>

@@ -1,0 +1,22 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Red{fill:#D11C1C;}
+	.Blue{fill:#1177D7;}
+	.Black{fill:#727272;}
+</style>
+<path class="Black" d="M31,0H1C0.5,0,0,0.5,0,1v28c0,0.5,0.5,1,1,1h30c0.5,0,1-0.5,1-1V1C32,0.5,31.5,0,31,0z M30,28H2V2h28V28z"/>
+<rect x="6" y="10" class="Red" width="2" height="10"/>
+<rect x="10" y="22" class="Red" width="12" height="2"/>
+<path class="Black" d="M4,20v6h6v-6H4z M8,24H6v-2h2V24z"/>
+<rect x="12" y="4" class="Black" width="16" height="2"/>
+<rect x="16" y="8" class="Black" width="12" height="2"/>
+<rect x="22" y="12" class="Black" width="6" height="2"/>
+<rect x="24" y="16" class="Black" width="4" height="2"/>
+<path class="Blue" d="M17.6,16.7c1.1-1,2.4-2.6,2.4-4.7c-3.8,0-5,3.4-5,3.4S13.8,12,10,12c0,2.1,1.4,3.7,2.4,4.7
+	c-0.7,0.3-1.2,0.9-1.2,1.6c0,1,0.8,1.7,1.9,1.7s1.9-0.7,1.9-1.7c0,1,0.8,1.7,1.9,1.7s1.9-0.7,1.9-1.7C18.8,17.5,18.3,17,17.6,16.7z"
+	/>
+<polygon class="Red" points="8,5.6 8,7 10,10 22,20 28,22 "/>
+<path class="Black" d="M4,4v6h6V4H4z M8,8H6V6h2V8z"/>
+<path class="Black" d="M22,20v6h6v-6H22z M26,24h-2v-2h2V24z"/>
+</svg>

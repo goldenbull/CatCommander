@@ -1,0 +1,10 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 16 16" style="enable-background:new 0 0 16 16;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737373;}
+	.Green{fill:#119B49;}
+</style>
+<path class="Green" d="M4,9l1-1l2,2l4-4l1,1l-5,5L4,9z"/>
+<rect y="1" class="Green" width="16" height="3"/>
+<polygon class="Black" points="15,4 15,14 1,14 1,4 0,4 0,15 16,15 16,4 "/>
+</svg>

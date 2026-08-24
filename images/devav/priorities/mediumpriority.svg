@@ -1,0 +1,21 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#727272;}
+	.Green{fill:#039C23;}
+	.st0{opacity:0.6;}
+</style>
+<g id="Layer_2">
+	<g id="Layer_3">
+		<g>
+			<g>
+				<path class="Green" d="M6,28h4V16H6V28z M12,12v16h4V12H12z"/>
+			</g>
+		</g>
+		<g id="Layer_4" class="st0">
+			<path class="Black" d="M18,8h4v20h-4V8z"/>
+			<path class="Black" d="M24,4h4v24h-4V4z"/>
+		</g>
+	</g>
+</g>
+</svg>

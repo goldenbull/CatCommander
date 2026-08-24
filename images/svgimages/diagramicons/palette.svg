@@ -1,0 +1,21 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+     viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737374;}
+	.Yellow{fill:#FCB01B;}
+	.Green{fill:#129C49;}
+	.Blue{fill:#387CB7;}
+	.Red{fill:#D02127;}
+	.White{fill:#FFFFFF;}
+	.st0{opacity:0.5;}
+	.st1{opacity:0.75;}
+	.st2{opacity:0.25;}
+	.st3{display:none;fill:#737374;}
+</style>
+<path class="Blue" d="M29,15l-8,8l-4-4l8-8L29,15z M30,14l1.7-1.7c0.4-0.4,0.4-1,0-1.3L29,8.3c-0.4-0.4-1-0.4-1.3,0L26,10L30,14z
+	 M16,20v4h4L16,20z"/>
+<g class="st0">
+	<rect x="2" y="26" class="Black" width="28" height="6"/>
+</g>
+<path class="Black" d="M6,2h20v5.2l2-2V1c0-0.6-0.4-1-1-1H5C4.4,0,4,0.4,4,1v22c0,0.6,0.4,1,1,1h9v-2H6V2z"/>
+</svg>

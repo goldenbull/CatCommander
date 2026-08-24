@@ -1,0 +1,13 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Blue{fill:#1177D7;}
+	.Red{fill:#D11C1C;}
+	.st0{opacity:0.5;}
+</style>
+<path class="Blue" d="M0,2v16v12h32V18v-6v-2V2H0z M2,4h28v6h-2h-2h-4h-2h-4h-2h-4H8H2V4z M8,18l6-6h4l-6,6H8z M14,18l6-6h4l-6,6H14
+	z M2,12h4l-4,4V12z M8,12h4l-6,6H2L8,12z M30,18h-4l4-4V18z M24,18h-4l6-6h4L24,18z"/>
+<g class="st0">
+	<rect y="20" class="Red" width="32" height="10"/>
+</g>
+</svg>

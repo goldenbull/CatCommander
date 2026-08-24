@@ -1,0 +1,19 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Blue{fill:#1177D7;}
+	.Black{fill:#727272;}
+	.st0{opacity:0.5;}
+</style>
+<path class="Blue" d="M31.5,28.9l-6.1-6.1C25.8,21.9,26,21,26,20c0-3.3-2.7-6-6-6c-1,0-1.9,0.2-2.7,0.7l4.2,4.2
+	c0.7,0.7,0.7,1.9,0,2.6s-1.9,0.7-2.6,0l-4.2-4.2C14.2,18.1,14,19,14,20c0,3.3,2.7,6,6,6c1,0,1.9-0.2,2.7-0.7l6.1,6.1
+	c0.7,0.7,1.9,0.7,2.6,0C32.2,30.8,32.2,29.6,31.5,28.9z"/>
+<path class="Blue" d="M28,8H0V1c0-0.6,0.4-1,1-1h26c0.6,0,1,0.4,1,1V8z"/>
+<g class="st0">
+	<rect y="10" class="Black" width="8" height="6"/>
+	<rect y="18" class="Black" width="8" height="6"/>
+	<path class="Black" d="M18,12.3V10h-8v6h3.1C14.1,14.2,15.9,12.8,18,12.3z"/>
+	<path class="Black" d="M28,10h-8v2c3,0,5.5,1.6,6.9,4H28V10z"/>
+	<path class="Black" d="M12.3,18H10v6h3.1c-0.7-1.2-1.1-2.6-1.1-4C12,19.3,12.1,18.6,12.3,18z"/>
+</g>
+</svg>

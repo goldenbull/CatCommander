@@ -1,0 +1,21 @@
+<svg version="1.1" id="Layer_4" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Red{fill:#D11C1C;}
+	.Blue{fill:#1177D7;}
+	.Green{fill:#039C23;}
+	.Yellow{fill:#FFB115;}
+	.Black{fill:#727272;}
+	.st0{fill:#039C23;}
+</style>
+<polygon class="Black" points="4,28 4,0 0,0 0,28 0,32 4,32 32,32 32,28 "/>
+<rect x="8" y="16" class="Yellow" width="8" height="8"/>
+<rect x="16" y="16" class="Red" width="8" height="8"/>
+<rect x="24" y="16" class="Green" width="8" height="8"/>
+<rect x="8" y="8" class="Blue" width="8" height="8"/>
+<rect x="16" y="8" class="Yellow" width="8" height="8"/>
+<rect x="24" y="8" class="Blue" width="8" height="8"/>
+<rect x="8" class="Yellow" width="8" height="8"/>
+<rect x="16" class="Green" width="8" height="8"/>
+<rect x="24" class="Red" width="8" height="8"/>
+</svg>

@@ -1,0 +1,16 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Green{fill:#039C23;}
+	.Black{fill:#727272;}
+	.Yellow{fill:#FFB115;}
+</style>
+<path class="Black" d="M27,0H5C4.5,0,4,0.5,4,1v9.8V12v19c0,0.5,0.5,1,1,1h22c0.5,0,1-0.5,1-1V12v-1.2V1C28,0.5,27.5,0,27,0z M26,12
+	v18H6V12v-1.2V2h20v8.8V12z"/>
+<rect x="8" y="4" class="Black" width="16" height="2"/>
+<path class="Black" d="M23,8H9C8.4,8,8,8.4,8,9v14c0,0.6,0.4,1,1,1h14c0.6,0,1-0.4,1-1V9C24,8.4,23.6,8,23,8z M22,22H10V10h12V22z"
+	/>
+<polygon class="Green" points="12,14 18,20 12,20 "/>
+<circle class="Yellow" cx="18" cy="14" r="2"/>
+<rect x="8" y="26" class="Black" width="16" height="2"/>
+</svg>

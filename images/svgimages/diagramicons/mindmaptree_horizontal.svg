@@ -1,0 +1,25 @@
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<style type="text/css">
+	.Black{fill:#737374;}
+	.Yellow{fill:#FCB01B;}
+	.Green{fill:#129C49;}
+	.Blue{fill:#387CB7;}
+	.Red{fill:#D02127;}
+	.White{fill:#FFFFFF;}
+	.st0{opacity:0.5;}
+	.st1{opacity:0.75;}
+	.st2{opacity:0.25;}
+	.st3{display:none;fill:#737374;}
+</style>
+<path class="Blue" d="M19,18h-4c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-4C20,18.4,19.6,18,19,18z M18,22h-2v-2h2V22
+	z"/>
+<polygon class="Black" points="31,5 28,2 28,4 2,4 2,6 28,6 28,8 "/>
+<path class="Blue" d="M8,14v-1c0-0.6-0.4-1-1-1H3c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-1V14z M6,16H4v-2h2V16z
+	 M26,28v1c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-4c0-0.6-0.4-1-1-1h-4c-0.6,0-1,0.4-1,1v1V28z M28,26h2v2h-2V26z M8,26v-1
+	c0-0.6-0.4-1-1-1H3c-0.6,0-1,0.4-1,1v4c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1v-1V26z M6,28H4v-2h2V28z M26,16v1c0,0.6,0.4,1,1,1h4
+	c0.6,0,1-0.4,1-1v-4c0-0.6-0.4-1-1-1h-4c-0.6,0-1,0.4-1,1v1V16z M28,14h2v2h-2V14z"/>
+<g class="st0">
+	<path class="Black" d="M8,16v-2h4v6h2v2h-2v6H8v-2h2V16H8z M22,14v6h-2v2h2v6h4v-2h-2V16h2v-2H22z"/>
+</g>
+</svg>
