@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.Primitives;
@@ -449,7 +450,7 @@ namespace Avalonia.Controls
             }
         }
 
-        internal void RaiseRowDragStarted(PointerEventArgs trigger)
+        internal void RaiseRowDragStarted(PointerPressedEventArgs trigger)
         {
             if (_source is null || RowSelection is null)
                 return;
@@ -469,10 +470,27 @@ namespace Avalonia.Controls
 
             if (allowedEffects != DragDropEffects.None)
             {
-                var data = new DataObject();
                 var info = new DragInfo(_source, RowSelection.SelectedIndexes.ToList());
-                data.Set(DragInfo.DataFormat, info);
-                DragDrop.DoDragDrop(trigger, data, allowedEffects);
+                DragInfo.Current = info;
+
+                var data = new DataTransfer();
+                data.Add(DataTransferItem.Create(DragInfo.DataFormat, "1"));
+                _ = RunDragDropAsync(trigger, data, allowedEffects);
+            }
+        }
+
+        private static async Task RunDragDropAsync(
+            PointerPressedEventArgs trigger,
+            IDataTransfer data,
+            DragDropEffects allowedEffects)
+        {
+            try
+            {
+                await DragDrop.DoDragDropAsync(trigger, data, allowedEffects);
+            }
+            finally
+            {
+                DragInfo.Current = null;
             }
         }
 
@@ -613,7 +631,8 @@ namespace Avalonia.Controls
             out TreeDataGridRowDropPosition position)
         {
             if (!AutoDragDropRows ||
-                e.Data.Get(DragInfo.DataFormat) is not DragInfo di ||
+                !e.DataTransfer.Contains(DragInfo.DataFormat) ||
+                DragInfo.Current is not { } di ||
                 _source is null ||
                 _source.IsSorted ||
                 di.Source != _source)

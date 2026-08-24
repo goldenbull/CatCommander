@@ -20,8 +20,8 @@
         </PackageReference>
 
         <!-- headless Avalonia host: run Views/ViewModels without a real window server -->
-        <PackageReference Include="Avalonia.Headless" Version="11.3.20" />
-        <PackageReference Include="Avalonia.Headless.XUnit" Version="11.3.20" />
+        <PackageReference Include="Avalonia.Headless" Version="12.1.1" />
+        <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1" />
     </ItemGroup>
 
     <ItemGroup>

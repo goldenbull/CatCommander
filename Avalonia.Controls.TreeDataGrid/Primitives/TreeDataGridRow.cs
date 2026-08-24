@@ -40,6 +40,7 @@ namespace Avalonia.Controls.Primitives
         private bool _isSelected;
         private IRows? _rows;
         private Point _mouseDownPosition = s_InvalidPoint;
+        private PointerPressedEventArgs? _pressedEventArgs;
         private TreeDataGrid? _treeDataGrid;
 
         public IColumns? Columns
@@ -146,6 +147,10 @@ namespace Avalonia.Controls.Primitives
         {
             base.OnPointerPressed(e);
             _mouseDownPosition = !e.Handled ? e.GetPosition(this) : s_InvalidPoint;
+            // DragDrop.DoDragDropAsync now requires the originating PointerPressedEventArgs
+            // (Avalonia 12+), but the drag threshold is only known to be crossed later, from
+            // OnPointerMoved - so the press event has to be kept around until then.
+            _pressedEventArgs = _mouseDownPosition != s_InvalidPoint ? e : null;
         }
 
         protected override void OnPointerMoved(PointerEventArgs e)
@@ -154,7 +159,7 @@ namespace Avalonia.Controls.Primitives
 
             var delta = e.GetPosition(this) - _mouseDownPosition;
 
-            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || 
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed ||
                 e.Handled ||
                 Math.Abs(delta.X) < DragDistance && Math.Abs(delta.Y) < DragDistance ||
                 _mouseDownPosition == s_InvalidPoint)
@@ -164,19 +169,23 @@ namespace Avalonia.Controls.Primitives
 
             var presenter = Parent as TreeDataGridRowsPresenter;
             var owner = presenter?.TemplatedParent as TreeDataGrid;
-            owner?.RaiseRowDragStarted(e);
+            if (_pressedEventArgs is { } pressed)
+                owner?.RaiseRowDragStarted(pressed);
+            _pressedEventArgs = null;
         }
 
         protected override void OnPointerReleased(PointerReleasedEventArgs e)
         {
             base.OnPointerReleased(e);
             _mouseDownPosition = s_InvalidPoint;
+            _pressedEventArgs = null;
         }
 
         protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
         {
             base.OnPointerCaptureLost(e);
             _mouseDownPosition = s_InvalidPoint;
+            _pressedEventArgs = null;
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
