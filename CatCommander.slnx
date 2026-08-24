@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Avalonia.Controls.TreeDataGrid/Avalonia.Controls.TreeDataGrid.csproj" />
+  <Project Path="CatCommander.Tests/CatCommander.Tests.csproj" />
+  <Project Path="CatCommander/CatCommander.csproj" />
+  <Project Path="libcat.Tests/libcat.Tests.csproj" />
+  <Project Path="libcat/libcat.csproj" />
+</Solution>
