@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CatCommander.ViewModels"
+        x:Class="CatCommander.View.BatchRenameWindow"
+        x:DataType="vm:BatchRenameViewModel"
+        Title="Batch Rename"
+        Width="640"
+        Height="480"
+        WindowStartupLocation="CenterOwner">
+    <!-- Empty for now - batch rename UI/business logic is a later milestone. -->
+</Window>

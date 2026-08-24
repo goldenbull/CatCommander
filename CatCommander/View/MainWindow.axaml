@@ -1,8 +1,77 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CatCommander.ViewModels"
+        xmlns:view="using:CatCommander.View"
         x:Class="CatCommander.View.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
         Title="CatCommander"
         Icon="/Assets/cat.png"
         Width="1024"
         Height="640">
+
+    <!--
+      One NativeMenu model drives both platforms: on macOS it becomes the system menu bar (via
+      NativeMenu.Menu below), and the NativeMenuBar control placed in the tree further down
+      renders it as an in-window bar on Windows/Linux (and is a no-op on macOS) - no need to
+      define the menu twice.
+    -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="File">
+                <NativeMenu>
+                    <NativeMenuItem Header="Find..." Gesture="Alt+F7" Command="{Binding OpenFindCommand}" />
+                    <NativeMenuItem Header="Batch Rename..." Command="{Binding OpenBatchRenameCommand}" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Edit">
+                <NativeMenu>
+                    <NativeMenuItem Header="Copy" Gesture="F5" Command="{Binding CopyCommand}" />
+                    <NativeMenuItem Header="Move" Gesture="F6" Command="{Binding MoveCommand}" />
+                    <NativeMenuItem Header="Rename" Gesture="F2" Command="{Binding RenameCommand}" />
+                    <NativeMenuItem Header="Delete" Gesture="F8" Command="{Binding DeleteCommand}" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Settings">
+                <NativeMenu>
+                    <NativeMenuItem Header="Restore Default Shortcuts" Command="{Binding RestoreDefaultShortcutsCommand}" />
+                    <NativeMenuItemSeparator />
+                    <NativeMenuItem Header="Windows-Style Shortcuts" Command="{Binding SetWindowsKeyboardStyleCommand}" />
+                    <NativeMenuItem Header="macOS-Style Shortcuts" Command="{Binding SetMacKeyboardStyleCommand}" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <OnPlatform>
+                <OnPlatform.macOS>
+                    <NativeMenuItem Header="About">
+                        <NativeMenu>
+                            <NativeMenuItem Header="About CatCommander" />
+                        </NativeMenu>
+                    </NativeMenuItem>
+                </OnPlatform.macOS>
+            </OnPlatform>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
+    <DockPanel LastChildFill="True">
+        <NativeMenuBar DockPanel.Dock="Top" />
+
+        <!-- Toolbar -->
+        <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="4">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Content="Copy (F5)" Command="{Binding CopyCommand}" />
+                <Button Content="Move (F6)" Command="{Binding MoveCommand}" />
+                <Button Content="Rename (F2)" Command="{Binding RenameCommand}" />
+                <Button Content="Delete (F8)" Command="{Binding DeleteCommand}" />
+                <Separator Width="1" />
+                <Button Content="Find" Command="{Binding OpenFindCommand}" />
+                <Button Content="Batch Rename" Command="{Binding OpenBatchRenameCommand}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Main panes - fixed 1:1 split, no draggable splitter. -->
+        <Grid Margin="4" ColumnDefinitions="*,4,*">
+            <view:MainPanel Grid.Column="0" DataContext="{Binding LeftPanel}" />
+            <Border Grid.Column="1" Background="LightGray" />
+            <view:MainPanel Grid.Column="2" DataContext="{Binding RightPanel}" />
+        </Grid>
+    </DockPanel>
 </Window>

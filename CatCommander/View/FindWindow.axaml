@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CatCommander.ViewModels"
+        x:Class="CatCommander.View.FindWindow"
+        x:DataType="vm:FindViewModel"
+        Title="Find Files"
+        Width="480"
+        Height="320"
+        WindowStartupLocation="CenterOwner">
+    <!-- Empty for now - find UI/business logic is a later milestone. -->
+</Window>

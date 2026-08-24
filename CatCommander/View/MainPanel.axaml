@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CatCommander.ViewModels"
+             x:Class="CatCommander.View.MainPanel"
+             x:DataType="vm:MainPanelViewModel"
+             Focusable="True">
+    <UserControl.Styles>
+        <Style Selector="Border.activePanel">
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.activePanel.active">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Empty for now - file listing/browsing is a later milestone. The border exists only to
+         make ActivePanel switching (Tab) visible while there's nothing else to look at.
+         Background="Transparent" (not left null) is required for the interior to be hit-test
+         visible at all - otherwise clicks inside it don't register as hitting this control. -->
+    <Border Classes="activePanel" Classes.active="{Binding IsActive}" BorderThickness="2" Background="Transparent">
+    </Border>
+</UserControl>

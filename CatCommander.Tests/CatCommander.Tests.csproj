@@ -1,10 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <!--
+      xUnit v3, not v2: Avalonia.Headless.XUnit 12.1.1 (Avalonia 12's headless test host) depends
+      on xunit.v3.extensibility.core - the classic xunit 2.9.3 + xunit.runner.visualstudio combo
+      this project used before the Avalonia 12 upgrade can't coexist with it (ambiguous
+      Fact/Theory/InlineData attributes between xunit.core and xunit.v3.core). v3 test projects
+      are standalone executables (OutputType=Exe) hosted by Microsoft Testing Platform.
+    -->
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
+        <OutputType>Exe</OutputType>
+        <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     </PropertyGroup>
 
     <ItemGroup>
@@ -13,11 +22,7 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-        <PackageReference Include="xunit" Version="2.9.3" />
-        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
+        <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.2" />
 
         <!-- headless Avalonia host: run Views/ViewModels without a real window server -->
         <PackageReference Include="Avalonia.Headless" Version="12.1.1" />

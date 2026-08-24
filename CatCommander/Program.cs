@@ -1,4 +1,9 @@
+using System;
 using Avalonia;
+using CatCommander.Config;
+using CatCommander.View;
+using CatCommander.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI.Avalonia;
 
 namespace CatCommander;
@@ -11,13 +16,38 @@ internal class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        var services = new ServiceCollection();
+        ConfigureServices(services);
+        var provider = services.BuildServiceProvider();
+
+        BuildAvaloniaApp(provider).StartWithClassicDesktopLifetime(args);
     }
 
-    // Avalonia configuration, don't remove; also used by visual designer.
-    public static AppBuilder BuildAvaloniaApp()
+    private static void ConfigureServices(IServiceCollection services)
     {
-        return AppBuilder.Configure<App>()
+        services.AddSingleton<ConfigManager>();
+        services.AddSingleton(sp => sp.GetRequiredService<ConfigManager>().Shortcuts);
+
+        services.AddSingleton<MainWindowViewModel>();
+        services.AddTransient<FindViewModel>();
+        services.AddTransient<BatchRenameViewModel>();
+
+        services.AddTransient<MainWindow>();
+        services.AddTransient<FindWindow>();
+        services.AddTransient<BatchRenameWindow>();
+
+        // Explicit Func<T> factories: Microsoft.Extensions.DependencyInjection doesn't
+        // auto-synthesize these the way some other containers do.
+        services.AddTransient<Func<FindWindow>>(sp => () => sp.GetRequiredService<FindWindow>());
+        services.AddTransient<Func<BatchRenameWindow>>(sp => () => sp.GetRequiredService<BatchRenameWindow>());
+    }
+
+    // Avalonia configuration. Takes the DI provider explicitly (via AppBuilder.Configure's
+    // factory overload) since App no longer has a parameterless constructor - this means the
+    // live XAML designer/previewer can't instantiate App on its own anymore.
+    public static AppBuilder BuildAvaloniaApp(IServiceProvider services)
+    {
+        return AppBuilder.Configure(() => new App(services))
             .UsePlatformDetect()
             .WithInterFont()
             .UseReactiveUI(_ => { })
