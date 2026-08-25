@@ -167,6 +167,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.GoBackToParentFolder] = ReactiveCommand.Create(GoBackToParentFolder),
             [Operation.GotoFirstItem] = ReactiveCommand.Create(GotoFirstItem),
             [Operation.GotoLastItem] = ReactiveCommand.Create(GotoLastItem),
+            [Operation.ReverseSelection] = ReactiveCommand.Create(ReverseSelection),
         };
     }
 
@@ -243,7 +244,6 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             },
         };
         source.RowSelection!.SingleSelect = false;
-        source.RowSelection!.SelectionChanged += OnSelectionChanged;
         return source;
     }
 
@@ -265,7 +265,6 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             },
         };
         source.RowSelection!.SingleSelect = false;
-        source.RowSelection!.SelectionChanged += OnSelectionChanged;
         return source;
     }
 
@@ -277,14 +276,19 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// per-keystroke update.
     ///
     /// Swapping Items resets the selection model's source (TreeDataGridRowSelectionModel drops
-    /// any selected row no longer present in the new set) - this is what keeps "selected" a
-    /// subset of "visible" per row (see FileItemRow.IsVisible) without extra bookkeeping here,
-    /// and is the invariant a future multi-select checkbox column must keep holding too.
+    /// any current-row cursor no longer present in the new set) - that's cursor-only, though;
+    /// a row newly filtered out is also explicitly unmarked here, since IsMarked is tracked
+    /// independently of the grid's selection model and swapping Items alone wouldn't touch it -
+    /// this is what actually keeps "marked" a subset of "visible" (see FileItemRow.IsMarked).
     /// </summary>
     private void ApplyFilter()
     {
         foreach (var row in _rows)
+        {
             row.IsVisible = QuickFilter.Matches(FilterText, row.Item.Name);
+            if (!row.IsVisible)
+                row.IsMarked = false;
+        }
 
         if (Source is null)
             return;
@@ -363,6 +367,10 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private List<FileItemRow> BuildRows(IReadOnlyList<IFileSystemItem> items) =>
         items.Select(i => new FileItemRow(i, _iconCache)).ToList();
 
+    // Marked-row coloring (background and text) is handled entirely in ItemBrowser.axaml via
+    // style selectors bound to FileItemRow.IsMarked, not here - TreeDataGridRow's DataContext is
+    // the FileItemRow model, and covers every column uniformly (not just this one), unlike a
+    // per-column Foreground binding would.
     private static TemplateColumn<FileItemRow> CreateNameColumn()
     {
         var template = new FuncDataTemplate<FileItemRow>((row, _) =>
@@ -383,9 +391,6 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         return new TemplateColumn<FileItemRow>("Name", template, width: GridLength.Star);
     }
 
-    private void OnSelectionChanged(object? sender, TreeSelectionModelSelectionChangedEventArgs<FileItemRow> e) =>
-        RecomputeSelection();
-
     private void RecomputeTotals()
     {
         TotalFileCount = _allItems.Count(i => i.ItemType == FileSystemItemType.File);
@@ -394,14 +399,57 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         RecomputeSelection();
     }
 
+    // Driven by IsMarked (Space), not the grid's own SelectionModel - the cursor moving around
+    // the grid no longer changes what's counted here, only marking/unmarking does.
     private void RecomputeSelection()
     {
-        var selected = SelectionModel?.SelectedItems.Where(x => x is not null).Select(x => x!.Item).ToList()
-            ?? new List<IFileSystemItem>();
+        var marked = _rows.Where(r => r.IsMarked).Select(r => r.Item).ToList();
 
-        SelectedFileCount = selected.Count(i => i.ItemType == FileSystemItemType.File);
-        SelectedFolderCount = selected.Count(i => i.ItemType == FileSystemItemType.Directory);
-        SelectedSize = selected.Where(i => i.ItemType == FileSystemItemType.File).Sum(i => i.Size);
+        SelectedFileCount = marked.Count(i => i.ItemType == FileSystemItemType.File);
+        SelectedFolderCount = marked.Count(i => i.ItemType == FileSystemItemType.Directory);
+        SelectedSize = marked.Where(i => i.ItemType == FileSystemItemType.File).Sum(i => i.Size);
+    }
+
+    /// <summary>
+    /// Space - toggles the marked state of whatever row is currently under the cursor (see
+    /// FileItemRow.IsMarked). Called by the View only when the quick filter isn't active; while
+    /// typing a filter, Space is a word separator instead (ItemBrowser.axaml.cs's
+    /// OnPreviewTextInput picks between the two).
+    /// </summary>
+    public void ToggleMarkCurrentItem()
+    {
+        if (SelectionModel?.SelectedItem is not { } current)
+            return;
+
+        current.IsMarked = !current.IsMarked;
+        RecomputeSelection();
+    }
+
+    // Alt+R - flips every currently visible row's marked state. Scoped to IsVisible rows only
+    // (not all of _rows): rows hidden by the quick filter are never marked (see ApplyFilter), and
+    // reversing them too would mark rows the user can't currently see, breaking that invariant.
+    private void ReverseSelection()
+    {
+        foreach (var row in _rows.Where(r => r.IsVisible))
+            row.IsMarked = !row.IsMarked;
+
+        RecomputeSelection();
+    }
+
+    /// <summary>
+    /// What Copy/Move/Delete operate on: every marked row if any are marked, otherwise whatever's
+    /// under the cursor right now - Total Commander's own fallback, so a single-item operation
+    /// never requires marking first.
+    /// </summary>
+    public IReadOnlyList<IFileSystemItem> GetOperationTargets()
+    {
+        var marked = _rows.Where(r => r.IsMarked).Select(r => r.Item).ToList();
+        if (marked.Count > 0)
+            return marked;
+
+        return SelectionModel?.SelectedItem is { } current
+            ? new[] { current.Item }
+            : Array.Empty<IFileSystemItem>();
     }
 
     private TreeDataGridRowSelectionModel<FileItemRow>? SelectionModel =>

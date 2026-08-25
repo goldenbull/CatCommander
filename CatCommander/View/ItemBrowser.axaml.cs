@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -13,10 +16,21 @@ public partial class ItemBrowser : UserControl
 {
     private ItemBrowserViewModel? _viewModel;
 
+    // Keyed by the row *control* (recycled/reused across different FileItemRow models as the grid
+    // scrolls), not the model - see OnRowPrepared/OnRowClearing.
+    private readonly Dictionary<TreeDataGridRow, (FileItemRow Model, PropertyChangedEventHandler Handler)> _markedSubscriptions = new();
+
     public ItemBrowser()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+
+        // Keeps each realized row's "marked" CSS class (see ItemBrowser.axaml's
+        // TreeDataGridRow.marked styles) in sync with its model's FileItemRow.IsMarked - nothing in
+        // XAML can target a row control directly, since TreeDataGrid synthesizes them from its own
+        // template rather than this file declaring them.
+        FileGrid.RowPrepared += OnRowPrepared;
+        FileGrid.RowClearing += OnRowClearing;
 
         // Quick filter: both installed Tunnel-phase on this UserControl, so they run after
         // ShortcutRouter's own Window-level Tunnel handler (giving bound Operations first
@@ -69,6 +83,48 @@ public partial class ItemBrowser : UserControl
     private void OnFocusRequested() => FocusGrid();
 
     /// <summary>
+    /// A row just got a (possibly new) FileItemRow model - sync its "marked" class immediately,
+    /// and subscribe so a *later* IsMarked toggle (Space, on whichever row is current when it's
+    /// pressed) updates this same row's class too, not just the state at realize time.
+    /// </summary>
+    private void OnRowPrepared(object? sender, TreeDataGridRowEventArgs e)
+    {
+        // TreeDataGrid reuses/mutates a single TreeDataGridRowEventArgs instance across every row
+        // realize/clear (see TreeDataGrid.RaiseRowPrepared) - closing over the row *now*, into a
+        // local, is what keeps the handler below pointed at the row this subscription was actually
+        // set up for. Closing over `e.Row` directly instead would re-read it whenever the handler
+        // *runs* (Space, potentially much later), by which point the shared event-args object may
+        // already refer to a completely different row - a real bug caught via a headless test that
+        // crashed with a NullReferenceException from exactly that stale read.
+        var row = e.Row;
+        if (row.Model is not FileItemRow model)
+            return;
+
+        UpdateMarkedClass(row, model);
+
+        PropertyChangedEventHandler handler = (_, args) =>
+        {
+            if (args.PropertyName == nameof(FileItemRow.IsMarked))
+                UpdateMarkedClass(row, model);
+        };
+        model.PropertyChanged += handler;
+        _markedSubscriptions[row] = (model, handler);
+    }
+
+    /// <summary>
+    /// The row is being recycled for a different model (or unrealized entirely) - drop the
+    /// subscription to the *old* model now, or it would keep firing (and leaking) indefinitely.
+    /// </summary>
+    private void OnRowClearing(object? sender, TreeDataGridRowEventArgs e)
+    {
+        if (_markedSubscriptions.Remove(e.Row, out var subscription))
+            subscription.Model.PropertyChanged -= subscription.Handler;
+    }
+
+    private static void UpdateMarkedClass(TreeDataGridRow row, FileItemRow model) =>
+        row.Classes.Set("marked", model.IsMarked);
+
+    /// <summary>
     /// Printable characters typed while FileGrid effectively has focus feed the quick filter
     /// instead of TreeDataGrid's own built-in type-ahead row jump. Marking the event Handled here
     /// (Tunnel phase, before FileGrid's own Direct-phase OnTextInput override runs) is what
@@ -78,6 +134,18 @@ public partial class ItemBrowser : UserControl
     {
         if (_viewModel is null || string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0]) || !IsFileGridFocused())
             return;
+
+        // Space is the mark/unmark toggle for the cursor row (Total Commander's multi-selection) -
+        // but only when a filter isn't already being typed, where it's an AND-token separator
+        // instead (see QuickFilter). Checking IsFilterActive, not "is this the first character",
+        // is what lets a filter that already contains a space (e.g. "aa bb") keep accepting more
+        // spaces normally.
+        if (e.Text == " " && !_viewModel.IsFilterActive)
+        {
+            _viewModel.ToggleMarkCurrentItem();
+            e.Handled = true;
+            return;
+        }
 
         _viewModel.AppendFilterText(e.Text);
         e.Handled = true;
@@ -132,14 +200,10 @@ public partial class ItemBrowser : UserControl
     private void OnScrollToRowRequested(int rowIndex)
     {
         // Coalesced through a shared field rather than each call posting its own closure over
-        // rowIndex - a rapid burst (e.g. Home/End key-repeat) queues multiple posts, and a *stale*
-        // one (targeting whatever row was current a moment ago) running after a fresher one lands
-        // can scroll straight past the actually-current row, unrealizing its row container
-        // (TreeDataGridRow.Unrealize forces IsSelected false) right after it was correctly
-        // rendered selected - the row then sits unselected until something else (e.g. a Down
-        // keypress) forces a re-render. Every queued post reads this field at *its own* run time,
-        // not a captured value, so whichever post runs first consumes the latest target and any
-        // later, now-redundant post for an already-superseded request becomes a no-op.
+        // rowIndex - a rapid burst (e.g. Home/End key-repeat) queues multiple posts, and only the
+        // latest target actually needs to run; every queued post reads this field at *its own*
+        // run time; not a captured value, so whichever runs first consumes it and any later,
+        // now-redundant post becomes a no-op.
         _pendingScrollRowIndex = rowIndex;
         Dispatcher.UIThread.Post(() =>
         {
@@ -148,6 +212,18 @@ public partial class ItemBrowser : UserControl
 
             _pendingScrollRowIndex = null;
             FileGrid.RowsPresenter?.BringIntoView(target);
+
+            // BringIntoView can recycle an already-realized row (one that was scrolled out of
+            // view) into the target index rather than realizing a fresh one - that recycle path
+            // repositions it (RowIndex updated) but doesn't re-check selection, since the
+            // SelectedIndex change that made this row "the current one" already ran synchronously,
+            // *before* this deferred callback, when this row wasn't part of the realized window
+            // yet. Left alone, it can end up sitting at the right index while still showing
+            // whichever selection state its previous occupant had - confirmed via targeted
+            // logging under rapid Home/End: the row's own RowIndex and the selection model's
+            // SelectedIndex agreed, but TreeDataGridRow.IsSelected was still stale. Forcing a
+            // resync here closes that gap regardless of which path realized the row.
+            FileGrid.RefreshRowSelection(target);
         });
     }
 

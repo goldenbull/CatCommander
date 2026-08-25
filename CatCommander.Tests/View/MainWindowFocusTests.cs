@@ -133,7 +133,7 @@ public class MainWindowFocusTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task ActivePanelSelection_IsNavy_InactivePanelSelection_IsGray()
+    public async Task ActivePanelCursor_IsPaleBlue_InactivePanelCursor_IsGray()
     {
         // Regression: the first fix (a positive TreeDataGrid.active selector on the *cell*) still
         // left the active panel's selection looking gray - a different gray than the inactive
@@ -158,7 +158,10 @@ public class MainWindowFocusTests : IDisposable
         Assert.Contains("active", leftGrid.Classes);
         Assert.DoesNotContain("active", rightGrid.Classes);
 
-        Assert.Equal(Color.Parse("#0A246A"), SelectedRowPresenterBackgroundColor(leftGrid));
+        // TcCursorColor / TcInactiveSelectionColor - see ClassicTheme.axaml. The cursor color is
+        // deliberately pale (not the navy MarkedToBackgroundBrushConverter uses for marked rows) -
+        // see ItemBrowser.axaml's own comment on why that no longer needs a white-text override.
+        Assert.Equal(Color.Parse("#D1E7FD"), SelectedRowPresenterBackgroundColor(leftGrid));
         Assert.Equal(Color.Parse("#C0C0C0"), SelectedRowPresenterBackgroundColor(rightGrid));
     }
 
@@ -312,5 +315,43 @@ public class MainWindowFocusTests : IDisposable
         Assert.Contains(
             leftGrid.GetVisualDescendants().OfType<TreeDataGridRow>(),
             row => row.RowIndex == lastRowIndex);
+    }
+
+    [AvaloniaFact]
+    public async Task Space_TogglesMark_UnlessAFilterIsAlreadyBeingTyped_WhereItsAWordSeparator()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "alpha"));
+        Directory.CreateDirectory(Path.Combine(_root, "beta"));
+        await EnsureNavigatedAsync();
+
+        var leftGrid = GetGrid(_viewModel.LeftPanel);
+        leftGrid.Focus();
+        Pump();
+
+        var tab = _viewModel.LeftPanel.ActiveTab!;
+        Assert.Equal(0, tab.SelectedFolderCount);
+
+        // No filter active - Space marks the cursor row ("alpha", row 0).
+        _window.KeyTextInput(" ");
+        Pump();
+
+        Assert.False(tab.IsFilterActive);
+        Assert.Equal(1, tab.SelectedFolderCount);
+
+        // Start a filter - "alpha" stays visible (and thus stays marked) throughout.
+        _window.KeyTextInput("al");
+        Pump();
+
+        Assert.True(tab.IsFilterActive);
+        Assert.Equal("al", tab.FilterText);
+        Assert.Equal(1, tab.SelectedFolderCount);
+
+        // Now Space is a word separator, not a mark toggle - it's appended to the filter text and
+        // the earlier mark is left untouched.
+        _window.KeyTextInput(" ");
+        Pump();
+
+        Assert.Equal("al ", tab.FilterText);
+        Assert.Equal(1, tab.SelectedFolderCount);
     }
 }

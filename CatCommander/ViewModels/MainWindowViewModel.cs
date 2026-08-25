@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Input;
 using CatCommander.Config;
+using CatCommander.Models;
 using CatCommander.Shortcuts;
 using CatCommander.View;
 using Metalama.Patterns.Observability;
@@ -67,10 +69,10 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         RightPanel.OnActivated = () => SetActivePanel(RightPanel);
         SetActivePanel(LeftPanel);
 
-        CopyCommand = ReactiveCommand.Create(() => LogStubOperation(Operation.Copy));
-        MoveCommand = ReactiveCommand.Create(() => LogStubOperation(Operation.Move));
+        CopyCommand = ReactiveCommand.Create(() => LogStubFileOperation(Operation.Copy));
+        MoveCommand = ReactiveCommand.Create(() => LogStubFileOperation(Operation.Move));
         RenameCommand = ReactiveCommand.Create(() => LogStubOperation(Operation.Rename));
-        DeleteCommand = ReactiveCommand.Create(() => LogStubOperation(Operation.Delete));
+        DeleteCommand = ReactiveCommand.Create(() => LogStubFileOperation(Operation.Delete));
         OpenFindCommand = ReactiveCommand.Create(OpenFind);
         OpenBatchRenameCommand = ReactiveCommand.Create(OpenBatchRename);
 
@@ -139,6 +141,20 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // File operations aren't implemented yet - this just proves menu/toolbar/keyboard all reach
     // the same command. Real ActivePanel-scoped file logic is a later milestone.
     private void LogStubOperation(Operation operation) => log.Info("{0} command executed (stub, ActivePanel={1})", operation, ActivePanel == LeftPanel ? "Left" : "Right");
+
+    // Copy/Move/Delete act on the whole marked set (Total Commander multi-selection), not just
+    // whatever's under the cursor - see ItemBrowserViewModel.GetOperationTargets. Rename doesn't
+    // go through here: renaming several items at once needs a pattern, which is what
+    // OpenBatchRename is for, not a bare "Rename" invocation.
+    private void LogStubFileOperation(Operation operation)
+    {
+        var targets = ActivePanel?.ActiveTab?.GetOperationTargets() ?? Array.Empty<IFileSystemItem>();
+        log.Info(
+            "{0} command executed (stub, ActivePanel={1}, targets=[{2}])",
+            operation,
+            ActivePanel == LeftPanel ? "Left" : "Right",
+            string.Join(", ", targets.Select(t => t.Name)));
+    }
 
     // Window-level commands (SwitchPanel/OpenFind/.../Copy stubs) get first refusal; then
     // panel-scoped ones (OpenSelectedFolderInNewTab - needs the panel's whole Tabs collection, not

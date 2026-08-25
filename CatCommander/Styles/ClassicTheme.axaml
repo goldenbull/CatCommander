@@ -10,11 +10,11 @@
 
   <Styles.Resources>
     <ResourceDictionary>
-      <!-- Palette: classic Win32 "3D Face" gray chrome, white file-list background, navy selection -->
+      <!-- Palette: classic Win32 "3D Face" gray chrome, white file-list background, navy accents -->
       <Color x:Key="TcChromeColor">#D4D0C8</Color>
       <Color x:Key="TcPanelColor">#FFFFFF</Color>
       <Color x:Key="TcBorderColor">#808080</Color>
-      <Color x:Key="TcSelectionColor">#0A246A</Color>
+      <Color x:Key="TcSelectionColor">#2C4A85</Color>
       <Color x:Key="TcTextColor">#000000</Color>
       <Color x:Key="TcHoverColor">#E4E2DA</Color>
 
@@ -24,34 +24,52 @@
       <Color x:Key="TcActiveTabColor">#A6CAF0</Color>
       <Color x:Key="TcActiveAddressTextColor">#FFDD88</Color>
 
-      <!-- Selection in the *inactive* panel: a muted gray instead of the navy active-selection
-           color, so it's obvious at a glance which panel is actually listening to the keyboard -
-           see ItemBrowser.axaml, which applies this only when TreeDataGrid isn't Classes.active. -->
+      <!-- Selection in the *inactive* panel: a muted gray instead of the light-blue active cursor
+           color below, so it's obvious at a glance which panel is actually listening to the
+           keyboard - see ItemBrowser.axaml, which applies the active color only when TreeDataGrid
+           carries Classes.active. -->
       <Color x:Key="TcInactiveSelectionColor">#C0C0C0</Color>
+
+      <!-- File-list-specific colors, sampled from Total Commander's own default skin: a pale blue
+           header and cursor highlight (not the gray Win32 chrome used for the rest of the app), and
+           dark green item names. The cursor (whatever row the arrow keys are on) deliberately
+           doesn't invert its text to white the way the old navy selection used to - a light
+           background needs no contrast correction. Marked rows (Space-toggled multi-selection,
+           FileItemRow.IsMarked, applied via the TreeDataGridRow.marked class in ItemBrowser.axaml)
+           are a separate, stronger look: navy (the same TcSelectionColor as the active address bar)
+           with white text. -->
+      <Color x:Key="TcHeaderColor">#C2DBF2</Color>
+      <Color x:Key="TcCursorColor">#D1E7FD</Color>
+      <Color x:Key="TcItemTextColor">#2E7D32</Color>
 
       <SolidColorBrush x:Key="TcChromeBrush" Color="{StaticResource TcChromeColor}" />
       <SolidColorBrush x:Key="TcPanelBrush" Color="{StaticResource TcPanelColor}" />
       <SolidColorBrush x:Key="TcBorderBrush" Color="{StaticResource TcBorderColor}" />
       <SolidColorBrush x:Key="TcSelectionBrush" Color="{StaticResource TcSelectionColor}" />
+      <SolidColorBrush x:Key="TcMarkedBrush" Color="{StaticResource TcSelectionColor}" />
       <SolidColorBrush x:Key="TcTextBrush" Color="{StaticResource TcTextColor}" />
       <SolidColorBrush x:Key="TcHoverBrush" Color="{StaticResource TcHoverColor}" />
       <SolidColorBrush x:Key="TcActiveTabBrush" Color="{StaticResource TcActiveTabColor}" />
       <SolidColorBrush x:Key="TcActiveAddressTextBrush" Color="{StaticResource TcActiveAddressTextColor}" />
       <SolidColorBrush x:Key="TcInactiveSelectionBrush" Color="{StaticResource TcInactiveSelectionColor}" />
+      <SolidColorBrush x:Key="TcHeaderBrush" Color="{StaticResource TcHeaderColor}" />
+      <SolidColorBrush x:Key="TcCursorBrush" Color="{StaticResource TcCursorColor}" />
+      <SolidColorBrush x:Key="TcItemTextBrush" Color="{StaticResource TcItemTextColor}" />
 
       <!-- Re-point the vendored TreeDataGrid theme's own resources (see Themes/Generic.axaml and
            Themes/Fluent.axaml) at the classic palette instead of the Fluent accent/system colors. -->
       <SolidColorBrush x:Key="TreeDataGridGridLinesBrush" Color="#C0C0C0" />
       <SolidColorBrush x:Key="TreeDataGridHeaderBackgroundPointerOverBrush" Color="{StaticResource TcHoverColor}" />
-      <SolidColorBrush x:Key="TreeDataGridHeaderBackgroundPressedBrush" Color="{StaticResource TcChromeColor}" />
+      <SolidColorBrush x:Key="TreeDataGridHeaderBackgroundPressedBrush" Color="{StaticResource TcHeaderColor}" />
       <SolidColorBrush x:Key="TreeDataGridHeaderBorderBrushPointerOverBrush" Color="{StaticResource TcBorderColor}" />
       <SolidColorBrush x:Key="TreeDataGridHeaderBorderBrushPressedBrush" Color="{StaticResource TcBorderColor}" />
       <SolidColorBrush x:Key="TreeDataGridHeaderForegroundPointerOverBrush" Color="{StaticResource TcTextColor}" />
       <SolidColorBrush x:Key="TreeDataGridHeaderForegroundPressedBrush" Color="{StaticResource TcTextColor}" />
-      <!-- Gray (inactive-look), not navy, by default - the active panel's TreeDataGrid overrides
-           this back to navy locally via a positive ".active" selector in ItemBrowser.axaml. This
-           resource is shared by every TreeDataGrid instance in the app, so it can't itself carry
-           per-panel state - the two panels differentiate through Classes.active instead. -->
+      <!-- Gray (inactive-look), not the active cursor blue, by default - the active panel's
+           TreeDataGrid overrides this back to TcCursorBrush locally via a positive ".active"
+           selector in ItemBrowser.axaml. This resource is shared by every TreeDataGrid instance in
+           the app, so it can't itself carry per-panel state - the two panels differentiate through
+           Classes.active instead. -->
       <SolidColorBrush x:Key="TreeDataGridSelectedCellBackgroundBrush" Color="{StaticResource TcInactiveSelectionColor}" />
     </ResourceDictionary>
   </Styles.Resources>
@@ -106,7 +124,7 @@
     <Setter Property="FontSize" Value="12" />
     <Setter Property="MinHeight" Value="20" />
     <Setter Property="Padding" Value="4,1" />
-    <Setter Property="Background" Value="{StaticResource TcChromeBrush}" />
+    <Setter Property="Background" Value="{StaticResource TcHeaderBrush}" />
     <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
     <Setter Property="BorderThickness" Value="0,0,1,1" />
     <Setter Property="BorderBrush" Value="{StaticResource TcBorderBrush}" />
@@ -118,14 +136,13 @@
   <Style Selector="TreeDataGridTextCell">
     <Setter Property="Padding" Value="4,1" />
   </Style>
-  <!-- Black text by default (readable on the gray inactive-selection background above) - the
-       active panel's TreeDataGrid overrides this to white locally, alongside the background,
-       in ItemBrowser.axaml. -->
-  <Style Selector="TreeDataGridRow:selected TextBlock">
-    <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
-  </Style>
-  <Style Selector=":is(TreeDataGridCell):selected TextBlock">
-    <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
+  <!-- Item name/detail text is dark green by default, Total Commander's classic file-list color -
+       not the plain-black TcTextColor used for the rest of the app's chrome. Both the light-blue
+       cursor and gray inactive-selection backgrounds above have enough contrast against it that,
+       unlike the old navy selection, nothing needs to invert this for the cursor row - only marked
+       rows (ItemBrowser.axaml, bound to FileItemRow.IsMarked) override it, to white. -->
+  <Style Selector="TreeDataGridRow TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TcItemTextBrush}" />
   </Style>
 
 </Styles>

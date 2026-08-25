@@ -253,6 +253,28 @@ namespace Avalonia.Controls
             return RowsPresenter?.TryGetElement(rowIndex) as TreeDataGridRow;
         }
 
+        /// <summary>
+        /// Re-applies the current selection state to whatever row is realized at rowIndex, if
+        /// any - a targeted resync, not a full re-layout.
+        ///
+        /// Plugs a real virtualization gap: a synchronous SelectedIndex change only updates rows
+        /// that are *already* realized at that instant (see
+        /// TreeDataGridRowsPresenter.UpdateSelection, which walks only the current
+        /// RealizedElements). A row that a *later*, deferred BringIntoView(rowIndex) call brings
+        /// into the realized window gets recycled into place - its RowIndex is updated - but that
+        /// recycle path doesn't re-check selection, so it can end up sitting at the right index
+        /// while still showing whatever IsSelected its previous occupant had. Call this
+        /// immediately after BringIntoView(rowIndex) for a row that must reflect the current
+        /// selection right away, when the SelectedIndex change and the scroll-into-view aren't
+        /// one atomic operation (e.g. keyboard Home/End, which sets SelectedIndex and requests
+        /// the scroll as two separate steps rather than TreeDataGridRowSelectionModel's own
+        /// MoveSelection, which does both together).
+        /// </summary>
+        public void RefreshRowSelection(int rowIndex)
+        {
+            TryGetRow(rowIndex)?.UpdateSelection(SelectionInteraction);
+        }
+
         public bool TryGetCell(Control? element, [NotNullWhen(true)] out TreeDataGridCell? result)
         {
             if (element.FindAncestorOfType<TreeDataGridCell>(true) is { } cell &&

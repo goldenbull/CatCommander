@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls.Selection;
 using CatCommander.Config;
@@ -110,5 +111,100 @@ public class ItemBrowserViewModelTests : IDisposable
             await Task.Delay(10, TestContext.Current.CancellationToken);
 
         Assert.Equal(_root, vm.CurrentPath);
+    }
+
+    [Fact]
+    public async Task ToggleMarkCurrentItem_TogglesTheCursorRow_AndUpdatesSelectionCounts()
+    {
+        File.WriteAllText(Path.Combine(_root, "a.txt"), "hello");
+
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        // Rows: "child" (folder, sorts first), "a.txt". Cursor defaults to row 0 ("child").
+
+        vm.ToggleMarkCurrentItem();
+        Assert.Equal(1, vm.SelectedFolderCount);
+        Assert.Equal(0, vm.SelectedFileCount);
+
+        vm.GetCommand(Operation.GotoLastItem)!.Execute(null); // "a.txt"
+        vm.ToggleMarkCurrentItem();
+        Assert.Equal(1, vm.SelectedFolderCount);
+        Assert.Equal(1, vm.SelectedFileCount);
+
+        vm.GetCommand(Operation.GotoFirstItem)!.Execute(null); // back to "child"
+        vm.ToggleMarkCurrentItem(); // unmark it
+        Assert.Equal(0, vm.SelectedFolderCount);
+        Assert.Equal(1, vm.SelectedFileCount);
+    }
+
+    [Fact]
+    public async Task NavigateToAsync_ClearsMarks_FromThePreviousListing()
+    {
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        vm.ToggleMarkCurrentItem(); // marks "child"
+        Assert.Equal(1, vm.SelectedFolderCount);
+
+        await vm.NavigateToAsync(_child);
+        Assert.Equal(0, vm.SelectedFolderCount);
+        Assert.Equal(0, vm.SelectedFileCount);
+
+        // Not remembered even on a round trip back to the same directory - a fresh listing always
+        // starts unmarked.
+        await vm.NavigateToAsync(_root);
+        Assert.Equal(0, vm.SelectedFolderCount);
+    }
+
+    [Fact]
+    public async Task ReverseSelection_FlipsMarkedStateOfEveryVisibleRow()
+    {
+        File.WriteAllText(Path.Combine(_root, "a.txt"), "hello");
+        File.WriteAllText(Path.Combine(_root, "b.txt"), "world");
+
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        // Rows: "child" (folder), "a.txt", "b.txt".
+
+        vm.GetCommand(Operation.GotoLastItem)!.Execute(null); // "b.txt"
+        vm.ToggleMarkCurrentItem(); // mark only b.txt
+
+        vm.GetCommand(Operation.ReverseSelection)!.Execute(null);
+
+        // child + a.txt now marked, b.txt no longer.
+        Assert.Equal(1, vm.SelectedFolderCount);
+        Assert.Equal(1, vm.SelectedFileCount);
+    }
+
+    [Fact]
+    public async Task GetOperationTargets_ReturnsMarkedItems_OrFallsBackToTheCursorRow()
+    {
+        var fileA = Path.Combine(_root, "a.txt");
+        File.WriteAllText(fileA, "hello");
+
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+
+        // Nothing marked - falls back to whatever's under the cursor ("child", row 0).
+        Assert.Equal(new[] { _child }, vm.GetOperationTargets().Select(t => t.FullPath));
+
+        vm.GetCommand(Operation.GotoLastItem)!.Execute(null); // "a.txt"
+        vm.ToggleMarkCurrentItem();
+
+        Assert.Equal(new[] { fileA }, vm.GetOperationTargets().Select(t => t.FullPath));
+    }
+
+    [Fact]
+    public async Task AppendFilterText_UnmarksRowsThatBecomeInvisible()
+    {
+        File.WriteAllText(Path.Combine(_root, "a.txt"), "hello");
+
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        vm.ToggleMarkCurrentItem(); // marks "child" (row 0)
+        Assert.Equal(1, vm.SelectedFolderCount);
+
+        vm.AppendFilterText("a.txt"); // filters out "child", leaving only "a.txt" visible
+
+        Assert.Equal(0, vm.SelectedFolderCount); // "child" was unmarked when it became invisible
     }
 }

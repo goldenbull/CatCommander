@@ -82,4 +82,24 @@ public class MainPanelViewModelTests : IDisposable
         Assert.Same(onlyTab, panel.ActiveTab);
         Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), onlyTab.CurrentPath);
     }
+
+    [Fact]
+    public async Task Marks_AreIndependentPerTab_UnlikeDirectorySelectionWhichNeverPersists()
+    {
+        var childA = Path.Combine(_root, "a");
+        Directory.CreateDirectory(childA);
+
+        var panel = CreatePanel();
+        var firstTab = panel.ActiveTab!;
+        await WaitUntilAsync(() => !string.IsNullOrEmpty(firstTab.CurrentPath));
+        await firstTab.NavigateToAsync(_root);
+        firstTab.ToggleMarkCurrentItem(); // marks "a" in the first tab
+
+        var secondTab = new ItemBrowserViewModel(_registry, _iconCache);
+        panel.Tabs.Add(secondTab);
+        await secondTab.NavigateToAsync(_root);
+
+        Assert.Equal(1, firstTab.SelectedFolderCount);
+        Assert.Equal(0, secondTab.SelectedFolderCount);
+    }
 }

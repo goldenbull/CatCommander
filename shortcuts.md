@@ -34,6 +34,7 @@ To wipe out all of your customizations and go back to the table below, use
 | Go back to parent folder | `Left` | `Left` |
 | Go to first item | `Home` | `Home` |
 | Go to last item | `End` | `End` |
+| Reverse selection | `Alt+R` | `Alt+R` |
 | Open selected folder in new tab | `Ctrl+Up` | `Cmd+Up` |
 | Switch tab in same panel | `Ctrl+Tab` | `Ctrl+Tab` |
 | Switch panel | `Tab` | `Tab` |
@@ -62,9 +63,30 @@ tab`'s own logic, aimed across panels instead of within one. Both `Left` and `Ri
 same action, since "opposite panel" already means whichever one isn't active; there's no direction
 left for the two keys to disambiguate.
 
+`Reverse selection` flips the marked state of every currently *visible* row (see Multi-selection
+below) - a row hidden by the quick filter is left alone, since marking it would violate "marked is
+always a subset of visible".
+
 This table is generated from `ShortcutsSettings.GetDefaults` in
 `CatCommander/Config/ShortcutsSettings.cs` - if you change the defaults there, update this table
 to match.
+
+## Multi-selection
+
+`Space` toggles the marked state of whatever row is currently under the cursor - Total Commander's
+checkbox-style multi-selection, shown as red text, and deliberately separate from the cursor itself
+(which still moves on arrow keys/click and is unaffected by marking). The status bar's `Selected
+X / Y` figures are the sum of every *marked* row, not just the one under the cursor.
+
+`Copy`, `Move`, and `Delete` act on every marked row if any are marked, otherwise on whatever's
+under the cursor - so a single-item operation never requires marking first. `Rename` doesn't follow
+this rule: renaming several items at once needs a pattern, which is what `Batch rename` is for.
+
+Marks are never remembered across a directory change (entering a folder, going back, jumping via
+history, ...) - a fresh listing always starts with nothing marked. They *are* kept per tab, though:
+switching to another tab and back leaves a tab's marks exactly as you left them. A row that a quick
+filter hides is unmarked at the moment it's hidden (see "marked is always a subset of visible"
+above) - widening or changing the filter afterward does not bring an old mark back.
 
 ## Quick filter
 
@@ -73,3 +95,7 @@ a panel's grid has focus opens a filter bar below the grid and narrows the listi
 name contains what you've typed (case-insensitive). Separate multiple words with a space to AND
 them together - `aa bb` matches `aaccbb` but not `aacc` or `bbcc` alone. `Backspace` edits the
 filter one character at a time; `Escape` clears it and shows the folder's full contents again.
+
+`Space` is the one exception: while a filter is already active it's a word separator like any other
+typed character, but with no filter active yet it doesn't start one - it toggles a mark instead (see
+Multi-selection above).
