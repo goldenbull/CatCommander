@@ -27,4 +27,14 @@ public interface IFileSystemProvider
     /// archive - entering that needs a different provider, resolved via FileSystemProviderRegistry.
     /// </summary>
     bool CanEnter(IFileSystemItem item);
+
+    /// <summary>
+    /// Whether navigating through this provider should be recorded in the address bar's
+    /// navigation-history dropdown. True for real, independently-typeable roots (the local file
+    /// system, an SFTP session, ...). A future archive provider's path-inside-an-archive
+    /// navigation, or the in-place tree expansion Ctrl+B does, should say false: those aren't
+    /// places a user would re-type or expect to jump back to from a *path* history - they're
+    /// scoped to whatever specific archive/tree is currently open, not general destinations.
+    /// </summary>
+    bool TracksHistory { get; }
 }

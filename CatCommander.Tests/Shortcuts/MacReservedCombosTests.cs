@@ -22,6 +22,12 @@ public class MacReservedCombosTests
     }
 
     [Fact]
+    public void Contains_True_ForCtrlTab_NativeWindowTabCycling()
+    {
+        Assert.True(MacReservedCombos.Contains(new KeyGesture(Key.Tab, KeyModifiers.Control)));
+    }
+
+    [Fact]
     public void Contains_False_ForUnrelatedGesture()
     {
         Assert.False(MacReservedCombos.Contains(new KeyGesture(Key.C, KeyModifiers.Control)));

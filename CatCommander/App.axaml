@@ -2,10 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="CatCommander.App"
              Name="CatCommander"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Light">
 
+    <!--
+      Classic Total Commander look, not the OS's light/dark preference - RequestedThemeVariant is
+      pinned to Light above, and Styles/ClassicTheme.axaml (loaded last, so its Setters win over
+      FluentTheme/TreeDataGrid's own) repaints everything to a fixed TC-style palette.
+    -->
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml" />
+        <StyleInclude Source="avares://CatCommander/Styles/ClassicTheme.axaml" />
     </Application.Styles>
 </Application>

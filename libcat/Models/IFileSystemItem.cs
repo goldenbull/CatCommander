@@ -55,9 +55,4 @@ public enum FileSystemItemType
     File,
     Directory,
     SymbolicLink,
-
-    /// <summary>
-    /// Special navigational item (the ".." parent-directory row).
-    /// </summary>
-    Special,
 }

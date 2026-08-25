@@ -116,6 +116,22 @@ public class ShortcutsSettingsTests
     }
 
     [Fact]
+    public void GetDefaults_MacOSStyle_UsesMetaUpForOpenSelectedFolderInNewTab()
+    {
+        var defaults = ShortcutsSettings.GetDefaults(KeyboardStyle.MacOS);
+
+        Assert.Equal("Meta+Up", defaults[Operation.OpenSelectedFolderInNewTab]);
+    }
+
+    [Fact]
+    public void GetDefaults_WindowsStyle_UsesCtrlUpForOpenSelectedFolderInNewTab()
+    {
+        var defaults = ShortcutsSettings.GetDefaults(KeyboardStyle.Windows);
+
+        Assert.Equal("Ctrl+Up", defaults[Operation.OpenSelectedFolderInNewTab]);
+    }
+
+    [Fact]
     public void GetDefaults_MacOSStyle_KeepsCtrlTabForSwitchTab_ToAvoidAppSwitcherCollision()
     {
         // Cmd+Tab is macOS's own system-wide app switcher - a true OS-level reservation, unlike

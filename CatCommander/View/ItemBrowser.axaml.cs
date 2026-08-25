@@ -1,11 +1,213 @@
+using System;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using CatCommander.ViewModels;
 
 namespace CatCommander.View;
 
 public partial class ItemBrowser : UserControl
 {
+    private ItemBrowserViewModel? _viewModel;
+
     public ItemBrowser()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
+
+        // Quick filter: both installed Tunnel-phase on this UserControl, so they run after
+        // ShortcutRouter's own Window-level Tunnel handler (giving bound Operations first
+        // refusal - none currently claim Backspace/Escape/plain character keys) but before
+        // FileGrid's own Direct/Bubble handling, which is what OnPreviewTextInput needs to
+        // preempt - TreeDataGrid has its own built-in TextInput handling that jumps to the next
+        // row starting with the typed letter (see TreeDataGridRowSelectionModel.HandleTextInput),
+        // which would otherwise fire instead of/alongside the filter.
+        AddHandler(TextInputEvent, OnPreviewTextInput, RoutingStrategies.Tunnel);
+        AddHandler(InputElement.KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+
+        // Permanent, not a one-shot subscription: FileGrid is created once per panel and reused
+        // for every tab (see MainPanelViewModel's doc comment) - swapping Source only rebinds
+        // data, it never moves or resizes FileGrid itself. That's exactly why TreeDataGrid's own
+        // Star-width recompute (normally driven by Avalonia's EffectiveViewportChanged, which only
+        // fires on a genuine *geometric* viewport change) never fires again for a Source swap: the
+        // new ColumnList's internal viewport width is never told what it actually is, since
+        // nothing about FileGrid's own geometry changed. Feeding it directly from FileGrid's own
+        // (already-correct, stable) Bounds - rather than waiting for a framework notification that
+        // in this scenario never arrives - sidesteps that gap entirely instead of continuing to
+        // guess at framework event timing.
+        FileGrid.LayoutUpdated += (_, _) =>
+        {
+            if (FileGrid.Source?.Columns is { } columns)
+            {
+                columns.ViewportChanged(new Rect(FileGrid.Bounds.Size));
+                columns.CommitActualWidths();
+            }
+        };
     }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_viewModel is not null)
+        {
+            _viewModel.FocusRequested -= OnFocusRequested;
+            _viewModel.ScrollToRowRequested -= OnScrollToRowRequested;
+        }
+
+        _viewModel = DataContext as ItemBrowserViewModel;
+
+        if (_viewModel is not null)
+        {
+            _viewModel.FocusRequested += OnFocusRequested;
+            _viewModel.ScrollToRowRequested += OnScrollToRowRequested;
+            FocusGrid();
+        }
+    }
+
+    private void OnFocusRequested() => FocusGrid();
+
+    /// <summary>
+    /// Printable characters typed while FileGrid effectively has focus feed the quick filter
+    /// instead of TreeDataGrid's own built-in type-ahead row jump. Marking the event Handled here
+    /// (Tunnel phase, before FileGrid's own Direct-phase OnTextInput override runs) is what
+    /// actually suppresses that built-in behavior.
+    /// </summary>
+    private void OnPreviewTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (_viewModel is null || string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0]) || !IsFileGridFocused())
+            return;
+
+        _viewModel.AppendFilterText(e.Text);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Backspace/Escape editing of the quick filter - only intercepted while a filter is actually
+    /// active, so these keys are otherwise left doing whatever they'd normally do (nothing, today)
+    /// when there's nothing to edit or clear.
+    /// </summary>
+    private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_viewModel is null || !_viewModel.IsFilterActive || !IsFileGridFocused())
+            return;
+
+        switch (e.Key)
+        {
+            case Key.Back:
+                _viewModel.RemoveLastFilterCharacter();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                _viewModel.ClearFilter();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Whether keyboard focus is currently on FileGrid or one of its cells - checked against
+    /// FocusManager rather than the routed event's Source, since a mouse click into a cell can
+    /// move real focus to that TreeDataGridCell (Focusable by default) rather than FileGrid
+    /// itself. Guards the quick filter from hijacking typing meant for the path TextBox or the
+    /// history flyout's ListBox, which are FileGrid's siblings, not descendants.
+    /// </summary>
+    private bool IsFileGridFocused()
+    {
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        return focused == FileGrid || (focused as Visual)?.FindAncestorOfType<TreeDataGrid>() == FileGrid;
+    }
+
+    /// <summary>
+    /// GotoFirstItem/GotoLastItem/GoBackToParentFolder's restore/a fresh listing's default all set
+    /// the current row directly via ItemBrowserViewModel.SetCurrentRow, bypassing TreeDataGrid's
+    /// own keyboard handling entirely - which is the *only* thing that normally scrolls a newly
+    /// current row into view (TreeDataGridRowSelectionModel.MoveSelection calls
+    /// RowsPresenter.BringIntoView internally, but only from its own OnKeyDown). Without this, Home/
+    /// End moved the selection correctly but left the scroll position wherever it already was.
+    /// </summary>
+    private int? _pendingScrollRowIndex;
+
+    private void OnScrollToRowRequested(int rowIndex)
+    {
+        // Coalesced through a shared field rather than each call posting its own closure over
+        // rowIndex - a rapid burst (e.g. Home/End key-repeat) queues multiple posts, and a *stale*
+        // one (targeting whatever row was current a moment ago) running after a fresher one lands
+        // can scroll straight past the actually-current row, unrealizing its row container
+        // (TreeDataGridRow.Unrealize forces IsSelected false) right after it was correctly
+        // rendered selected - the row then sits unselected until something else (e.g. a Down
+        // keypress) forces a re-render. Every queued post reads this field at *its own* run time,
+        // not a captured value, so whichever post runs first consumes the latest target and any
+        // later, now-redundant post for an already-superseded request becomes a no-op.
+        _pendingScrollRowIndex = rowIndex;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_pendingScrollRowIndex is not { } target)
+                return;
+
+            _pendingScrollRowIndex = null;
+            FileGrid.RowsPresenter?.BringIntoView(target);
+        });
+    }
+
+    /// <summary>
+    /// The single place real Avalonia keyboard focus gets (re)synced to ViewModel-driven
+    /// activation - see ItemBrowserViewModel.FocusRequested for the full list of triggers
+    /// (navigation, tab switch, panel switch/SwitchPanel, a new OpenSelectedFolderInNewTab tab).
+    ///
+    /// Always deferred one dispatcher tick, on purpose: SwitchPanel is bound to plain Tab, and
+    /// Avalonia has its own built-in Tab-key focus navigation that is *not* suppressed by marking
+    /// the KeyDownEvent Handled (it's an accessibility guarantee, not app-overridable) - it runs
+    /// later in the same synchronous key-down dispatch as ShortcutRouter's Tunnel handler. Calling
+    /// Focus() synchronously from within that dispatch wins the race only to immediately lose it
+    /// to Avalonia's own navigation moving focus somewhere else before the key-down finishes.
+    /// Posting instead guarantees we run strictly after the entire key-down dispatch (default
+    /// navigation included) has settled, so we always get the last word regardless of which
+    /// gesture triggered this.
+    ///
+    /// Whether FileGrid is already attached only changes what we're waiting to be true before
+    /// posting: if it's already part of a rooted visual tree (true for every case now except the
+    /// very first ItemBrowser attachment per panel - see MainPanelViewModel), post right away; if
+    /// it's still being constructed this frame, wait for AttachedToVisualTree first.
+    /// </summary>
+    private void FocusGrid()
+    {
+        if (FileGrid.IsAttachedToVisualTree())
+        {
+            Dispatcher.UIThread.Post(() => FileGrid.Focus());
+        }
+        else
+        {
+            FileGrid.AttachedToVisualTree += OnFileGridAttached;
+        }
+    }
+
+    private void OnFileGridAttached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        FileGrid.AttachedToVisualTree -= OnFileGridAttached;
+        Dispatcher.UIThread.Post(() => FileGrid.Focus());
+    }
+
+    // ListBox.SelectedItem isn't bound to anything - the history list has no notion of a
+    // "currently selected" entry between openings, it's a one-shot pick. Handling the click here
+    // (rather than a Command) is what lets the flyout close itself immediately, and clearing
+    // SelectedItem afterward is what lets picking the *same* entry again next time still raise
+    // SelectionChanged (a ListBox doesn't re-fire it for reselecting the already-selected item).
+    private void OnHistorySelectionChanged(object? sender, Avalonia.Controls.SelectionChangedEventArgs e)
+    {
+        if (HistoryList.SelectedItem is string path)
+        {
+            _ = _viewModel?.NavigateToAsync(path);
+            HistoryButton.Flyout?.Hide();
+        }
+
+        HistoryList.SelectedItem = null;
+    }
+
+    // Dismissing a Flyout (click outside, Escape, or picking an entry - Hide() above also raises
+    // this) doesn't return keyboard focus to whatever had it before the Flyout opened; Avalonia
+    // just drops it. Without this, arrow keys stopped doing anything after closing the history
+    // dropdown until the user clicked the grid again.
+    private void OnHistoryFlyoutClosed(object? sender, EventArgs e) => FocusGrid();
 }

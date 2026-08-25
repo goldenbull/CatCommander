@@ -8,17 +8,30 @@
              x:DataType="vm:MainPanelViewModel"
              Focusable="True">
     <UserControl.Styles>
-        <Style Selector="Border.activePanel">
-            <Setter Property="BorderBrush" Value="Transparent" />
+        <!-- Tab-header buttons - not a TabControl (see MainPanelViewModel's doc comment for why):
+             plain flat/square buttons, selected = white (matches the grid below it), and tinted
+             navy - the same active-panel signal ItemBrowser.axaml uses for the address bar/grid
+             selection - only when this panel is also the active one. -->
+        <Style Selector="Button.tabHeader">
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="MinHeight" Value="20" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="BorderThickness" Value="1,1,1,0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource TcBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource TcChromeBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TcTextBrush}" />
         </Style>
-        <Style Selector="Border.activePanel.active">
-            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+        <Style Selector="Button.tabHeader.selected">
+            <Setter Property="Background" Value="{DynamicResource TcPanelBrush}" />
+        </Style>
+        <Style Selector="Button.tabHeader.selected.panelActive">
+            <Setter Property="Background" Value="{DynamicResource TcActiveTabBrush}" />
         </Style>
     </UserControl.Styles>
 
     <!-- Background="Transparent" (not left null) is required for the interior to be hit-test
          visible at all - otherwise clicks inside it don't register as hitting this control. -->
-    <Border Classes="activePanel" Classes.active="{Binding IsActive}" BorderThickness="2" Background="Transparent">
+    <Border Background="Transparent">
         <DockPanel>
             <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding QuickAccessEntries}">
                 <ItemsControl.ItemsPanel>
@@ -41,18 +54,29 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <TabControl ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab}">
-                <TabControl.ItemTemplate>
+            <!-- One row of tab-header buttons, driving which Tabs entry ItemBrowser below displays -
+                 see MainPanelViewModel's doc comment for why this isn't a TabControl. -->
+            <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Tabs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:ItemBrowserViewModel">
-                        <TextBlock Text="{Binding CurrentPath}" />
+                        <Button Classes="tabHeader"
+                                Classes.selected="{Binding IsActiveTab}"
+                                Classes.panelActive="{Binding $parent[ItemsControl].((vm:MainPanelViewModel)DataContext).IsActive}"
+                                Content="{Binding CurrentPath}"
+                                Command="{Binding $parent[ItemsControl].((vm:MainPanelViewModel)DataContext).SelectTabCommand}"
+                                CommandParameter="{Binding}" />
                     </DataTemplate>
-                </TabControl.ItemTemplate>
-                <TabControl.ContentTemplate>
-                    <DataTemplate x:DataType="vm:ItemBrowserViewModel">
-                        <view:ItemBrowser />
-                    </DataTemplate>
-                </TabControl.ContentTemplate>
-            </TabControl>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Permanent, never recreated - see MainPanelViewModel's doc comment. Switching tabs
+                 only ever rebinds DataContext here. -->
+            <view:ItemBrowser DataContext="{Binding ActiveTab}" />
         </DockPanel>
     </Border>
 </UserControl>

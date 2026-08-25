@@ -5,6 +5,19 @@ using NLog;
 
 namespace CatCommander.Config;
 
+/// <summary>
+/// Which primary modifier key convention the default shortcuts use - Ctrl on Windows/Linux, Cmd
+/// (Meta) on macOS, since real macOS users expect Cmd for the shortcuts that would use Ctrl on
+/// Windows. See GetDefaults for the one deliberate exception (SwitchTabInSamePanel). Always
+/// derived from the running OS via ShortcutsSettings.CurrentStyle - not user-configurable, so
+/// there is exactly one default keymap per machine and nothing to store or drift.
+/// </summary>
+public enum KeyboardStyle
+{
+    Windows,
+    MacOS,
+}
+
 // Identifiers for both keys in the TOML config file and commands dispatched by IShortcutCommandSource.
 public enum Operation
 {
@@ -19,8 +32,11 @@ public enum Operation
     GoBackToParentFolder,
     GotoFirstItem,
     GotoLastItem,
+    OpenSelectedFolderInNewTab,
     SwitchTabInSamePanel,
     SwitchPanel,
+    CloseTab,
+    OpenCurrentFolderInOppositePanel,
     OpenFind,
     OpenBatchRename,
 }
@@ -31,6 +47,13 @@ public enum Operation
 public class ShortcutsSettings
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
+
+    /// <summary>
+    /// The only KeyboardStyle CatCommander ever resolves defaults with at runtime - derived
+    /// straight from the OS it's running on, never stored or user-selectable. Keeps "which default
+    /// keymap applies" a hardcoded fact instead of a setting that can drift from the real platform.
+    /// </summary>
+    public static KeyboardStyle CurrentStyle => OperatingSystem.IsMacOS() ? KeyboardStyle.MacOS : KeyboardStyle.Windows;
 
     /// <summary>
     /// Forward map: Operation name -> key bindings in string format, as a [bindings] table in TOML.
@@ -82,8 +105,11 @@ public class ShortcutsSettings
             [Operation.GoBackToParentFolder] = "Left",
             [Operation.GotoFirstItem] = "Home",
             [Operation.GotoLastItem] = "End",
+            [Operation.OpenSelectedFolderInNewTab] = $"{primaryModifier}+Up",
             [Operation.SwitchTabInSamePanel] = "Ctrl+Tab",
             [Operation.SwitchPanel] = "Tab",
+            [Operation.CloseTab] = $"{primaryModifier}+W",
+            [Operation.OpenCurrentFolderInOppositePanel] = $"{primaryModifier}+Left;{primaryModifier}+Right",
             [Operation.OpenFind] = "Alt+F7",
             [Operation.OpenBatchRename] = $"{primaryModifier}+M",
         };

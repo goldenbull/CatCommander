@@ -18,7 +18,7 @@ public class FileItemModel : IFileSystemItem
 
     public string DisplaySize => ItemType switch
     {
-        FileSystemItemType.Directory or FileSystemItemType.Special => "<DIR>",
+        FileSystemItemType.Directory => "<DIR>",
         FileSystemItemType.SymbolicLink => "<LINK>",
         _ => FormatFileSize(Size),
     };

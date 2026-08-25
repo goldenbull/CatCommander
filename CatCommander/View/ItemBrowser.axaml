@@ -1,24 +1,129 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CatCommander.ViewModels"
+             xmlns:view="using:CatCommander.View"
              x:Class="CatCommander.View.ItemBrowser"
              x:DataType="vm:ItemBrowserViewModel">
+    <UserControl.Styles>
+        <!-- Active-panel indicator (see MainPanel.axaml for the matching tab-strip tint): the
+             address bar gets the classic TC "current directory" navy background instead of a
+             border around the whole panel. -->
+        <Style Selector="TextBox.active">
+            <Setter Property="Background" Value="{DynamicResource TcSelectionBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TcActiveAddressTextBrush}" />
+            <Setter Property="CaretBrush" Value="White" />
+        </Style>
+
+        <!-- Same active-panel signal, applied to the grid's own selection highlight: the active
+             panel's selected row is navy with white text (overriding ClassicTheme.axaml's
+             app-wide gray-with-black-text default, used for the inactive panel), so it's obvious
+             at a glance which panel is actually listening to the keyboard right now.
+             Positive-selector-only (no :not()), matching TextBox.active above - keeping both the
+             same shape after :not() turned out to not reliably react to Classes.active toggling
+             on TreeDataGrid specifically.
+
+             Two layers need the override, not just the cell: TreeDataGridRow's own ControlTheme
+             (Themes/Generic.axaml) paints TreeDataGridSelectedCellBackgroundBrush onto its
+             PART_CellsPresenter *underneath* the cells, and individual TreeDataGridCells paint the
+             same resource again on top when selected - both need to move to navy together, or the
+             row-level gray from ClassicTheme.axaml's app-wide default shows through at the seams
+             (this is what "the active selection is gray too, but a different gray" looked like). -->
+        <Style Selector="TreeDataGrid.active TreeDataGridRow:selected /template/ TreeDataGridCellsPresenter#PART_CellsPresenter">
+            <Setter Property="Background" Value="{DynamicResource TcSelectionBrush}" />
+        </Style>
+        <Style Selector="TreeDataGrid.active :is(TreeDataGridCell):selected">
+            <Setter Property="Background" Value="{DynamicResource TcSelectionBrush}" />
+        </Style>
+        <Style Selector="TreeDataGrid.active TreeDataGridRow:selected TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="TreeDataGrid.active :is(TreeDataGridCell):selected TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- History dropdown (see the Flyout below): compact, square, left-aligned - matching the
+             rest of the classic TC chrome instead of Fluent's default roomy/centered ListBox. -->
+        <Style Selector="ListBox">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="{DynamicResource TcPanelBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource TcBorderBrush}" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="MinHeight" Value="20" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+    </UserControl.Styles>
+
     <DockPanel>
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="2">
             <TextBox Grid.Column="0"
+                     Classes.active="{Binding $parent[view:MainPanel].((vm:MainPanelViewModel)DataContext).IsActive}"
                      Text="{Binding CurrentPath}"
                      PlaceholderText="Path" />
-            <Button Grid.Column="1"
-                    Margin="4,0,0,0"
-                    Content="{Binding ViewMode}"
-                    Command="{Binding ToggleViewModeCommand}" />
+
+            <!-- Navigation history dropdown - only paths TracksHistory-eligible providers were
+                 actually navigated to via NavigateToAsync end up here (see
+                 ItemBrowserViewModel.RecordHistory); archive-internal browsing or a future Ctrl+B
+                 tree expansion never populate this list. Selecting an entry navigates to it and
+                 closes the flyout - see ItemBrowser.axaml.cs's OnHistorySelectionChanged. -->
+            <Button x:Name="HistoryButton"
+                    Grid.Column="1"
+                    Margin="2,0,0,0"
+                    Padding="4,2"
+                    Content="▼"
+                    ToolTip.Tip="Navigation history">
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight" Closed="OnHistoryFlyoutClosed">
+                        <ListBox x:Name="HistoryList"
+                                 ItemsSource="{Binding NavigationHistory}"
+                                 SelectionChanged="OnHistorySelectionChanged"
+                                 MinWidth="250"
+                                 MaxHeight="300" />
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
         </Grid>
 
-        <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemBaseLowColor}">
-            <TextBlock Margin="4,2" FontSize="11" Text="{Binding SelectionSummary}" />
+        <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource TcBorderBrush}">
+            <TextBlock Margin="4,2" Text="{Binding SelectionSummary}" />
         </Border>
 
-        <TreeDataGrid Source="{Binding Source}"
+        <!-- Quick filter bar (Total Commander-style): pops up below the grid the moment the user
+             starts typing while FileGrid has focus, and disappears again on Escape/clearing back
+             to empty - see ItemBrowser.axaml.cs's OnPreviewTextInput/OnPreviewKeyDown, which
+             capture that typing before it reaches TreeDataGrid's own built-in type-ahead-jump
+             handling. The TextBox is a display only (IsReadOnly/Focusable=False) - real keyboard
+             focus never leaves FileGrid, FilterText is only ever changed via
+             ItemBrowserViewModel.AppendFilterText/RemoveLastFilterCharacter/ClearFilter. -->
+        <Border DockPanel.Dock="Bottom"
+                IsVisible="{Binding IsFilterActive}"
+                BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource TcBorderBrush}">
+            <Grid ColumnDefinitions="Auto,*" Margin="2">
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Margin="2,0,4,0"
+                           Text="Filter:" />
+                <TextBox Grid.Column="1"
+                         Text="{Binding FilterText, Mode=OneWay}"
+                         IsReadOnly="True"
+                         Focusable="False" />
+            </Grid>
+        </Border>
+
+        <!-- TreeDataGrid itself isn't Focusable by default (only its cells are - see
+             Avalonia.Controls.TreeDataGrid/Primitives/TreeDataGridCell.cs) - Focusable="True" here
+             is what makes FileGrid.Focus() in ItemBrowser.axaml.cs an actual, not silently-no-op,
+             focus target, while its own OnKeyDown override still gets arrow-key navigation right
+             since it fires for the focused element itself, not just its descendants. -->
+        <TreeDataGrid x:Name="FileGrid"
+                      Focusable="True"
+                      Classes.active="{Binding $parent[view:MainPanel].((vm:MainPanelViewModel)DataContext).IsActive}"
+                      Source="{Binding Source}"
                       ShowColumnHeaders="True"
                       CanUserResizeColumns="True" />
     </DockPanel>

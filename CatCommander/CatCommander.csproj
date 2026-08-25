@@ -66,4 +66,12 @@
         <AvaloniaResource Include="Assets\**\*.png" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- NLog auto-discovers a file named exactly "NLog.config" in the app's base directory -
+             no explicit LogManager.Setup() call needed. -->
+        <None Update="NLog.config">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
 </Project>

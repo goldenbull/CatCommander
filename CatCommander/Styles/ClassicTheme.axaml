@@ -1,0 +1,131 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Classic Total Commander look, overriding FluentTheme/TreeDataGrid's defaults. App.axaml pins
+    RequestedThemeVariant to Light and includes this after both, so there is exactly one fixed
+    palette - no dark-mode variant to keep in sync. 12pt UI font everywhere, square corners, thin
+    solid gray borders instead of Fluent's rounded/shadowed chrome, and compact row/control sizes.
+  -->
+
+  <Styles.Resources>
+    <ResourceDictionary>
+      <!-- Palette: classic Win32 "3D Face" gray chrome, white file-list background, navy selection -->
+      <Color x:Key="TcChromeColor">#D4D0C8</Color>
+      <Color x:Key="TcPanelColor">#FFFFFF</Color>
+      <Color x:Key="TcBorderColor">#808080</Color>
+      <Color x:Key="TcSelectionColor">#0A246A</Color>
+      <Color x:Key="TcTextColor">#000000</Color>
+      <Color x:Key="TcHoverColor">#E4E2DA</Color>
+
+      <!-- Active-panel indicator: a soft tab-header tint plus a navy address bar with warm text,
+           instead of a bright accent border around the whole panel (too glaring - see MainPanel
+           and ItemBrowser, which apply these to the selected tab-header Button / path TextBox only). -->
+      <Color x:Key="TcActiveTabColor">#A6CAF0</Color>
+      <Color x:Key="TcActiveAddressTextColor">#FFDD88</Color>
+
+      <!-- Selection in the *inactive* panel: a muted gray instead of the navy active-selection
+           color, so it's obvious at a glance which panel is actually listening to the keyboard -
+           see ItemBrowser.axaml, which applies this only when TreeDataGrid isn't Classes.active. -->
+      <Color x:Key="TcInactiveSelectionColor">#C0C0C0</Color>
+
+      <SolidColorBrush x:Key="TcChromeBrush" Color="{StaticResource TcChromeColor}" />
+      <SolidColorBrush x:Key="TcPanelBrush" Color="{StaticResource TcPanelColor}" />
+      <SolidColorBrush x:Key="TcBorderBrush" Color="{StaticResource TcBorderColor}" />
+      <SolidColorBrush x:Key="TcSelectionBrush" Color="{StaticResource TcSelectionColor}" />
+      <SolidColorBrush x:Key="TcTextBrush" Color="{StaticResource TcTextColor}" />
+      <SolidColorBrush x:Key="TcHoverBrush" Color="{StaticResource TcHoverColor}" />
+      <SolidColorBrush x:Key="TcActiveTabBrush" Color="{StaticResource TcActiveTabColor}" />
+      <SolidColorBrush x:Key="TcActiveAddressTextBrush" Color="{StaticResource TcActiveAddressTextColor}" />
+      <SolidColorBrush x:Key="TcInactiveSelectionBrush" Color="{StaticResource TcInactiveSelectionColor}" />
+
+      <!-- Re-point the vendored TreeDataGrid theme's own resources (see Themes/Generic.axaml and
+           Themes/Fluent.axaml) at the classic palette instead of the Fluent accent/system colors. -->
+      <SolidColorBrush x:Key="TreeDataGridGridLinesBrush" Color="#C0C0C0" />
+      <SolidColorBrush x:Key="TreeDataGridHeaderBackgroundPointerOverBrush" Color="{StaticResource TcHoverColor}" />
+      <SolidColorBrush x:Key="TreeDataGridHeaderBackgroundPressedBrush" Color="{StaticResource TcChromeColor}" />
+      <SolidColorBrush x:Key="TreeDataGridHeaderBorderBrushPointerOverBrush" Color="{StaticResource TcBorderColor}" />
+      <SolidColorBrush x:Key="TreeDataGridHeaderBorderBrushPressedBrush" Color="{StaticResource TcBorderColor}" />
+      <SolidColorBrush x:Key="TreeDataGridHeaderForegroundPointerOverBrush" Color="{StaticResource TcTextColor}" />
+      <SolidColorBrush x:Key="TreeDataGridHeaderForegroundPressedBrush" Color="{StaticResource TcTextColor}" />
+      <!-- Gray (inactive-look), not navy, by default - the active panel's TreeDataGrid overrides
+           this back to navy locally via a positive ".active" selector in ItemBrowser.axaml. This
+           resource is shared by every TreeDataGrid instance in the app, so it can't itself carry
+           per-panel state - the two panels differentiate through Classes.active instead. -->
+      <SolidColorBrush x:Key="TreeDataGridSelectedCellBackgroundBrush" Color="{StaticResource TcInactiveSelectionColor}" />
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <!-- ============ Base: 12pt font everywhere ============ -->
+  <Style Selector="TopLevel">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="TextBlock">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <!-- ============ Window / dialog chrome ============ -->
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{StaticResource TcChromeBrush}" />
+  </Style>
+
+  <!-- ============ Buttons: flat, square, thin gray border, compact padding ============ -->
+  <Style Selector="Button">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Padding" Value="6,2" />
+    <Setter Property="MinHeight" Value="22" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{StaticResource TcBorderBrush}" />
+    <Setter Property="Background" Value="{StaticResource TcChromeBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
+  </Style>
+
+  <!-- ============ Text boxes: white, single gray border, square corners ============ -->
+  <Style Selector="TextBox">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Padding" Value="4,2" />
+    <Setter Property="MinHeight" Value="22" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{StaticResource TcBorderBrush}" />
+    <Setter Property="Background" Value="{StaticResource TcPanelBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
+    <Setter Property="SelectionBrush" Value="{StaticResource TcSelectionBrush}" />
+  </Style>
+
+  <!-- ============ TreeDataGrid: white background, compact rows, classic navy selection ============ -->
+  <Style Selector="TreeDataGrid">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Background" Value="{StaticResource TcPanelBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{StaticResource TcBorderBrush}" />
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+  <Style Selector="TreeDataGridColumnHeader">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="4,1" />
+    <Setter Property="Background" Value="{StaticResource TcChromeBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,1,1" />
+    <Setter Property="BorderBrush" Value="{StaticResource TcBorderBrush}" />
+  </Style>
+  <Style Selector=":is(TreeDataGridCell)">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="18" />
+  </Style>
+  <Style Selector="TreeDataGridTextCell">
+    <Setter Property="Padding" Value="4,1" />
+  </Style>
+  <!-- Black text by default (readable on the gray inactive-selection background above) - the
+       active panel's TreeDataGrid overrides this to white locally, alongside the background,
+       in ItemBrowser.axaml. -->
+  <Style Selector="TreeDataGridRow:selected TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
+  </Style>
+  <Style Selector=":is(TreeDataGridCell):selected TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TcTextBrush}" />
+  </Style>
+
+</Styles>

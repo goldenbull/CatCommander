@@ -42,11 +42,11 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     public ICommand OpenFindCommand { get; }
     public ICommand OpenBatchRenameCommand { get; }
 
-    // Settings actions - not Operations (no keyboard-configurable gesture, no TC precedent), so
-    // these are plain named commands only, not registered in _commands/GetCommand.
+    // Settings action - not an Operation (no keyboard-configurable gesture, no TC precedent), so
+    // this is a plain named command only, not registered in _commands/GetCommand. The default
+    // keymap itself is hardcoded per-OS (ShortcutsSettings.CurrentStyle) and not user-selectable -
+    // this is the only shortcut-related setting exposed in the UI.
     public ICommand RestoreDefaultShortcutsCommand { get; }
-    public ICommand SetWindowsKeyboardStyleCommand { get; }
-    public ICommand SetMacKeyboardStyleCommand { get; }
 
     public MainWindowViewModel(
         ConfigManager configManager,
@@ -75,8 +75,6 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         OpenBatchRenameCommand = ReactiveCommand.Create(OpenBatchRename);
 
         RestoreDefaultShortcutsCommand = ReactiveCommand.Create(_configManager.RestoreDefaultShortcuts);
-        SetWindowsKeyboardStyleCommand = ReactiveCommand.Create(() => _configManager.SetKeyboardStyle(KeyboardStyle.Windows));
-        SetMacKeyboardStyleCommand = ReactiveCommand.Create(() => _configManager.SetKeyboardStyle(KeyboardStyle.MacOS));
 
         _commands = new Dictionary<Operation, ICommand>
         {
@@ -85,11 +83,20 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             [Operation.Rename] = RenameCommand,
             [Operation.Delete] = DeleteCommand,
             [Operation.SwitchPanel] = ReactiveCommand.Create(SwitchPanel),
+            [Operation.OpenCurrentFolderInOppositePanel] = ReactiveCommand.Create(OpenCurrentFolderInOppositePanel),
             [Operation.OpenFind] = OpenFindCommand,
             [Operation.OpenBatchRename] = OpenBatchRenameCommand,
         };
     }
 
+    // Reactive direction: called from MainPanel's GotFocus handler (a mouse click, or real focus
+    // having already landed here via RequestFocus/ApplyFocus below) to record which panel focus is
+    // *already* on. Must never itself call RequestFocus() - GotFocus firing means focus is already
+    // exactly where it should be, so re-requesting it here is not just redundant, it's actively
+    // dangerous: with two panels each independently self-focusing at startup (see
+    // ItemBrowserViewModel.FocusRequested), one panel's RequestFocus stealing focus back would
+    // make GotFocus fire on the *other* panel too, which would RequestFocus back, forever - a real
+    // infinite ping-pong this app hit and hung on before this method stopped doing that.
     private void SetActivePanel(MainPanelViewModel panel)
     {
         ActivePanel = panel;
@@ -97,7 +104,33 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         RightPanel.IsActive = panel == RightPanel;
     }
 
-    private void SwitchPanel() => SetActivePanel(ActivePanel == LeftPanel ? RightPanel : LeftPanel);
+    // Commanded direction: SwitchPanel (Tab) needs to both record the new ActivePanel *and* push
+    // real keyboard focus into it - unlike SetActivePanel above, nothing else is going to move
+    // focus on its own here.
+    private void SwitchPanel()
+    {
+        var target = ActivePanel == LeftPanel ? RightPanel : LeftPanel;
+        SetActivePanel(target);
+        target.RequestFocus();
+    }
+
+    // Cmd/Ctrl+Left and +Right both do the same thing - "opposite panel" already accounts for
+    // direction (whichever panel isn't ActivePanel), so there's nothing left for the two gestures
+    // to disambiguate. Opens the *selected* folder in a new tab in the opposite panel - exactly
+    // OpenSelectedFolderInNewTab's (Cmd/Ctrl+Up) own logic, aimed across panels instead of within
+    // one. Deliberately GetSelectedEnterablePath(), not CurrentPath: CurrentPath is whatever
+    // directory the active tab is *browsing*, which is one level up from the highlighted row the
+    // user is actually looking at - using it here would open the parent instead of the folder
+    // they selected.
+    private void OpenCurrentFolderInOppositePanel()
+    {
+        var path = ActivePanel?.ActiveTab?.GetSelectedEnterablePath();
+        if (path is null)
+            return;
+
+        var opposite = ActivePanel == LeftPanel ? RightPanel : LeftPanel;
+        opposite.OpenNewTab(path);
+    }
 
     private void OpenFind() => _findWindowFactory().Show();
 
@@ -107,10 +140,14 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // the same command. Real ActivePanel-scoped file logic is a later milestone.
     private void LogStubOperation(Operation operation) => log.Info("{0} command executed (stub, ActivePanel={1})", operation, ActivePanel == LeftPanel ? "Left" : "Right");
 
-    // Window-level commands (SwitchPanel/OpenFind/.../Copy stubs) get first refusal; anything not
-    // found there falls through to whichever tab is currently active in the active panel - this
-    // is how navigation Operations (GoIntoCurrentFolder, GotoFirstItem, ...) reach
-    // ItemBrowserViewModel without ShortcutRouter needing to know panels/tabs exist at all.
+    // Window-level commands (SwitchPanel/OpenFind/.../Copy stubs) get first refusal; then
+    // panel-scoped ones (OpenSelectedFolderInNewTab - needs the panel's whole Tabs collection, not
+    // just the active tab); anything not found there falls through to whichever tab is currently
+    // active in the active panel - this is how navigation Operations (GoIntoCurrentFolder,
+    // GotoFirstItem, ...) reach ItemBrowserViewModel without ShortcutRouter needing to know
+    // panels/tabs exist at all.
     public ICommand? GetCommand(Operation operation) =>
-        _commands.GetValueOrDefault(operation) ?? ActivePanel?.ActiveTab?.GetCommand(operation);
+        _commands.GetValueOrDefault(operation)
+        ?? ActivePanel?.GetCommand(operation)
+        ?? ActivePanel?.ActiveTab?.GetCommand(operation);
 }

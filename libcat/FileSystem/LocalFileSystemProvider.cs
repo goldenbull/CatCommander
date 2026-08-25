@@ -73,5 +73,7 @@ public class LocalFileSystemProvider : IFileSystemProvider
         return Task.Run(Stream () => File.OpenRead(path), ct);
     }
 
-    public bool CanEnter(IFileSystemItem item) => item.ItemType is FileSystemItemType.Directory or FileSystemItemType.Special;
+    public bool CanEnter(IFileSystemItem item) => item.ItemType is FileSystemItemType.Directory;
+
+    public bool TracksHistory => true;
 }
