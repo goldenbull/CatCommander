@@ -5,12 +5,15 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.Selection;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Data.Converters;
 using Avalonia.Layout;
+using Avalonia.Threading;
 using CatCommander.Config;
 using CatCommander.FileSystem;
 using CatCommander.Models;
@@ -54,6 +57,14 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// toggles.
     /// </summary>
     private List<FileItemRow> _rows = new();
+
+    /// <summary>
+    /// The provider currently resolved for CurrentPath - exposed so MainWindowViewModel.
+    /// StartFileOperation can hand it to a new FileOperationJob (both source and destination
+    /// always run through the same provider today - see IFileSystemProvider.CopyAsync/MoveAsync's
+    /// own doc comments on why that's fine while LocalFileSystemProvider is the only one).
+    /// </summary>
+    public IFileSystemProvider? Provider => _provider;
 
     public string CurrentPath { get; set; } = string.Empty;
     public ItemBrowserViewMode ViewMode { get; set; } = ItemBrowserViewMode.List;
@@ -168,6 +179,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.GotoFirstItem] = ReactiveCommand.Create(GotoFirstItem),
             [Operation.GotoLastItem] = ReactiveCommand.Create(GotoLastItem),
             [Operation.ReverseSelection] = ReactiveCommand.Create(ReverseSelection),
+            [Operation.Rename] = ReactiveCommand.Create(BeginRenameCurrentItem),
         };
     }
 
@@ -367,28 +379,242 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private List<FileItemRow> BuildRows(IReadOnlyList<IFileSystemItem> items) =>
         items.Select(i => new FileItemRow(i, _iconCache)).ToList();
 
+    private static readonly IValueConverter NotConverter = new FuncValueConverter<bool, bool>(b => !b);
+
     // Marked-row coloring (background and text) is handled entirely in ItemBrowser.axaml via
     // style selectors bound to FileItemRow.IsMarked, not here - TreeDataGridRow's DataContext is
     // the FileItemRow model, and covers every column uniformly (not just this one), unlike a
     // per-column Foreground binding would.
-    private static TemplateColumn<FileItemRow> CreateNameColumn()
+    //
+    // An instance method (not static, unlike before) so the edit box's Enter/Escape/LostFocus
+    // handlers below can close over `this` and call CommitRename/CancelRename directly - F2's
+    // in-place editing lives here rather than in a dialog.
+    private TemplateColumn<FileItemRow> CreateNameColumn()
     {
         var template = new FuncDataTemplate<FileItemRow>((row, _) =>
         {
-            var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            // Grid, not the old StackPanel: the edit TextBox (and the TextBlock it swaps with)
+            // need to stretch to fill the Star-width Name column, not size to content.
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
 
-            var image = new Image { Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
+            var image = new Image
+            {
+                Width = 16,
+                Height = 16,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 4, 0),
+            };
             image.Bind(Image.SourceProperty, new Binding(nameof(FileItemRow.Icon)));
+            Grid.SetColumn(image, 0);
 
             var text = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
             text.Bind(TextBlock.TextProperty, new Binding($"{nameof(FileItemRow.Item)}.{nameof(IFileSystemItem.Name)}"));
+            text.Bind(TextBlock.IsVisibleProperty, new Binding(nameof(FileItemRow.IsEditingName)) { Converter = NotConverter });
+            Grid.SetColumn(text, 1);
 
-            panel.Children.Add(image);
-            panel.Children.Add(text);
-            return panel;
+            var editBox = new TextBox { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(2, 0) };
+            editBox.Bind(TextBox.TextProperty, new Binding(nameof(FileItemRow.EditedName)) { Mode = BindingMode.TwoWay });
+            editBox.Bind(TextBox.IsVisibleProperty, new Binding(nameof(FileItemRow.IsEditingName)));
+            Grid.SetColumn(editBox, 1);
+
+            // This cell/control is recycled across many different FileItemRow models as the grid
+            // scrolls - IsVisibleProperty only actually flips true the moment BeginRenameCurrentItem
+            // sets IsEditingName on whichever row currently backs it, so reading DataContext here
+            // (rather than closing over `row` above) always gets the right one. Deferred a
+            // dispatcher tick for the same reason FocusGrid in ItemBrowser.axaml.cs is: focusing
+            // synchronously, before layout has actually realized the now-visible TextBox, is
+            // unreliable.
+            editBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == TextBox.IsVisibleProperty && editBox.IsVisible && editBox.DataContext is FileItemRow currentRow)
+                    Dispatcher.UIThread.Post(() => FocusAndSelectBaseName(editBox, currentRow));
+            };
+
+            // Enter/Escape are deliberately NOT handled with a KeyDown subscription on editBox
+            // itself - FileGrid's own built-in Tunnel-phase key handling would consume them first
+            // (Tunnel runs root-to-leaf; editBox is a leaf), so a Bubble-phase handler here would
+            // never even see them. See ItemBrowserViewModel.CommitActiveRename/CancelActiveRename
+            // and ItemBrowser.axaml.cs's OnPreviewKeyDown, which intercepts Tunnel-phase, above
+            // FileGrid, the same way it already does for the quick filter's Backspace/Escape.
+
+            // Clicking away from an in-progress edit commits it (Explorer/TC convention) - this
+            // also fires as a side effect of CommitRename/CancelRename themselves hiding the box,
+            // but both are idempotent (see their own IsEditingName guard), so that's harmless.
+            editBox.LostFocus += (_, _) =>
+            {
+                if (editBox.DataContext is FileItemRow currentRow)
+                    CommitRename(currentRow);
+            };
+
+            grid.Children.Add(image);
+            grid.Children.Add(text);
+            grid.Children.Add(editBox);
+            return grid;
         });
 
         return new TemplateColumn<FileItemRow>("Name", template, width: GridLength.Star);
+    }
+
+    // Explorer/TC convention: only the base filename is preselected for a file (so typing
+    // immediately replaces the name but leaves the extension), while a directory's whole name is
+    // selected (it has no extension to protect).
+    private static void FocusAndSelectBaseName(TextBox box, FileItemRow row)
+    {
+        box.Focus();
+
+        var name = row.Item.Name;
+        var selectionEnd = name.Length;
+
+        if (row.Item.ItemType == FileSystemItemType.File)
+        {
+            var dot = name.LastIndexOf('.');
+            if (dot > 0)
+                selectionEnd = dot;
+        }
+
+        box.SelectionStart = 0;
+        box.SelectionEnd = selectionEnd;
+    }
+
+    /// <summary>
+    /// F2 - starts in-place editing of the cursor row's name (see CreateNameColumn's edit
+    /// TextBox). No-op if something's already being edited.
+    /// </summary>
+    private void BeginRenameCurrentItem()
+    {
+        if (SelectionModel?.SelectedItem is not { } row || row.IsEditingName)
+            return;
+
+        row.EditedName = row.Item.Name;
+        row.IsEditingName = true;
+    }
+
+    /// <summary>
+    /// Commits the in-place edit box's current text as a real rename via the active provider, then
+    /// refreshes the listing and reselects the (possibly moved-in-sort-order) renamed item. A
+    /// no-op edit (empty, or unchanged) just closes the box without touching the file system.
+    /// Guarded by IsEditingName so this is safe to call more than once for the same row (Enter,
+    /// then the LostFocus this itself triggers by hiding the box).
+    /// </summary>
+    private void CommitRename(FileItemRow row)
+    {
+        if (!row.IsEditingName)
+            return;
+
+        row.IsEditingName = false;
+        var newName = row.EditedName.Trim();
+
+        if (string.IsNullOrEmpty(newName) || newName == row.Item.Name || _provider is null)
+        {
+            RequestFocus();
+            return;
+        }
+
+        _ = ApplyRenameAsync(row.Item.FullPath, newName);
+    }
+
+    private async Task ApplyRenameAsync(string path, string newName)
+    {
+        try
+        {
+            var newPath = await _provider!.RenameAsync(path, newName);
+            await NavigateToAsync(CurrentPath);
+            SelectItemByPath(newPath);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Failed to rename {0} to {1}", path, newName);
+            RequestFocus();
+        }
+    }
+
+    /// <summary>
+    /// Escape while editing - discards the edit box's text and returns to showing the real name,
+    /// same idempotency guard as CommitRename.
+    /// </summary>
+    private void CancelRename(FileItemRow row)
+    {
+        if (!row.IsEditingName)
+            return;
+
+        row.IsEditingName = false;
+        RequestFocus();
+    }
+
+    /// <summary>
+    /// Enter while F2's in-place edit box has focus - called from ItemBrowser.axaml.cs's
+    /// Tunnel-phase OnPreviewKeyDown, not the edit box's own Bubble-phase KeyDown, because
+    /// FileGrid's own built-in Tunnel-phase key handling (arrow-key/type-ahead navigation)
+    /// otherwise consumes Enter first: Tunnel dispatch runs root-to-leaf and marking it Handled
+    /// there stops the Bubble phase (leaf-to-root) from ever starting, so the edit box's own
+    /// handler never even runs. Same reasoning as the quick filter's Backspace/Escape handling one
+    /// level up in that file. A no-op if nothing is currently being edited.
+    /// </summary>
+    public void CommitActiveRename()
+    {
+        if (SelectionModel?.SelectedItem is { IsEditingName: true } row)
+            CommitRename(row);
+    }
+
+    /// <summary>
+    /// Escape's counterpart to CommitActiveRename - see its doc comment.
+    /// </summary>
+    public void CancelActiveRename()
+    {
+        if (SelectionModel?.SelectedItem is { IsEditingName: true } row)
+            CancelRename(row);
+    }
+
+    /// <summary>
+    /// F7 (via MainWindowViewModel.OpenCreateDirectoryDialog/NewFolderViewModel, which collects
+    /// the name) - creates a new subdirectory directly under CurrentPath, then refreshes the
+    /// listing and selects it.
+    /// </summary>
+    public async Task CreateDirectoryAsync(string name)
+    {
+        if (_provider is null)
+            return;
+
+        try
+        {
+            var newPath = await _provider.CreateDirectoryAsync(CurrentPath, name);
+            await NavigateToAsync(CurrentPath);
+            SelectItemByPath(newPath);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Failed to create directory '{0}' in {1}", name, CurrentPath);
+        }
+    }
+
+    /// <summary>
+    /// Double-click on FileGrid (see ItemBrowser.axaml.cs) - enters the cursor item if the active
+    /// provider can (a directory), otherwise hands it to the OS's own default handler (Finder/
+    /// Explorer double-click behavior). Deliberately not reused as/merged into
+    /// Operation.GoIntoCurrentFolder (Enter/Right): unlike a double-click, Right arrow doubles as
+    /// ordinary keyboard navigation and must never launch an external app on a file.
+    /// </summary>
+    public void OpenOrEnterCurrentItem()
+    {
+        if (SelectionModel?.SelectedItem is not { } row || _provider is null)
+            return;
+
+        if (_provider.CanEnter(row.Item))
+            _ = NavigateToAsync(row.Item.FullPath);
+        else
+            _ = OpenExternallyAsync(row.Item.FullPath);
+    }
+
+    private async Task OpenExternallyAsync(string path)
+    {
+        try
+        {
+            await _provider!.OpenExternallyAsync(path);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Failed to open {0} externally", path);
+        }
     }
 
     private void RecomputeTotals()

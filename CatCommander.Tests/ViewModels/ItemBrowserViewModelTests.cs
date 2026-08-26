@@ -194,6 +194,32 @@ public class ItemBrowserViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task OpenOrEnterCurrentItem_EntersTheDirectory_WhenCursorIsOnOne()
+    {
+        // Double-click (ItemBrowser.axaml.cs's FileGrid.DoubleTapped) - deliberately not exercised
+        // here via a real double-click gesture (Avalonia's DoubleTapped recognizer is a framework
+        // feature, not something this app needs to re-verify); this covers the actual custom logic,
+        // OpenOrEnterCurrentItem's own CanEnter branch.
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        // Rows: "child" (folder, sorts first) - cursor defaults to row 0.
+
+        vm.OpenOrEnterCurrentItem();
+
+        for (var i = 0; i < 100 && vm.CurrentPath != _child; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        Assert.Equal(_child, vm.CurrentPath);
+    }
+
+    // OpenOrEnterCurrentItem's other branch (a file, CanEnter false) deliberately has no automated
+    // test: it calls _provider.OpenExternallyAsync, which for the real LocalFileSystemProvider is
+    // Process.Start - actually invoking it here (or in LocalFileSystemProviderTests) would launch
+    // whatever app owns .txt files on the machine running the tests. That branch is a direct
+    // three-line call into OpenExternallyAsync, so it's covered by code review rather than a
+    // fake-provider seam that isn't worth adding just for this.
+
+    [Fact]
     public async Task AppendFilterText_UnmarksRowsThatBecomeInvisible()
     {
         File.WriteAllText(Path.Combine(_root, "a.txt"), "hello");

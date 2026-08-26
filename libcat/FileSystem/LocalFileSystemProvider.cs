@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CatCommander.Models;
 
 namespace CatCommander.FileSystem;
@@ -71,6 +72,102 @@ public class LocalFileSystemProvider : IFileSystemProvider
     public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
     {
         return Task.Run(Stream () => File.OpenRead(path), ct);
+    }
+
+    public Task<string> CreateDirectoryAsync(string parentPath, string name, CancellationToken ct = default)
+    {
+        return Task.Run(() =>
+        {
+            var fullPath = Path.Combine(parentPath, name);
+            Directory.CreateDirectory(fullPath);
+            return fullPath;
+        }, ct);
+    }
+
+    public Task<string> RenameAsync(string path, string newName, CancellationToken ct = default)
+    {
+        return Task.Run(() =>
+        {
+            var parent = Path.GetDirectoryName(path.TrimEnd(Path.DirectorySeparatorChar));
+            if (string.IsNullOrEmpty(parent))
+                throw new InvalidOperationException($"'{path}' has no parent directory to rename within.");
+
+            var newPath = Path.Combine(parent, newName);
+
+            if (Directory.Exists(path))
+                Directory.Move(path, newPath);
+            else
+                File.Move(path, newPath);
+
+            return newPath;
+        }, ct);
+    }
+
+    // UseShellExecute=true is what makes this launch the OS's own default association (Finder/
+    // Explorer double-click behavior) instead of trying to execute the file as a program, which is
+    // what a plain Process.Start(path) does on .NET's non-Windows platforms.
+    public Task OpenExternallyAsync(string path, CancellationToken ct = default) =>
+        Task.Run(() => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }), ct);
+
+    public Task CopyAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default) =>
+        Task.Run(() => CopyRecursive(sourcePath, destinationDirectory, progress, ct), ct);
+
+    public Task MoveAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default)
+    {
+        return Task.Run(() =>
+        {
+            var name = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar));
+            var destPath = Path.Combine(destinationDirectory, name);
+
+            try
+            {
+                if (Directory.Exists(sourcePath))
+                    Directory.Move(sourcePath, destPath);
+                else
+                    File.Move(sourcePath, destPath, overwrite: true);
+
+                progress?.Report(destPath);
+            }
+            catch (IOException)
+            {
+                // Directory.Move/File.Move are only an atomic rename within the same volume, and
+                // Directory.Move also refuses to merge into an already-existing destination
+                // directory - either failure falls back to a real copy-then-delete instead of
+                // propagating, so a cross-volume Move still succeeds, just not atomically.
+                CopyRecursive(sourcePath, destinationDirectory, progress, ct);
+                DeleteRecursive(sourcePath);
+            }
+        }, ct);
+    }
+
+    private static void CopyRecursive(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var name = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar));
+        var destPath = Path.Combine(destinationDirectory, name);
+
+        if (Directory.Exists(sourcePath))
+        {
+            Directory.CreateDirectory(destPath);
+            foreach (var dir in Directory.EnumerateDirectories(sourcePath))
+                CopyRecursive(dir, destPath, progress, ct);
+            foreach (var file in Directory.EnumerateFiles(sourcePath))
+                CopyRecursive(file, destPath, progress, ct);
+        }
+        else
+        {
+            File.Copy(sourcePath, destPath, overwrite: true);
+            progress?.Report(destPath);
+        }
+    }
+
+    private static void DeleteRecursive(string path)
+    {
+        if (Directory.Exists(path))
+            Directory.Delete(path, recursive: true);
+        else
+            File.Delete(path);
     }
 
     public bool CanEnter(IFileSystemItem item) => item.ItemType is FileSystemItemType.Directory;

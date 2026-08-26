@@ -46,7 +46,7 @@ public class MainWindowFocusTests : IDisposable
         MainPanelViewModel MainPanelFactory() => new(ItemBrowserFactory);
 
         var configManager = new ConfigManager();
-        _viewModel = new MainWindowViewModel(configManager, MainPanelFactory, () => null!, () => null!);
+        _viewModel = new MainWindowViewModel(configManager, new FileOperationQueue(), MainPanelFactory, () => null!, () => null!, () => null!);
 
         _window = new MainWindow(_viewModel, configManager.Shortcuts) { Width = 1024, Height = 640 };
         _window.Show();

@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CatCommander.ViewModels"
+        x:Class="CatCommander.View.FileOperationProgressWindow"
+        x:DataType="vm:FileOperationProgressViewModel"
+        Title="{Binding Job.Description}"
+        Width="440"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="12" Spacing="10">
+        <TextBlock Text="{Binding Job.Description}" FontWeight="Bold" TextWrapping="Wrap" />
+
+        <TextBlock Text="{Binding Job.CurrentItemName}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding Job.CurrentDetail}" Opacity="0.7" TextTrimming="CharacterEllipsis" FontSize="11" />
+
+        <ProgressBar Minimum="0" Maximum="{Binding Job.TotalCount}" Value="{Binding Job.CompletedCount}" />
+
+        <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="{Binding Job.CompletedCount}" />
+            <TextBlock Text="/" />
+            <TextBlock Text="{Binding Job.TotalCount}" />
+            <TextBlock Text="completed" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+            <Button Content="Send to Background" Command="{Binding SendToBackgroundCommand}" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

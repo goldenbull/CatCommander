@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CatCommander.ViewModels"
+        x:Class="CatCommander.View.FileOperationConfirmWindow"
+        x:DataType="vm:FileOperationConfirmViewModel"
+        Title="{Binding Title}"
+        Width="420"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="12" Spacing="12">
+        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Destination}" FontWeight="Bold" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+            <Button Content="Background" Command="{Binding BackgroundCommand}" />
+            <Button Content="{Binding Title}" Command="{Binding RunNowCommand}" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

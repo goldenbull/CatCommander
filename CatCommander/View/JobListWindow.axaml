@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CatCommander.ViewModels"
+        xmlns:conv="using:Avalonia.Data.Converters"
+        x:Class="CatCommander.View.JobListWindow"
+        x:DataType="vm:JobListViewModel"
+        Title="File Operations"
+        Width="480"
+        Height="320">
+    <ListBox ItemsSource="{Binding Jobs}">
+        <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:FileOperationJob">
+                <StackPanel Margin="4" Spacing="2">
+                    <TextBlock Text="{Binding Description}" FontWeight="Bold" TextWrapping="Wrap" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{Binding Status}" />
+                        <TextBlock Text="{Binding CompletedCount}" />
+                        <TextBlock Text="/" />
+                        <TextBlock Text="{Binding TotalCount}" />
+                    </StackPanel>
+
+                    <ProgressBar Minimum="0" Maximum="{Binding TotalCount}" Value="{Binding CompletedCount}" />
+
+                    <TextBlock Text="{Binding ErrorSummary}"
+                               Foreground="Red"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding ErrorSummary, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+            </DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</Window>

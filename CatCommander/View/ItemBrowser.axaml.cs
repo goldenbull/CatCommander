@@ -32,6 +32,10 @@ public partial class ItemBrowser : UserControl
         FileGrid.RowPrepared += OnRowPrepared;
         FileGrid.RowClearing += OnRowClearing;
 
+        // Mouse double-click: enters a directory, or hands a file to the OS's own default handler
+        // (Finder/Explorer double-click behavior) - see ItemBrowserViewModel.OpenOrEnterCurrentItem.
+        FileGrid.DoubleTapped += OnFileGridDoubleTapped;
+
         // Quick filter: both installed Tunnel-phase on this UserControl, so they run after
         // ShortcutRouter's own Window-level Tunnel handler (giving bound Operations first
         // refusal - none currently claim Backspace/Escape/plain character keys) but before
@@ -81,6 +85,8 @@ public partial class ItemBrowser : UserControl
     }
 
     private void OnFocusRequested() => FocusGrid();
+
+    private void OnFileGridDoubleTapped(object? sender, TappedEventArgs e) => _viewModel?.OpenOrEnterCurrentItem();
 
     /// <summary>
     /// A row just got a (possibly new) FileItemRow model - sync its "marked" class immediately,
@@ -152,13 +158,38 @@ public partial class ItemBrowser : UserControl
     }
 
     /// <summary>
-    /// Backspace/Escape editing of the quick filter - only intercepted while a filter is actually
-    /// active, so these keys are otherwise left doing whatever they'd normally do (nothing, today)
-    /// when there's nothing to edit or clear.
+    /// Backspace/Escape editing of the quick filter (only while a filter is actually active), and
+    /// Enter/Escape committing/cancelling F2's in-place rename edit box - both intercepted here,
+    /// at Tunnel phase on this UserControl, above FileGrid in the tree. Tunnel dispatch runs
+    /// root-to-leaf, so this always runs before FileGrid's own built-in Tunnel-phase key handling
+    /// (arrow-key/type-ahead navigation) can consume the same key first - which it otherwise would,
+    /// since marking a Tunnel-phase event Handled stops the Bubble phase (leaf-to-root) from ever
+    /// starting, meaning a handler on the edit box itself would never even run.
     /// </summary>
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_viewModel is null || !_viewModel.IsFilterActive || !IsFileGridFocused())
+        if (_viewModel is null)
+            return;
+
+        // The rename edit box is a visual descendant of FileGrid but, unlike everything else this
+        // method deals with, must be checked regardless of IsFileGridFocused() (which excludes any
+        // focused TextBox - see that method's own doc comment) since the edit box IS a TextBox.
+        if (IsRenameEditBoxFocused())
+        {
+            switch (e.Key)
+            {
+                case Key.Enter:
+                    _viewModel.CommitActiveRename();
+                    e.Handled = true;
+                    return;
+                case Key.Escape:
+                    _viewModel.CancelActiveRename();
+                    e.Handled = true;
+                    return;
+            }
+        }
+
+        if (!_viewModel.IsFilterActive || !IsFileGridFocused())
             return;
 
         switch (e.Key)
@@ -174,16 +205,30 @@ public partial class ItemBrowser : UserControl
         }
     }
 
+    private bool IsRenameEditBoxFocused()
+    {
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        return focused is TextBox && (focused as Visual)?.FindAncestorOfType<TreeDataGrid>() == FileGrid;
+    }
+
     /// <summary>
     /// Whether keyboard focus is currently on FileGrid or one of its cells - checked against
     /// FocusManager rather than the routed event's Source, since a mouse click into a cell can
     /// move real focus to that TreeDataGridCell (Focusable by default) rather than FileGrid
     /// itself. Guards the quick filter from hijacking typing meant for the path TextBox or the
     /// history flyout's ListBox, which are FileGrid's siblings, not descendants.
+    ///
+    /// The F2 in-place rename TextBox (see ItemBrowserViewModel.CreateNameColumn) is itself a
+    /// visual descendant of FileGrid, so the ancestor check below would otherwise also match while
+    /// it has focus - the early TextBox check keeps rename typing (including its own Space
+    /// characters) from being hijacked as quick-filter/mark-toggle input.
     /// </summary>
     private bool IsFileGridFocused()
     {
         var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        if (focused is TextBox)
+            return false;
+
         return focused == FileGrid || (focused as Visual)?.FindAncestorOfType<TreeDataGrid>() == FileGrid;
     }
 

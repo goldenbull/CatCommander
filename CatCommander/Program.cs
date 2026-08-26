@@ -41,22 +41,34 @@ internal class Program
         });
         services.AddSingleton<IconCache>();
 
+        // F5/F6's "system-level job list" - one shared queue/worker for the whole app (see its
+        // own doc comment), independent of any single window.
+        services.AddSingleton<FileOperationQueue>();
+
         services.AddSingleton<MainWindowViewModel>();
         services.AddTransient<FindViewModel>();
         services.AddTransient<BatchRenameViewModel>();
+        services.AddTransient<JobListViewModel>();
         services.AddTransient<MainPanelViewModel>();
         services.AddTransient<ItemBrowserViewModel>();
 
         services.AddTransient<MainWindow>();
         services.AddTransient<FindWindow>();
         services.AddTransient<BatchRenameWindow>();
+        services.AddTransient<JobListWindow>();
 
         // Explicit Func<T> factories: Microsoft.Extensions.DependencyInjection doesn't
         // auto-synthesize these the way some other containers do. Needed here because
         // MainWindowViewModel/MainPanelViewModel each create more than one instance of the same
         // type (Left/RightPanel, per-tab ItemBrowserViewModel).
+        //
+        // FileOperationConfirmWindow/FileOperationProgressWindow/NewFolderWindow are NOT
+        // registered here - their ViewModels need runtime parameters (a job, a create-callback)
+        // that this factory pattern doesn't thread through, so MainWindowViewModel constructs
+        // those directly instead (see StartFileOperation/OpenCreateDirectoryDialog).
         services.AddTransient<Func<FindWindow>>(sp => () => sp.GetRequiredService<FindWindow>());
         services.AddTransient<Func<BatchRenameWindow>>(sp => () => sp.GetRequiredService<BatchRenameWindow>());
+        services.AddTransient<Func<JobListWindow>>(sp => () => sp.GetRequiredService<JobListWindow>());
         services.AddTransient<Func<MainPanelViewModel>>(sp => () => sp.GetRequiredService<MainPanelViewModel>());
         services.AddTransient<Func<ItemBrowserViewModel>>(sp => () => sp.GetRequiredService<ItemBrowserViewModel>());
     }

@@ -22,6 +22,44 @@ public interface IFileSystemProvider
     Task<Stream> OpenReadAsync(string path, CancellationToken ct = default);
 
     /// <summary>
+    /// Creates a new, empty subdirectory named <paramref name="name"/> directly under
+    /// <paramref name="parentPath"/> (F7 - see ItemBrowserViewModel.CreateDirectoryAsync), returning
+    /// its full path.
+    /// </summary>
+    Task<string> CreateDirectoryAsync(string parentPath, string name, CancellationToken ct = default);
+
+    /// <summary>
+    /// Renames an item in place - same parent, only the leaf name changes (F2's in-place edit in
+    /// the grid, not a full move to a different directory) - returning its new full path.
+    /// </summary>
+    Task<string> RenameAsync(string path, string newName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Opens this item with the OS's own default handler for its type - Finder/Explorer's own
+    /// double-click behavior. Only meaningful for an item CanEnter says no to; entering a directory
+    /// goes through NavigateToAsync/ListChildrenAsync instead, never this.
+    /// </summary>
+    Task OpenExternallyAsync(string path, CancellationToken ct = default);
+
+    /// <summary>
+    /// Copies <paramref name="sourcePath"/> (a file, or a directory copied recursively) into
+    /// <paramref name="destinationDirectory"/>, keeping its own leaf name - F5's Copy, always run
+    /// off the UI thread by FileOperationQueue rather than called directly from a ViewModel.
+    /// A name collision at the destination is overwritten, not skipped or prompted for - jobs run
+    /// unattended in the background queue, where there's no one to prompt.
+    /// <paramref name="progress"/>, if given, is reported once per file actually written (its full
+    /// destination path) - for a directory this fires once per descendant file, not once overall.
+    /// </summary>
+    Task CopyAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default);
+
+    /// <summary>
+    /// Moves <paramref name="sourcePath"/> into <paramref name="destinationDirectory"/>, keeping
+    /// its own leaf name - F6's Move. Same overwrite-on-collision and progress-reporting contract
+    /// as CopyAsync.
+    /// </summary>
+    Task MoveAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default);
+
+    /// <summary>
     /// Whether this item is itself another browsable root within this same provider (e.g. a
     /// directory). Archive providers will later say "no" for an item that's actually a nested
     /// archive - entering that needs a different provider, resolved via FileSystemProviderRegistry.

@@ -28,6 +28,7 @@ To wipe out all of your customizations and go back to the table below, use
 | Move | `F6` | `F6` |
 | Rename | `Shift+F6`, `F2` | `Shift+F6`, `F2` |
 | Delete | `F8`, `Delete` | `F8`, `Delete` |
+| Create directory | `F7` | `F7` |
 | Expand current folder | `Ctrl+B` | `Cmd+B` |
 | Expand selected folders | `Ctrl+Shift+B` | `Cmd+Shift+B` |
 | Go into current folder | `Enter`, `Right` | `Enter`, `Right` |
@@ -87,6 +88,43 @@ history, ...) - a fresh listing always starts with nothing marked. They *are* ke
 switching to another tab and back leaves a tab's marks exactly as you left them. A row that a quick
 filter hides is unmarked at the moment it's hidden (see "marked is always a subset of visible"
 above) - widening or changing the filter afterward does not bring an old mark back.
+
+## Copy / Move
+
+`F5`/`F6` first show a small confirmation dialog naming the target count and the destination -
+always the *opposite* panel's own current directory, not editable (unlike Total Commander's dialog,
+there's no destination path field). It offers three choices:
+
+- **Copy**/**Move** - runs the job now, in a modal progress dialog that blocks the main window
+  while it tracks the job live. Its own **Send to Background** button closes the dialog without
+  cancelling the job - it just keeps running, now only visible via **File Operations** below.
+- **Background** - queues the job and returns control to the main window immediately, with no
+  progress dialog at all.
+- **Cancel** - does nothing.
+
+Either way, every Copy/Move job runs through one shared, serial background queue - "blocking" vs.
+"background" is only how the UI presents an already-running job, never a different execution path.
+**File > File Operations...** (also on the toolbar) opens a non-modal window listing every job ever
+queued this session, each with a live progress bar - not just the ones started in Background mode.
+
+A name collision at the destination is overwritten, not skipped or prompted for - jobs run
+unattended on the queue, where there's no one to prompt.
+
+## Double-click
+
+Not in the table above - it's a mouse gesture, not a remappable Operation. Double-clicking a
+directory enters it, exactly like `Go into current folder`. Double-clicking a file hands it to the
+OS's own default handler for that file type (Finder/Explorer's own double-click behavior) - unlike
+`Enter`/`Right`, which never launch an external app, since those double as ordinary keyboard
+navigation.
+
+## In-place rename
+
+`F2`'s edit happens directly in the grid cell, not a dialog: the name becomes an editable text box,
+pre-selecting the base filename (excluding the extension) for a file, or the whole name for a
+directory. `Enter` commits, `Escape` discards the edit, and clicking away commits it too (Explorer/
+Total Commander convention). An empty or unchanged name is a no-op - it just closes the box without
+touching the file system.
 
 ## Quick filter
 

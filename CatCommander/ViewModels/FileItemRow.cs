@@ -46,6 +46,21 @@ public partial class FileItemRow
     /// </summary>
     public bool IsMarked { get; set; }
 
+    /// <summary>
+    /// Whether the Name cell is currently showing EditedName in an editable TextBox instead of
+    /// Item.Name in a plain TextBlock - F2's in-place rename (ItemBrowserViewModel.
+    /// BeginRenameCurrentItem/CommitRename/CancelRename; the toggle itself lives in
+    /// ItemBrowserViewModel.CreateNameColumn's cell template).
+    /// </summary>
+    public bool IsEditingName { get; set; }
+
+    /// <summary>
+    /// The in-progress rename buffer, bound two-way to the edit TextBox. Kept separate from
+    /// Item.Name (read-only, and only ever updated by actually re-navigating after a real rename
+    /// succeeds) so a canceled or failed edit never touches it.
+    /// </summary>
+    public string EditedName { get; set; } = string.Empty;
+
     public FileItemRow(IFileSystemItem item, IconCache iconCache)
     {
         Item = item;

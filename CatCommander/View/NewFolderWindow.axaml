@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CatCommander.ViewModels"
+        x:Class="CatCommander.View.NewFolderWindow"
+        x:DataType="vm:NewFolderViewModel"
+        Title="Create Directory"
+        Width="360"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="12" Spacing="12">
+        <TextBlock Text="Folder name:" />
+        <TextBox x:Name="NameBox" Text="{Binding FolderName}" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+            <Button Content="OK" Command="{Binding CreateCommand}" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

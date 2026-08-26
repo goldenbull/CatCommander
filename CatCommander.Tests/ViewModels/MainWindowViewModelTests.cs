@@ -24,7 +24,7 @@ public class MainWindowViewModelTests : IDisposable
         var iconCache = new IconCache();
         MainPanelViewModel MainPanelFactory() => new(() => new ItemBrowserViewModel(registry, iconCache));
 
-        _viewModel = new MainWindowViewModel(new ConfigManager(), MainPanelFactory, () => null!, () => null!);
+        _viewModel = new MainWindowViewModel(new ConfigManager(), new FileOperationQueue(), MainPanelFactory, () => null!, () => null!, () => null!);
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
