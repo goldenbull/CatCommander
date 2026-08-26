@@ -23,10 +23,18 @@ No solution file; build/test each project directly (`dotnet build CatCommander/C
 ### Composition root, not singletons
 
 `Program.cs` wires everything through `Microsoft.Extensions.DependencyInjection` - `MainWindowViewModel`,
-`MainPanelViewModel`, `ItemBrowserViewModel`, `ConfigManager`, `FileSystemProviderRegistry`, `IconCache`
-are all constructor-injected. `MainPanelViewModel`/`ItemBrowserViewModel` need more than one instance
-of the same type (left/right panel, per-tab browsers), so they're resolved via `Func<T>` factories
-rather than injected directly - DI containers don't auto-synthesize those.
+`MainPanelViewModel`, `ItemBrowserViewModel`, `ConfigManager`, `FileSystemProviderRegistry`, `IconCache`,
+`FileOperationQueue` are all constructor-injected. `MainPanelViewModel`/`ItemBrowserViewModel` need
+more than one instance of the same type (left/right panel, per-tab browsers), so they're resolved
+via `Func<T>` factories rather than injected directly - DI containers don't auto-synthesize those.
+
+Two window-construction patterns coexist. `FindWindow`/`BatchRenameWindow`/`JobListWindow` need no
+runtime parameters and go through that same `Func<T>` factory pattern. `NewFolderWindow`/
+`FileOperationConfirmWindow`/`FileOperationProgressWindow` each need one (a create-callback, a job)
+that a DI factory can't thread through, so `MainWindowViewModel` constructs those directly instead.
+A genuinely modal `ShowDialog` also needs an owner `Window`, which `MainWindowViewModel` doesn't
+hold - it looks one up via `Application.Current.ApplicationLifetime`, the same way
+`GlobalShortcutGuard`'s active-window callback does.
 
 ### View/ViewModel chain
 
@@ -72,6 +80,34 @@ detail here rather than left to be re-discovered.
   SharpHook's `SimpleGlobalHook` to intercept those *specific* gestures at the OS level, suppress
   the event, and dispatch through the same `IShortcutCommandSource` chain. It only acts on gestures
   in `MacReservedCombos` - everything else flows through `ShortcutRouter` normally.
+- **`MainWindow.axaml`'s `NativeMenuItem`s never hardcode `Gesture=`.** macOS's native menu bar
+  keyEquivalents are a *fourth* input path - AppKit consumes them before Avalonia's input pipeline
+  ever sees the keystroke, bypassing `ShortcutRouter` (and its logging) entirely. A hardcoded
+  `Gesture="F2"` string would be a second, independent source of truth for that key that a user's
+  `keymap.toml` override could never reach. `MainWindow.axaml.cs`'s `ApplyMenuGestures` sets every
+  item's `Gesture` from `ShortcutsSettings.GetPrimaryGesture(Operation)` instead (re-applied on
+  `MainWindowViewModel.ShortcutsChanged`, raised by "Restore Default Shortcuts") - one keymap, one
+  source, no matter which of the four paths a keystroke actually arrives through.
+
+**Table-driven dispatch inside one control, not nested `if`/`switch`.** `ItemBrowser` intercepts
+keys for two things FileGrid's own built-in Tunnel-phase handling would otherwise claim first
+(quick filter `Backspace`/`Escape`, the F2 rename box's `Enter`/`Escape`) - `GetFocusScope()` is
+the single, canonical classification of what real Avalonia focus currently means
+(`Grid`/`RenameBox`/`Other`), and `OnPreviewKeyDown` just looks up a small `Dictionary<Key, Action>`
+for the resolved scope. Adding a third in-place editing surface later means adding a `FocusScope`
+case and a new dictionary, not a new branch alongside two unrelated existing ones. This replaced an
+earlier version with two separate, overlapping "is this control focused" predicates that had to be
+kept in sync by hand - see `git log -- CatCommander/View/ItemBrowser.axaml.cs` for the shape of
+what that looked like before.
+
+**Dialog windows share two keyboard conventions via `WindowExtensions`**, not six hand-rolled
+copies of the same Tunnel-phase `KeyDown` handler: `InstallEscapeToClose` (optionally with a custom
+`onEscape`, e.g. `FileOperationConfirmWindow`'s `Close(null)` dialog-result) and
+`InstallEnterSubmits(command)` for a `TextBox` + `IsDefault` button (`NewFolderWindow`'s pattern):
+the button's own `IsDefault="True"` alone doesn't catch Enter while the `TextBox` has focus, since
+`TextEditKeyExceptions` already correctly keeps `ShortcutRouter` from stealing Enter there (it's a
+reserved text-editing gesture) - but a focused `TextBox` also never lets Enter bubble back up to
+the Window's own default-button handling, so nothing else claims it either without this.
 
 ### Keyboard focus
 
@@ -94,6 +130,25 @@ this code is touched:
   called synchronously from within a `KeyDown` dispatch - Avalonia's own Tab-key focus navigation
   isn't suppressed by `e.Handled`, so a synchronous `Focus()` call inside the same dispatch loses
   to it.
+
+### File operations (Copy/Move/Create/Rename)
+
+- **Create (F7) and Rename (F2)** are single-item, fast, and go straight through
+  `IFileSystemProvider.CreateDirectoryAsync`/`RenameAsync` - no queue, no progress UI. Rename edits
+  in place in the grid cell (a `TextBox` swapped in for the `TextBlock` via
+  `FileItemRow.IsEditingName`), not a dialog.
+- **Copy/Move (F5/F6) go through a queue instead of a direct call.** `FileOperationQueue` (a DI
+  singleton) runs `FileOperationJob`s one at a time on a single background worker, regardless of
+  how a job was started. F5/F6 first show a small confirm dialog - destination is always the
+  *opposite* panel's own current directory, not an editable path like Total Commander's - offering
+  **Run now** or **Background**. Both just enqueue the same job; "Run now" additionally opens a
+  modal progress dialog that *observes* the already-queued job (via its `[Observable]` properties)
+  and closes itself on `Finished` - it never drives execution itself, and its own "Send to
+  Background" button just closes the dialog without touching the job. **File Operations** opens a
+  non-modal window listing every job's live progress - a running history for the session, not just
+  jobs started in Background mode.
+- A destination-name collision is overwritten, not skipped or prompted - jobs run unattended on the
+  queue, where there's no one to prompt.
 
 ### Theming
 
@@ -158,7 +213,25 @@ Concrete things that cost real debugging time, kept here so they don't get re-di
    (from `build-macos-app.sh`, registered with Launch Services under the app's name) can get
    activated by AppleScript's `tell application "CatCommander"` in preference to a bare `dotnet run`
    process, silently testing old code. When in doubt, run from source and check the NLog console
-   output for evidence the code path you expect actually ran.
+   output for evidence the code path you expect actually ran. The same trap applies to `pkill` when
+   "restarting" for a manual test: `pkill -f "CatCommander.dll"` matches neither the native
+   apphost's argv nor `dotnet run`'s, so it silently kills nothing - old processes keep running, and
+   OS automation addressing the app *by name* (`tell process "CatCommander"`) can keep talking to a
+   stale instance while new builds sit unused. Kill by the actual binary path and confirm with
+   `ps aux` before trusting a "restart".
+7. **A key event needs focus to have actually landed before it can be intercepted.** The F2
+   in-place edit box's focus is set via a `Dispatcher.UIThread.Post`-deferred call (see
+   `FocusAndSelectBaseName`), so a key sent immediately after starting an edit can race that post
+   and land on whatever had focus before - not the edit box. Real typing on a real keyboard never
+   hits this (there's always a human-scale gap between keystrokes); only synthetic key delivery
+   sent immediately after triggering the edit can.
+8. **A hardcoded `NativeMenuItem.Gesture=` silently bypasses the entire keyboard shortcut
+   framework, not just `ShortcutsSettings`.** F2 producing *zero* log lines - not from
+   `ShortcutRouter`, not from `ItemBrowser`'s own Tunnel handler - was the tell: macOS's native
+   menu keyEquivalent consumes the keystroke at the AppKit level, before it ever reaches Avalonia's
+   input pipeline at all. When a keyboard shortcut does something but nothing in the app's own
+   logging shows it being dispatched, check whether it's actually a `NativeMenuItem.Gesture` (or
+   another OS-level binding) firing instead of the code path being debugged.
 
 ## Logging
 

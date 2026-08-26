@@ -59,6 +59,14 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // this is the only shortcut-related setting exposed in the UI.
     public ICommand RestoreDefaultShortcutsCommand { get; }
 
+    /// <summary>
+    /// Raised after RestoreDefaultShortcutsCommand rebuilds ShortcutsSettings' effective bindings -
+    /// MainWindow.axaml.cs subscribes to re-apply NativeMenuItem.Gesture from the (now-changed)
+    /// primary gestures, since a native menu's keyEquivalent is a one-time property set, not
+    /// something that re-reads ShortcutsSettings live the way ShortcutRouter's dispatch does.
+    /// </summary>
+    public event Action? ShortcutsChanged;
+
     public MainWindowViewModel(
         ConfigManager configManager,
         FileOperationQueue fileOperationQueue,
@@ -96,7 +104,11 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         OpenCreateDirectoryDialogCommand = ReactiveCommand.Create(OpenCreateDirectoryDialog);
         OpenJobListCommand = ReactiveCommand.Create(OpenJobList);
 
-        RestoreDefaultShortcutsCommand = ReactiveCommand.Create(_configManager.RestoreDefaultShortcuts);
+        RestoreDefaultShortcutsCommand = ReactiveCommand.Create(() =>
+        {
+            _configManager.RestoreDefaultShortcuts();
+            ShortcutsChanged?.Invoke();
+        });
 
         _commands = new Dictionary<Operation, ICommand>
         {

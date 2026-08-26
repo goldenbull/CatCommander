@@ -20,10 +20,45 @@ public partial class ItemBrowser : UserControl
     // scrolls), not the model - see OnRowPrepared/OnRowClearing.
     private readonly Dictionary<TreeDataGridRow, (FileItemRow Model, PropertyChangedEventHandler Handler)> _markedSubscriptions = new();
 
+    /// <summary>
+    /// Which of this control's own key-handling concerns currently owns the keyboard - the two
+    /// things ItemBrowser intercepts keys for below (quick filter editing, F2's in-place rename
+    /// box) are mutually exclusive by construction, because real Avalonia focus is exclusive:
+    /// exactly one control has it. GetFocusScope() is the single place that's resolved; everything
+    /// below dispatches off its result instead of each re-deriving its own "is this really for me"
+    /// check (which used to be two separate, easy-to-desync predicates - see git history).
+    /// </summary>
+    private enum FocusScope
+    {
+        Grid,
+        RenameBox,
+        Other,
+    }
+
+    // Table-driven key handling, one small dictionary per FocusScope - adding a new in-place
+    // editing surface later means adding a new FocusScope case and a new dictionary here, not a
+    // new branch inside OnPreviewKeyDown alongside unrelated existing ones. Built once, but the
+    // closures reference the mutable _viewModel field rather than capturing an instance - FileGrid
+    // outlives any single ItemBrowserViewModel (one ItemBrowser per panel, reused across every
+    // tab - see MainPanelViewModel's doc comment).
+    private readonly Dictionary<Key, Action> _gridFilterKeyHandlers;
+    private readonly Dictionary<Key, Action> _renameBoxKeyHandlers;
+
     public ItemBrowser()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+
+        _gridFilterKeyHandlers = new Dictionary<Key, Action>
+        {
+            [Key.Back] = () => _viewModel?.RemoveLastFilterCharacter(),
+            [Key.Escape] = () => _viewModel?.ClearFilter(),
+        };
+        _renameBoxKeyHandlers = new Dictionary<Key, Action>
+        {
+            [Key.Enter] = () => _viewModel?.CommitActiveRename(),
+            [Key.Escape] = () => _viewModel?.CancelActiveRename(),
+        };
 
         // Keeps each realized row's "marked" CSS class (see ItemBrowser.axaml's
         // TreeDataGridRow.marked styles) in sync with its model's FileItemRow.IsMarked - nothing in
@@ -138,7 +173,7 @@ public partial class ItemBrowser : UserControl
     /// </summary>
     private void OnPreviewTextInput(object? sender, TextInputEventArgs e)
     {
-        if (_viewModel is null || string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0]) || !IsFileGridFocused())
+        if (_viewModel is null || string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0]) || GetFocusScope() != FocusScope.Grid)
             return;
 
         // Space is the mark/unmark toggle for the cursor row (Total Commander's multi-selection) -
@@ -159,77 +194,59 @@ public partial class ItemBrowser : UserControl
 
     /// <summary>
     /// Backspace/Escape editing of the quick filter (only while a filter is actually active), and
-    /// Enter/Escape committing/cancelling F2's in-place rename edit box - both intercepted here,
-    /// at Tunnel phase on this UserControl, above FileGrid in the tree. Tunnel dispatch runs
-    /// root-to-leaf, so this always runs before FileGrid's own built-in Tunnel-phase key handling
-    /// (arrow-key/type-ahead navigation) can consume the same key first - which it otherwise would,
-    /// since marking a Tunnel-phase event Handled stops the Bubble phase (leaf-to-root) from ever
-    /// starting, meaning a handler on the edit box itself would never even run.
+    /// Enter/Escape committing/cancelling F2's in-place rename box - both dispatched here off
+    /// GetFocusScope(), at Tunnel phase on this UserControl, above FileGrid in the tree. Tunnel
+    /// dispatch runs root-to-leaf, so this always runs before FileGrid's own built-in Tunnel-phase
+    /// key handling (arrow-key/type-ahead navigation) can consume the same key first - which it
+    /// otherwise would, since marking a Tunnel-phase event Handled stops the Bubble phase
+    /// (leaf-to-root) from ever starting, meaning a handler on the edit box itself would never even
+    /// run.
     /// </summary>
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         if (_viewModel is null)
             return;
 
-        // The rename edit box is a visual descendant of FileGrid but, unlike everything else this
-        // method deals with, must be checked regardless of IsFileGridFocused() (which excludes any
-        // focused TextBox - see that method's own doc comment) since the edit box IS a TextBox.
-        if (IsRenameEditBoxFocused())
+        var handlers = GetFocusScope() switch
         {
-            switch (e.Key)
-            {
-                case Key.Enter:
-                    _viewModel.CommitActiveRename();
-                    e.Handled = true;
-                    return;
-                case Key.Escape:
-                    _viewModel.CancelActiveRename();
-                    e.Handled = true;
-                    return;
-            }
-        }
+            FocusScope.RenameBox => _renameBoxKeyHandlers,
+            FocusScope.Grid when _viewModel.IsFilterActive => _gridFilterKeyHandlers,
+            _ => null,
+        };
 
-        if (!_viewModel.IsFilterActive || !IsFileGridFocused())
+        if (handlers is null || !handlers.TryGetValue(e.Key, out var handler))
             return;
 
-        switch (e.Key)
-        {
-            case Key.Back:
-                _viewModel.RemoveLastFilterCharacter();
-                e.Handled = true;
-                break;
-            case Key.Escape:
-                _viewModel.ClearFilter();
-                e.Handled = true;
-                break;
-        }
-    }
-
-    private bool IsRenameEditBoxFocused()
-    {
-        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
-        return focused is TextBox && (focused as Visual)?.FindAncestorOfType<TreeDataGrid>() == FileGrid;
+        handler();
+        e.Handled = true;
     }
 
     /// <summary>
-    /// Whether keyboard focus is currently on FileGrid or one of its cells - checked against
-    /// FocusManager rather than the routed event's Source, since a mouse click into a cell can
-    /// move real focus to that TreeDataGridCell (Focusable by default) rather than FileGrid
-    /// itself. Guards the quick filter from hijacking typing meant for the path TextBox or the
-    /// history flyout's ListBox, which are FileGrid's siblings, not descendants.
-    ///
-    /// The F2 in-place rename TextBox (see ItemBrowserViewModel.CreateNameColumn) is itself a
-    /// visual descendant of FileGrid, so the ancestor check below would otherwise also match while
-    /// it has focus - the early TextBox check keeps rename typing (including its own Space
-    /// characters) from being hijacked as quick-filter/mark-toggle input.
+    /// The single canonical answer to "what does real Avalonia keyboard focus mean for this
+    /// control's own key interception" - checked against FocusManager rather than the routed
+    /// event's Source, since a mouse click into a cell can move real focus to that
+    /// TreeDataGridCell (Focusable by default) rather than FileGrid itself.
     /// </summary>
-    private bool IsFileGridFocused()
+    private FocusScope GetFocusScope()
     {
         var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
-        if (focused is TextBox)
-            return false;
 
-        return focused == FileGrid || (focused as Visual)?.FindAncestorOfType<TreeDataGrid>() == FileGrid;
+        if (focused is TextBox)
+        {
+            // F2's in-place rename box (see ItemBrowserViewModel.CreateNameColumn) is itself a
+            // visual descendant of FileGrid - checked first so it lands on RenameBox rather than
+            // falling through to the Grid case below, which would hijack its typing (including its
+            // own Space characters) as quick-filter/mark-toggle input. Any other focused TextBox
+            // (the path address bar, the history flyout's ListBox) is FileGrid's sibling, not
+            // descendant, and correctly falls to Other.
+            return (focused as Visual)?.FindAncestorOfType<TreeDataGrid>() == FileGrid
+                ? FocusScope.RenameBox
+                : FocusScope.Other;
+        }
+
+        return focused == FileGrid || (focused as Visual)?.FindAncestorOfType<TreeDataGrid>() == FileGrid
+            ? FocusScope.Grid
+            : FocusScope.Other;
     }
 
     /// <summary>

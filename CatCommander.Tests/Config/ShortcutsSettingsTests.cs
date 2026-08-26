@@ -166,4 +166,53 @@ public class ShortcutsSettingsTests
         Assert.Equal(Operation.Copy, settings.GetOperation(KeyGesture.Parse("F5")));
         Assert.Equal(Operation.Nop, settings.GetOperation(KeyGesture.Parse("Ctrl+C")));
     }
+
+    // GetPrimaryGesture backs MainWindow.axaml.cs's NativeMenuItem.Gesture assignment - the whole
+    // point is that it can never drift from what ShortcutRouter would actually dispatch for the
+    // same Operation, so these assert it stays derived from the very same effective bindings
+    // GetOperation resolves against, not a second, independent source.
+
+    [Fact]
+    public void GetPrimaryGesture_ReturnsTheFirstListedAlternative_ByDefault()
+    {
+        var settings = new ShortcutsSettings();
+        settings.RebuildNormalized(KeyboardStyle.Windows);
+
+        // Rename's default is "Shift+F6;F2" - Shift+F6 is first.
+        Assert.Equal(KeyGesture.Parse("Shift+F6"), settings.GetPrimaryGesture(Operation.Rename));
+    }
+
+    [Fact]
+    public void GetPrimaryGesture_ReflectsAUserOverride()
+    {
+        var settings = new ShortcutsSettings();
+        settings.Bindings["Copy"] = "Ctrl+C";
+        settings.RebuildNormalized(KeyboardStyle.Windows);
+
+        Assert.Equal(KeyGesture.Parse("Ctrl+C"), settings.GetPrimaryGesture(Operation.Copy));
+    }
+
+    [Fact]
+    public void GetPrimaryGesture_ReturnsNull_ForAnOperationWithNoBinding()
+    {
+        var settings = new ShortcutsSettings();
+        settings.RebuildNormalized(KeyboardStyle.Windows);
+
+        Assert.Null(settings.GetPrimaryGesture(Operation.Nop));
+    }
+
+    [Fact]
+    public void GetPrimaryGesture_StaysInSyncWithGetOperation_AfterRestoreDefaults()
+    {
+        var settings = new ShortcutsSettings();
+        settings.Bindings["Copy"] = "Ctrl+C";
+        settings.RebuildNormalized(KeyboardStyle.Windows);
+
+        settings.RestoreDefaults();
+        settings.RebuildNormalized(KeyboardStyle.Windows);
+
+        var primary = settings.GetPrimaryGesture(Operation.Copy);
+        Assert.NotNull(primary);
+        Assert.Equal(Operation.Copy, settings.GetOperation(primary!));
+    }
 }

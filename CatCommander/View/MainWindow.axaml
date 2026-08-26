@@ -20,18 +20,24 @@
         <NativeMenu>
             <NativeMenuItem Header="File">
                 <NativeMenu>
-                    <NativeMenuItem Header="Find..." Gesture="Alt+F7" Command="{Binding OpenFindCommand}" Icon="/Assets/Icons/find.png" />
+                    <NativeMenuItem Header="Find..." Command="{Binding OpenFindCommand}" Icon="/Assets/Icons/find.png" />
                     <NativeMenuItem Header="Batch Rename..." Command="{Binding OpenBatchRenameCommand}" Icon="/Assets/Icons/batch_rename.png" />
                     <NativeMenuItem Header="File Operations..." Command="{Binding OpenJobListCommand}" />
                 </NativeMenu>
             </NativeMenuItem>
+            <!--
+              Gesture= deliberately not set here - MainWindow.axaml.cs's ApplyMenuGestures sets it
+              from ShortcutsSettings.GetPrimaryGesture at runtime instead of a hardcoded string, so
+              the menu's displayed/native-active shortcut can never drift from what a real keypress
+              would actually dispatch through ShortcutRouter (or from a user's keymap.toml override).
+            -->
             <NativeMenuItem Header="Edit">
                 <NativeMenu>
-                    <NativeMenuItem Header="Copy" Gesture="F5" Command="{Binding CopyCommand}" Icon="/Assets/Icons/copy.png" />
-                    <NativeMenuItem Header="Move" Gesture="F6" Command="{Binding MoveCommand}" Icon="/Assets/Icons/move.png" />
-                    <NativeMenuItem Header="Rename" Gesture="F2" Command="{Binding RenameCommand}" Icon="/Assets/Icons/rename.png" />
-                    <NativeMenuItem Header="Delete" Gesture="F8" Command="{Binding DeleteCommand}" Icon="/Assets/Icons/delete.png" />
-                    <NativeMenuItem Header="New Folder" Gesture="F7" Command="{Binding OpenCreateDirectoryDialogCommand}" />
+                    <NativeMenuItem Header="Copy" Command="{Binding CopyCommand}" Icon="/Assets/Icons/copy.png" />
+                    <NativeMenuItem Header="Move" Command="{Binding MoveCommand}" Icon="/Assets/Icons/move.png" />
+                    <NativeMenuItem Header="Rename" Command="{Binding RenameCommand}" Icon="/Assets/Icons/rename.png" />
+                    <NativeMenuItem Header="Delete" Command="{Binding DeleteCommand}" Icon="/Assets/Icons/delete.png" />
+                    <NativeMenuItem Header="New Folder" Command="{Binding OpenCreateDirectoryDialogCommand}" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="Settings">

@@ -354,4 +354,75 @@ public class MainWindowFocusTests : IDisposable
         Assert.Equal("al ", tab.FilterText);
         Assert.Equal(1, tab.SelectedFolderCount);
     }
+
+    // Regression coverage for ItemBrowser.axaml.cs's FocusScope-based dispatch (OnPreviewKeyDown/
+    // OnPreviewTextInput): F2's in-place rename box is a visual descendant of FileGrid, and
+    // FileGrid's own built-in Tunnel-phase key handling would consume Enter/Escape before a
+    // Bubble-phase handler on the edit box itself ever saw them if GetFocusScope() didn't resolve
+    // it to RenameBox specifically (see the class's own doc comment on how a real fix for this
+    // was verified - a headless test can't catch OS-level input interception, but it can catch a
+    // routing regression like this one, which is exactly what actually broke here once already).
+
+    [AvaloniaFact]
+    public async Task RenameEditBox_TypingThenEnter_RenamesTheFile_ViaRealKeypresses()
+    {
+        var original = Path.Combine(_root, "sample.txt");
+        File.WriteAllText(original, "hello");
+        await EnsureNavigatedAsync();
+
+        var leftGrid = GetGrid(_viewModel.LeftPanel);
+        leftGrid.Focus();
+        Pump();
+
+        // Cursor defaults to row 0 - "sample.txt" is the only entry in an otherwise-empty _root.
+        _window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Pump();
+
+        // Typing must land in the edit box, not the quick filter - GetFocusScope() must resolve to
+        // RenameBox, not Grid, once real focus follows BeginRenameCurrentItem's IsEditingName.
+        _window.KeyTextInput("renamed");
+        Pump();
+
+        var tab = _viewModel.LeftPanel.ActiveTab!;
+        Assert.False(tab.IsFilterActive); // proves the typing didn't leak into the quick filter
+
+        _window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        Pump();
+
+        // CommitActiveRename -> RenameAsync -> NavigateToAsync is async - wait for it to land.
+        var renamed = Path.Combine(_root, "renamed.txt");
+        for (var i = 0; i < 100 && !File.Exists(renamed); i++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+            Pump();
+        }
+
+        Assert.True(File.Exists(renamed));
+        Assert.False(File.Exists(original));
+    }
+
+    [AvaloniaFact]
+    public async Task RenameEditBox_Escape_CancelsWithoutTouchingTheFile_ViaRealKeypresses()
+    {
+        var original = Path.Combine(_root, "sample.txt");
+        File.WriteAllText(original, "hello");
+        await EnsureNavigatedAsync();
+
+        var leftGrid = GetGrid(_viewModel.LeftPanel);
+        leftGrid.Focus();
+        Pump();
+
+        _window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Pump();
+        _window.KeyTextInput("shouldNotStick");
+        Pump();
+
+        _window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        Pump();
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        Pump();
+
+        Assert.True(File.Exists(original));
+        Assert.False(File.Exists(Path.Combine(_root, "shouldNotStick.txt")));
+    }
 }

@@ -1,6 +1,4 @@
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
 using CatCommander.Config;
 using CatCommander.Shortcuts;
 using CatCommander.ViewModels;
@@ -19,15 +17,8 @@ public partial class FileOperationConfirmWindow : Window
         // ShowDialog<FileOperationMode?>(owner) await - see MainWindowViewModel.StartFileOperation.
         viewModel.RequestClose += mode => Close(mode);
 
-        AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
-    }
-
-    private void OnKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (!e.Handled && e.Key == Key.Escape)
-        {
-            Close(null);
-            e.Handled = true;
-        }
+        // Escape means Cancel, i.e. a null result - not the parameterless Close() the default
+        // onEscape would call.
+        this.InstallEscapeToClose(() => Close(null));
     }
 }

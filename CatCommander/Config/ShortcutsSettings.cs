@@ -79,6 +79,14 @@ public class ShortcutsSettings
     private Dictionary<KeyGesture, Operation> MapKeyToOp { get; set; } = new();
 
     /// <summary>
+    /// Forward map: Operation -> every key gesture currently bound to it, in the order they appear
+    /// in the effective (defaults + user overrides) binding string. Rebuilt in the same pass as
+    /// MapKeyToOp - one merge, two views of the same data. See GetPrimaryGesture for what this is
+    /// actually for.
+    /// </summary>
+    private Dictionary<Operation, List<KeyGesture>> MapOpToGestures { get; set; } = new();
+
+    /// <summary>
     /// Built-in bindings for a given keyboard style, matching Total Commander conventions where
     /// applicable. Only used to fill gaps for operations the user hasn't configured in Bindings -
     /// user values always win over these, per operation.
@@ -136,6 +144,7 @@ public class ShortcutsSettings
         }
 
         var map = new Dictionary<KeyGesture, Operation>();
+        var opToGestures = new Dictionary<Operation, List<KeyGesture>>();
         foreach (var (opName, keysString) in effective)
         {
             if (!Enum.TryParse<Operation>(opName, out var operation))
@@ -162,10 +171,15 @@ public class ShortcutsSettings
                     log.Warn($"shortcut conflict: {gesture} was bound to {existing}, rebinding to {operation}");
 
                 map[gesture] = operation;
+
+                if (!opToGestures.TryGetValue(operation, out var gestures))
+                    opToGestures[operation] = gestures = new List<KeyGesture>();
+                gestures.Add(gesture);
             }
         }
 
         MapKeyToOp = map;
+        MapOpToGestures = opToGestures;
     }
 
     /// <summary>
@@ -183,4 +197,14 @@ public class ShortcutsSettings
     /// Gets the operation mapped to a raw Key + KeyModifiers pair, as delivered by KeyEventArgs.
     /// </summary>
     public Operation GetOperation(Key key, KeyModifiers modifiers) => GetOperation(new KeyGesture(key, modifiers));
+
+    /// <summary>
+    /// The primary (first-listed) key gesture currently bound to an Operation, after merging user
+    /// overrides over the defaults - used to set macOS NativeMenuItem.Gesture from code (see
+    /// MainWindow.axaml.cs) instead of a hardcoded XAML string, so the menu's displayed/native-
+    /// active shortcut can never drift from what a real keystroke would actually dispatch through
+    /// ShortcutRouter. Null if the operation currently has no gesture bound at all.
+    /// </summary>
+    public KeyGesture? GetPrimaryGesture(Operation operation) =>
+        MapOpToGestures.TryGetValue(operation, out var gestures) && gestures.Count > 0 ? gestures[0] : null;
 }
