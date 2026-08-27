@@ -11,12 +11,28 @@ namespace CatCommander.Tests.FileSystem;
 public class LocalFileSystemProviderTests : IDisposable
 {
     private readonly string _root;
-    private readonly LocalFileSystemProvider _provider = new();
+    private readonly RecordingTrash _trash = new();
+    private readonly LocalFileSystemProvider _provider;
 
     public LocalFileSystemProviderTests()
     {
+        _provider = new LocalFileSystemProvider(_trash);
         _root = Path.Combine(Path.GetTempPath(), "CatCommanderLFSPTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
+    }
+
+    private sealed class RecordingTrash : ITrashService
+    {
+        public string? LastPath { get; private set; }
+
+        public void MoveToTrash(string path)
+        {
+            LastPath = path;
+            if (Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+            else if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
@@ -165,6 +181,7 @@ public class LocalFileSystemProviderTests : IDisposable
         await _provider.DeleteAsync(path, TestContext.Current.CancellationToken);
 
         Assert.False(File.Exists(path));
+        Assert.Equal(path, _trash.LastPath);
     }
 
     [Fact]
@@ -178,6 +195,7 @@ public class LocalFileSystemProviderTests : IDisposable
         await _provider.DeleteAsync(dir, TestContext.Current.CancellationToken);
 
         Assert.False(Directory.Exists(dir));
+        Assert.Equal(dir, _trash.LastPath);
     }
 
     [Fact]

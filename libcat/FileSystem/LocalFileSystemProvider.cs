@@ -11,6 +11,13 @@ namespace CatCommander.FileSystem;
 /// </summary>
 public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourceProvider, ILocalShellContextProvider, IClipboardFileProvider
 {
+    private readonly ITrashService _trash;
+
+    public LocalFileSystemProvider(ITrashService? trash = null)
+    {
+        _trash = trash ?? SystemTrashService.Instance;
+    }
+
     public string? GetClipboardFilePath(ResourceRef resource) =>
         ReferenceEquals(resource.Provider, this) ? resource.Path : null;
 
@@ -192,6 +199,8 @@ public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourcePro
         }
     }
 
+    // Move's cross-volume fallback is copy-then-remove, not a user Delete operation: the source
+    // must disappear rather than creating a duplicate in Trash after a successful move.
     private static void DeleteRecursive(string path)
     {
         if (Directory.Exists(path))
@@ -201,7 +210,11 @@ public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourcePro
     }
 
     public Task DeleteAsync(string path, CancellationToken ct = default) =>
-        Task.Run(() => DeleteRecursive(path), ct);
+        Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            _trash.MoveToTrash(path);
+        }, ct);
 
     public bool CanEnter(IFileSystemItem item) => item.ItemType is FileSystemItemType.Directory;
 
