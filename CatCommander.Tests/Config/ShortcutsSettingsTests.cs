@@ -105,9 +105,18 @@ public class ShortcutsSettingsTests
         Assert.Equal("Meta+B", defaults[Operation.ExpandCurrentFolder]);
         Assert.Equal("Meta+M", defaults[Operation.OpenBatchRename]);
         Assert.Equal("Meta+G", defaults[Operation.OpenTerminal]);
-        Assert.Equal("Meta+F1", defaults[Operation.CopyContainerPath]);
-        Assert.Equal("Meta+F2", defaults[Operation.CopyItemNames]);
-        Assert.Equal("Meta+F3", defaults[Operation.CopyItemPaths]);
+        Assert.Equal("Meta+1", defaults[Operation.CopyContainerPath]);
+        Assert.Equal("Meta+2", defaults[Operation.CopyItemNames]);
+        Assert.Equal("Meta+3", defaults[Operation.CopyItemPaths]);
+        Assert.Equal("Meta+F3", defaults[Operation.SortByName]);
+        Assert.Equal("Meta+F4", defaults[Operation.SortByExtension]);
+        Assert.Equal("Meta+F5", defaults[Operation.SortBySize]);
+        Assert.Equal("Meta+F6", defaults[Operation.SortByDate]);
+
+        var settings = new ShortcutsSettings();
+        settings.RebuildNormalized(KeyboardStyle.MacOS);
+        Assert.Equal(Operation.CopyContainerPath,
+            settings.GetOperation(new KeyGesture(Key.D1, KeyModifiers.Meta)));
     }
 
     [Fact]
@@ -118,9 +127,13 @@ public class ShortcutsSettingsTests
         Assert.Equal("Ctrl+B", defaults[Operation.ExpandCurrentFolder]);
         Assert.Equal("Ctrl+M", defaults[Operation.OpenBatchRename]);
         Assert.Equal("Ctrl+G", defaults[Operation.OpenTerminal]);
-        Assert.Equal("Ctrl+F1", defaults[Operation.CopyContainerPath]);
-        Assert.Equal("Ctrl+F2", defaults[Operation.CopyItemNames]);
-        Assert.Equal("Ctrl+F3", defaults[Operation.CopyItemPaths]);
+        Assert.Equal("Ctrl+1", defaults[Operation.CopyContainerPath]);
+        Assert.Equal("Ctrl+2", defaults[Operation.CopyItemNames]);
+        Assert.Equal("Ctrl+3", defaults[Operation.CopyItemPaths]);
+        Assert.Equal("Ctrl+F3", defaults[Operation.SortByName]);
+        Assert.Equal("Ctrl+F4", defaults[Operation.SortByExtension]);
+        Assert.Equal("Ctrl+F5", defaults[Operation.SortBySize]);
+        Assert.Equal("Ctrl+F6", defaults[Operation.SortByDate]);
     }
 
     [Fact]

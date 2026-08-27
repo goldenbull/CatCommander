@@ -50,6 +50,25 @@ public sealed class ListingSourceTests : IDisposable
         Assert.Equal(item.Resource, source.Navigation.GetBackSelection(source, item));
     }
 
+    [Fact]
+    public async Task ExpandedListing_IsDepthFirst_DirectoryFirst_AndRetainsDepthAndContainer()
+    {
+        var branch = Directory.CreateDirectory(Path.Combine(_root, "branch")).FullName;
+        var nested = Path.Combine(branch, "nested.txt");
+        var rootFile = Path.Combine(_root, "root.txt");
+        File.WriteAllText(nested, "nested");
+        File.WriteAllText(rootFile, "root");
+        var provider = new LocalFileSystemProvider();
+        var source = new ExpandedListingSource([new ResourceRef(provider, _root)]);
+
+        var snapshot = await source.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(new[] { branch, nested, rootFile }, snapshot.Items.Select(x => x.Resource.Path));
+        Assert.Equal(new[] { 0, 1, 0 }, snapshot.Items.Select(x => x.Depth));
+        Assert.Equal(new ResourceRef(provider, branch), snapshot.Items[1].Container);
+        Assert.Null(source.WritableDestination);
+    }
+
     public void Dispose()
     {
         Directory.Delete(_root, recursive: true);

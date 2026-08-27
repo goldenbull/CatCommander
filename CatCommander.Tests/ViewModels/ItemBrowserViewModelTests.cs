@@ -6,6 +6,7 @@ using Avalonia.Controls.Selection;
 using CatCommander.Browsing;
 using CatCommander.Config;
 using CatCommander.FileSystem;
+using CatCommander.Models;
 using CatCommander.Services;
 using CatCommander.ViewModels;
 using Xunit;
@@ -52,6 +53,33 @@ public class ItemBrowserViewModelTests : IDisposable
             vm.Source!.Items.Cast<FileItemRow>(),
             row => row.Item.FullPath == nestedFile);
         Assert.Equal(_child, nested.BrowserItem.Container?.Path);
+    }
+
+    [Fact]
+    public async Task ExpandSelectedFolders_ExpandsEveryMarkedFolder_AndNoUnselectedSibling()
+    {
+        var other = Directory.CreateDirectory(Path.Combine(_root, "other")).FullName;
+        var childFile = Path.Combine(_child, "child.txt");
+        var otherFile = Path.Combine(other, "other.txt");
+        var unselectedFile = Path.Combine(_root, "root.txt");
+        File.WriteAllText(childFile, "child");
+        File.WriteAllText(otherFile, "other");
+        File.WriteAllText(unselectedFile, "root");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+
+        vm.ToggleMarkCurrentItem();
+        ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedIndex =
+            new Avalonia.Controls.IndexPath(1);
+        vm.ToggleMarkCurrentItem();
+        vm.GetCommand(Operation.ExpandSelectedFolders)!.Execute(null);
+        await WaitUntilAsync(() => vm.Context?.Kind == ListingKind.ExpandedResults);
+
+        var paths = vm.Source!.Items.Cast<FileItemRow>().Select(row => row.Item.FullPath).ToList();
+        Assert.Contains(childFile, paths);
+        Assert.Contains(otherFile, paths);
+        Assert.DoesNotContain(unselectedFile, paths);
+        Assert.Null(vm.WritableDestination);
     }
 
     [Fact]
@@ -194,7 +222,10 @@ public class ItemBrowserViewModelTests : IDisposable
         await vm.NavigateToAsync(archiveDirectory);
 
         vm.GetCommand(Operation.GoIntoCurrentFolder)!.Execute(null);
-        await WaitUntilAsync(() => vm.Provider is ArchiveFileSystemProvider);
+        await WaitUntilAsync(() =>
+            vm.Provider is ArchiveFileSystemProvider &&
+            vm.CurrentPath == $"{archivePath}!/" &&
+            vm.Source?.Items.Cast<FileItemRow>().SingleOrDefault()?.Item.Name == "inside.txt");
 
         Assert.IsType<ArchiveFileSystemProvider>(vm.Provider);
         Assert.Equal($"{archivePath}!/", vm.CurrentPath);
@@ -262,6 +293,53 @@ public class ItemBrowserViewModelTests : IDisposable
 
         vm.GetCommand(Operation.CopyItemPaths)!.Execute(null);
         Assert.Equal(string.Join(Environment.NewLine, _child, a), clipboard.Text);
+    }
+
+    [Fact]
+    public async Task SortOperations_ToggleDirection_AndPreserveCurrentItem()
+    {
+        var smallBin = Path.Combine(_root, "z.bin");
+        var largeText = Path.Combine(_root, "a.txt");
+        File.WriteAllText(smallBin, "1");
+        File.WriteAllText(largeText, "12345");
+        File.SetLastWriteTime(smallBin, new DateTime(2020, 1, 1));
+        File.SetLastWriteTime(largeText, new DateTime(2021, 1, 1));
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        var selection = (TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!;
+        selection.SelectedIndex = new Avalonia.Controls.IndexPath(2); // z.bin
+
+        vm.GetCommand(Operation.SortByName)!.Execute(null);
+        Assert.Equal(new[] { "a.txt", "z.bin" }, VisibleFileNames(vm));
+        Assert.Equal("▲", SortArrow(vm, 0));
+        Assert.Equal(smallBin, selection.SelectedItem?.Item.FullPath);
+        vm.GetCommand(Operation.SortByName)!.Execute(null);
+        Assert.Equal(new[] { "z.bin", "a.txt" }, VisibleFileNames(vm));
+        Assert.Equal("▼", SortArrow(vm, 0));
+
+        vm.GetCommand(Operation.SortByExtension)!.Execute(null);
+        Assert.Equal(new[] { "z.bin", "a.txt" }, VisibleFileNames(vm));
+        Assert.Equal(string.Empty, SortArrow(vm, 0));
+        Assert.Equal("▲", SortArrow(vm, 1));
+        vm.GetCommand(Operation.SortByExtension)!.Execute(null);
+        Assert.Equal(new[] { "a.txt", "z.bin" }, VisibleFileNames(vm));
+
+        vm.GetCommand(Operation.SortByDate)!.Execute(null);
+        Assert.Equal(new[] { "z.bin", "a.txt" }, VisibleFileNames(vm));
+        vm.GetCommand(Operation.SortBySize)!.Execute(null);
+        Assert.Equal(new[] { "z.bin", "a.txt" }, VisibleFileNames(vm));
+    }
+
+    private static string[] VisibleFileNames(ItemBrowserViewModel vm) => vm.Source!.Items
+        .Cast<FileItemRow>()
+        .Where(row => row.Item.ItemType == FileSystemItemType.File)
+        .Select(row => row.Item.Name)
+        .ToArray();
+
+    private static string? SortArrow(ItemBrowserViewModel vm, int columnIndex)
+    {
+        var header = Assert.IsType<Avalonia.Controls.StackPanel>(vm.Source!.Columns[columnIndex].Header);
+        return Assert.IsType<Avalonia.Controls.TextBlock>(header.Children[1]).Text;
     }
 
     [Fact]

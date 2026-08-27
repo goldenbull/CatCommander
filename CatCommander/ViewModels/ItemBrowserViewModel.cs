@@ -35,6 +35,14 @@ public enum ItemBrowserViewMode
     TreeList,
 }
 
+internal enum BrowserSortField
+{
+    Name,
+    Extension,
+    Date,
+    Size,
+}
+
 /// <summary>
 /// One tab's content: address bar + file list/tree + selection summary. Talks to whatever
 /// IFileSystemProvider FileSystemProviderRegistry resolves CurrentPath to - currently always
@@ -56,6 +64,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private IFileSystemProvider? _provider;
     private IReadOnlyList<IFileSystemItem> _allItems = Array.Empty<IFileSystemItem>();
     private IReadOnlyList<BrowserItem> _browserItems = Array.Empty<BrowserItem>();
+    private BrowserSortField? _activeSortField;
+    private bool _sortAscending = true;
     [NotObservable]
     private CancellationTokenSource? _navigationCts;
 
@@ -76,6 +86,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// toggles.
     /// </summary>
     private List<FileItemRow> _rows = new();
+    [NotObservable]
+    private readonly Dictionary<BrowserSortField, TextBlock> _sortIndicators = new();
 
     /// <summary>
     /// The provider currently resolved for CurrentPath - exposed so MainWindowViewModel.
@@ -237,6 +249,10 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.CopyContainerPath] = ReactiveCommand.Create(CopyContainerPath),
             [Operation.CopyItemNames] = ReactiveCommand.Create(CopyItemNames),
             [Operation.CopyItemPaths] = ReactiveCommand.Create(CopyItemPaths),
+            [Operation.SortByName] = ReactiveCommand.Create(() => SortBy(BrowserSortField.Name)),
+            [Operation.SortByExtension] = ReactiveCommand.Create(() => SortBy(BrowserSortField.Extension)),
+            [Operation.SortByDate] = ReactiveCommand.Create(() => SortBy(BrowserSortField.Date)),
+            [Operation.SortBySize] = ReactiveCommand.Create(() => SortBy(BrowserSortField.Size)),
         };
     }
 
@@ -377,7 +393,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 _provider = listing.Location?.Provider;
                 CurrentPath = displayPath;
                 Context = new BrowserContext(listing);
-                _browserItems = listing.Kind == ListingKind.Directory ? Sort(snapshot.Items) : snapshot.Items;
+                _browserItems = listing.Kind == ListingKind.Directory || _activeSortField is not null
+                    ? Sort(snapshot.Items, _activeSortField ?? BrowserSortField.Name, _sortAscending)
+                    : snapshot.Items;
                 _allItems = _browserItems.Select(x => x.Item).ToList();
 
                 // Search/branch results are already an explicitly ordered projection, not a directory
@@ -414,9 +432,75 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             .ThenBy(i => i.Item.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    private static IReadOnlyList<BrowserItem> Sort(
+        IReadOnlyList<BrowserItem> items,
+        BrowserSortField field,
+        bool ascending)
+    {
+        var result = items.ToList();
+        result.Sort((left, right) => CompareBrowserItems(left, right, field, ascending));
+        return result;
+    }
+
+    private static int CompareBrowserItems(
+        BrowserItem left,
+        BrowserItem right,
+        BrowserSortField field,
+        bool ascending)
+    {
+        var leftDirectory = left.Item.ItemType == FileSystemItemType.Directory;
+        var rightDirectory = right.Item.ItemType == FileSystemItemType.Directory;
+        if (leftDirectory != rightDirectory)
+            return leftDirectory ? -1 : 1;
+
+        var comparison = field switch
+        {
+            BrowserSortField.Name => StringComparer.OrdinalIgnoreCase.Compare(left.Item.Name, right.Item.Name),
+            BrowserSortField.Extension => StringComparer.OrdinalIgnoreCase.Compare(left.Item.Extension, right.Item.Extension),
+            BrowserSortField.Date => left.Item.Modified.CompareTo(right.Item.Modified),
+            BrowserSortField.Size => left.Item.Size.CompareTo(right.Item.Size),
+            _ => 0,
+        };
+        if (!ascending)
+            comparison = -comparison;
+        if (comparison != 0)
+            return comparison;
+
+        comparison = StringComparer.OrdinalIgnoreCase.Compare(left.Item.Name, right.Item.Name);
+        return comparison != 0
+            ? comparison
+            : StringComparer.Ordinal.Compare(left.Resource.Path, right.Resource.Path);
+    }
+
+    private void SortBy(BrowserSortField field)
+    {
+        if (_activeSortField == field)
+            _sortAscending = !_sortAscending;
+        else
+        {
+            _activeSortField = field;
+            _sortAscending = true;
+        }
+
+        var selected = SelectionModel?.SelectedItem?.BrowserItem.Resource;
+        _browserItems = Sort(_browserItems, field, _sortAscending);
+        _allItems = _browserItems.Select(item => item.Item).ToList();
+        _rows.Sort((left, right) => CompareBrowserItems(
+            left.BrowserItem, right.BrowserItem, field, _sortAscending));
+
+        if (Source is not null)
+            Source.Items = _rows.Where(row => row.IsVisible).ToList();
+        if (selected is not null)
+            SelectItem(selected.Value);
+        UpdateSortIndicators();
+        RecomputeSelection();
+        RequestFocus();
+    }
+
     private void RebuildSource()
     {
         (Source as IDisposable)?.Dispose();
+        _sortIndicators.Clear();
         FilterText = string.Empty;
         IsFilterActive = false;
         // ShowHiddenFiles deliberately isn't reset here - see its own doc comment.
@@ -466,9 +550,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             Columns =
             {
                 CreateNameColumn(),
-                new TextColumn<FileItemRow, string>("Ext", x => x.Item.Extension, new GridLength(80)),
-                new TextColumn<FileItemRow, string>("Size", x => x.Item.DisplaySize, new GridLength(100)),
-                new TextColumn<FileItemRow, DateTime>("Modified", x => x.Item.Modified, new GridLength(150)),
+                new TextColumn<FileItemRow, string>(CreateColumnHeader("Ext", BrowserSortField.Extension), x => x.Item.Extension, new GridLength(80)),
+                new TextColumn<FileItemRow, string>(CreateColumnHeader("Size", BrowserSortField.Size), x => x.Item.DisplaySize, new GridLength(100)),
+                new TextColumn<FileItemRow, DateTime>(CreateColumnHeader("Modified", BrowserSortField.Date), x => x.Item.Modified, new GridLength(150)),
             },
         };
         source.RowSelection!.SingleSelect = false;
@@ -487,9 +571,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             Columns =
             {
                 nameColumn,
-                new TextColumn<FileItemRow, string>("Ext", x => x.Item.Extension, new GridLength(80)),
-                new TextColumn<FileItemRow, string>("Size", x => x.Item.DisplaySize, new GridLength(100)),
-                new TextColumn<FileItemRow, DateTime>("Modified", x => x.Item.Modified, new GridLength(150)),
+                new TextColumn<FileItemRow, string>(CreateColumnHeader("Ext", BrowserSortField.Extension), x => x.Item.Extension, new GridLength(80)),
+                new TextColumn<FileItemRow, string>(CreateColumnHeader("Size", BrowserSortField.Size), x => x.Item.DisplaySize, new GridLength(100)),
+                new TextColumn<FileItemRow, DateTime>(CreateColumnHeader("Modified", BrowserSortField.Date), x => x.Item.Modified, new GridLength(150)),
             },
         };
         source.RowSelection!.SingleSelect = false;
@@ -639,6 +723,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             // Grid, not the old StackPanel: the edit TextBox (and the TextBlock it swaps with)
             // need to stretch to fill the Star-width Name column, not size to content.
             var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+            grid.Bind(Layoutable.MarginProperty, new Binding(nameof(FileItemRow.BranchIndent)));
 
             var image = new Image
             {
@@ -695,7 +780,29 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             return grid;
         });
 
-        return new TemplateColumn<FileItemRow>("Name", template, width: GridLength.Star);
+        return new TemplateColumn<FileItemRow>(
+            CreateColumnHeader("Name", BrowserSortField.Name), template, width: GridLength.Star);
+    }
+
+    private Control CreateColumnHeader(string label, BrowserSortField field)
+    {
+        var indicator = new TextBlock { Margin = new Thickness(4, 0, 0, 0) };
+        _sortIndicators[field] = indicator;
+        var header = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        header.Children.Add(new TextBlock { Text = label });
+        header.Children.Add(indicator);
+        UpdateSortIndicators();
+        return header;
+    }
+
+    private void UpdateSortIndicators()
+    {
+        foreach (var (field, indicator) in _sortIndicators)
+            indicator.Text = _activeSortField == field ? (_sortAscending ? "▲" : "▼") : string.Empty;
     }
 
     // Explorer/TC convention: only the base filename is preselected for a file (so typing

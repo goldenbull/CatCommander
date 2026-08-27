@@ -29,30 +29,35 @@ public sealed class ExpandedListingSource(IReadOnlyList<ResourceRef> roots) : IL
     public async Task<ListingSnapshot> LoadAsync(CancellationToken ct = default)
     {
         var results = new List<BrowserItem>();
-        var pending = new Queue<(ResourceRef Container, int Depth)>();
         var visited = new HashSet<ResourceRef>();
+        var pending = new Stack<(ResourceRef? Container, BrowserItem? Item, int Depth)>();
 
-        foreach (var root in roots)
-            pending.Enqueue((root, 0));
+        for (var i = roots.Count - 1; i >= 0; i--)
+            pending.Push((roots[i], null, 0));
 
-        while (pending.TryDequeue(out var next))
+        while (pending.TryPop(out var next))
         {
             ct.ThrowIfCancellationRequested();
-            if (!visited.Add(next.Container))
+            if (next.Item is { } item)
+            {
+                results.Add(item);
+                if (item.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
+                    pending.Push((item.Resource, null, next.Depth + 1));
+                continue;
+            }
+
+            var container = next.Container!.Value;
+            if (!visited.Add(container))
                 continue;
 
-            var entries = await next.Container.Provider.ListChildrenAsync(next.Container.Path, ct);
-            foreach (var entry in entries)
+            var entries = (await container.Provider.ListChildrenAsync(container.Path, ct))
+                .OrderByDescending(entry => entry.ItemType == Models.FileSystemItemType.Directory)
+                .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            for (var i = entries.Count - 1; i >= 0; i--)
             {
-                var item = BrowserItemFactory.Create(
-                    next.Container.Provider,
-                    entry,
-                    next.Container,
-                    next.Depth);
-                results.Add(item);
-
-                if (item.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
-                    pending.Enqueue((item.Resource, next.Depth + 1));
+                pending.Push((null, BrowserItemFactory.Create(
+                    container.Provider, entries[i], container, next.Depth), next.Depth));
             }
         }
 

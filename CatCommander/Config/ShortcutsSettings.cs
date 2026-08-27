@@ -49,6 +49,10 @@ public enum Operation
     CopyContainerPath,
     CopyItemNames,
     CopyItemPaths,
+    SortByName,
+    SortByExtension,
+    SortByDate,
+    SortBySize,
 }
 
 /// <summary>
@@ -140,9 +144,13 @@ public class ShortcutsSettings
             [Operation.OpenFind] = "Alt+F7",
             [Operation.OpenBatchRename] = $"{primaryModifier}+M",
             [Operation.OpenTerminal] = $"{primaryModifier}+G",
-            [Operation.CopyContainerPath] = $"{primaryModifier}+F1",
-            [Operation.CopyItemNames] = $"{primaryModifier}+F2",
-            [Operation.CopyItemPaths] = $"{primaryModifier}+F3",
+            [Operation.CopyContainerPath] = $"{primaryModifier}+1",
+            [Operation.CopyItemNames] = $"{primaryModifier}+2",
+            [Operation.CopyItemPaths] = $"{primaryModifier}+3",
+            [Operation.SortByName] = $"{primaryModifier}+F3",
+            [Operation.SortByExtension] = $"{primaryModifier}+F4",
+            [Operation.SortBySize] = $"{primaryModifier}+F5",
+            [Operation.SortByDate] = $"{primaryModifier}+F6",
         };
     }
 
@@ -178,7 +186,7 @@ public class ShortcutsSettings
                 KeyGesture gesture;
                 try
                 {
-                    gesture = KeyGesture.Parse(keyStr);
+                    gesture = KeyGesture.Parse(NormalizeNumberRowKey(keyStr));
                 }
                 catch (Exception ex)
                 {
@@ -199,6 +207,18 @@ public class ShortcutsSettings
 
         MapKeyToOp = map;
         MapOpToGestures = opToGestures;
+    }
+
+    // Avalonia parses a bare numeric key token as the numeric value of its Key enum ("1" becomes
+    // Tab), not as the keyboard number row. Keep the config/user-facing spelling intuitive while
+    // translating only the final single-digit token to Avalonia's D0..D9 spelling.
+    private static string NormalizeNumberRowKey(string gesture)
+    {
+        var separator = gesture.LastIndexOf('+');
+        var keyStart = separator + 1;
+        return gesture.Length - keyStart == 1 && char.IsAsciiDigit(gesture[keyStart])
+            ? gesture.Insert(keyStart, "D")
+            : gesture;
     }
 
     /// <summary>

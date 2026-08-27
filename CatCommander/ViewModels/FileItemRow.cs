@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Media.Imaging;
 using CatCommander.Browsing;
 using CatCommander.Models;
@@ -17,6 +18,8 @@ public partial class FileItemRow
 {
     public BrowserItem BrowserItem { get; }
     public IFileSystemItem Item { get; }
+    [NotObservable]
+    public Thickness BranchIndent => new(BrowserItem.Depth * 16, 0, 0, 0);
 
     /// <summary>
     /// Null until the async icon lookup completes, then triggers a property-changed notification

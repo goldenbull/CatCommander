@@ -19,6 +19,16 @@ public sealed class SharpHookGestureStateTests
     }
 
     [Fact]
+    public void TryPress_MapsCommandNumberRow()
+    {
+        var state = new SharpHookGestureState();
+        state.TryPress(KeyCode.VcLeftMeta, out _);
+
+        Assert.True(state.TryPress(KeyCode.Vc1, out var gesture));
+        Assert.Equal(new KeyGesture(Key.D1, KeyModifiers.Meta), gesture);
+    }
+
+    [Fact]
     public void Release_OnlyRemovesTheReleasedPhysicalModifier()
     {
         var state = new SharpHookGestureState();
