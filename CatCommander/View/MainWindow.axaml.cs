@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using CatCommander.Config;
+using CatCommander.Platform;
 using CatCommander.Shortcuts;
 using CatCommander.ViewModels;
 
@@ -12,11 +13,13 @@ public partial class MainWindow : Window
         MainWindowViewModel viewModel,
         ShortcutsSettings shortcuts,
         ShortcutInputContext? inputContext = null,
-        ShortcutInputState? inputState = null)
+        ShortcutInputState? inputState = null,
+        PlatformInfo? platform = null)
     {
         InitializeComponent();
         DataContext = viewModel;
         ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
+        InstallPlatformMenuItems(platform ?? PlatformInfo.Current);
 
         // The native macOS menu bar's keyEquivalents are plain property sets, not something that
         // re-reads ShortcutsSettings live the way ShortcutRouter's dispatch does - set once here
@@ -31,6 +34,16 @@ public partial class MainWindow : Window
         // order, not by which panel the ViewModel actually considers active. Re-asserting it once
         // more here, after everything's attached and shown, makes the two agree deterministically.
         Opened += (_, _) => viewModel.ActivePanel?.RequestFocus();
+    }
+
+    private void InstallPlatformMenuItems(PlatformInfo platform)
+    {
+        if (!platform.IsMacOS || NativeMenu.GetMenu(this) is not { } menu)
+            return;
+
+        var aboutMenu = new NativeMenu();
+        aboutMenu.Items.Add(new NativeMenuItem { Header = "About CatCommander" });
+        menu.Items.Add(new NativeMenuItem { Header = "About", Menu = aboutMenu });
     }
 
     // x:Name on a NativeMenuItem doesn't generate a code-behind field the way it does for a real

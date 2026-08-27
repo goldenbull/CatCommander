@@ -45,15 +45,6 @@
                     <NativeMenuItem Header="Restore Default Shortcuts" Command="{Binding RestoreDefaultShortcutsCommand}" />
                 </NativeMenu>
             </NativeMenuItem>
-            <OnPlatform>
-                <OnPlatform.macOS>
-                    <NativeMenuItem Header="About">
-                        <NativeMenu>
-                            <NativeMenuItem Header="About CatCommander" />
-                        </NativeMenu>
-                    </NativeMenuItem>
-                </OnPlatform.macOS>
-            </OnPlatform>
         </NativeMenu>
     </NativeMenu.Menu>
 
