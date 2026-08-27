@@ -3,6 +3,8 @@ using Avalonia;
 using CatCommander.Config;
 using CatCommander.FileSystem;
 using CatCommander.Services;
+using CatCommander.Platform;
+using CatCommander.Shortcuts;
 using CatCommander.View;
 using CatCommander.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +30,9 @@ internal class Program
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<ConfigManager>();
+        services.AddSingleton(PlatformInfo.Current);
         services.AddSingleton(sp => sp.GetRequiredService<ConfigManager>().Shortcuts);
+        services.AddSingleton(sp => sp.GetRequiredService<ConfigManager>().Settings);
 
         // One shared registry/cache for the whole app - registry only ever needs one
         // LocalFileSystemProviderFactory (registered last, unconditional catch-all - see its own
@@ -44,6 +48,11 @@ internal class Program
         // F5/F6's "system-level job list" - one shared queue/worker for the whole app (see its
         // own doc comment), independent of any single window.
         services.AddSingleton<FileOperationQueue>();
+        services.AddSingleton<ResourceTransferService>();
+        services.AddSingleton<BrowserCommandPolicy>();
+        services.AddSingleton<ITerminalLauncher, TerminalLauncher>();
+        services.AddSingleton<ShortcutInputContext>();
+        services.AddSingleton<ShortcutInputState>();
 
         services.AddSingleton<MainWindowViewModel>();
         services.AddTransient<FindViewModel>();

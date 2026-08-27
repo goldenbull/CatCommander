@@ -8,11 +8,15 @@ namespace CatCommander.View;
 
 public partial class MainWindow : Window
 {
-    public MainWindow(MainWindowViewModel viewModel, ShortcutsSettings shortcuts)
+    public MainWindow(
+        MainWindowViewModel viewModel,
+        ShortcutsSettings shortcuts,
+        ShortcutInputContext? inputContext = null,
+        ShortcutInputState? inputState = null)
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
 
         // The native macOS menu bar's keyEquivalents are plain property sets, not something that
         // re-reads ShortcutsSettings live the way ShortcutRouter's dispatch does - set once here

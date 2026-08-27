@@ -7,11 +7,11 @@ namespace CatCommander.View;
 
 public partial class FileOperationProgressWindow : Window
 {
-    public FileOperationProgressWindow(FileOperationProgressViewModel viewModel, ShortcutsSettings shortcuts)
+    public FileOperationProgressWindow(FileOperationProgressViewModel viewModel, ShortcutsSettings shortcuts, ShortcutInputContext? inputContext = null, ShortcutInputState? inputState = null)
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
 
         viewModel.RequestClose += Close;
 

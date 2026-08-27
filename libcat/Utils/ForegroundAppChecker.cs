@@ -1,24 +1,26 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Diagnostics.CodeAnalysis;
+using CatCommander.Platform;
 
 namespace CatCommander.Utils;
 
 /// <summary>
 /// Checks whether this process is the frontmost (focused) application - used to gate
-/// GlobalShortcutGuard's SharpHook patch path so it only ever acts while CatCommander is actually
+/// GlobalShortcutGuard's low-level input path so it only ever acts while CatCommander is actually
 /// the app the user is interacting with, never as a true background-regardless-of-focus hotkey.
 /// </summary>
 public static class ForegroundAppChecker
 {
+    [UnconditionalSuppressMessage("Interoperability", "CA1416", Justification = "PlatformInfo gates the macOS-only call.")]
     public static bool IsFrontmostApplication()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (PlatformInfo.Current.IsMacOS)
             return IsFrontmostApplicationMacOS();
 
-        // Windows/Linux: GlobalShortcutGuard (the only current caller) is macOS-only, since the
-        // "OS reserved shortcut" problem it patches is specific to macOS Mission Control-style
-        // global bindings. No other caller needs this yet on other platforms.
+        // On Windows/Linux the active-window command-source check is the current foreground gate;
+        // platform-native foreground-process checks can replace this conservative default later.
         return true;
     }
 

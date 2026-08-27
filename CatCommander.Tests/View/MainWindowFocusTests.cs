@@ -31,12 +31,14 @@ namespace CatCommander.Tests.View;
 public class MainWindowFocusTests : IDisposable
 {
     private readonly string _root;
+    private readonly string _configDirectory;
     private readonly MainWindow _window;
     private readonly MainWindowViewModel _viewModel;
 
     public MainWindowFocusTests()
     {
         _root = Path.Combine(Path.GetTempPath(), "CatCommanderFocusTests_" + Guid.NewGuid().ToString("N"));
+        _configDirectory = Path.Combine(Path.GetTempPath(), "CatCommanderFocusConfig_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
 
         var registry = new FileSystemProviderRegistry();
@@ -45,7 +47,7 @@ public class MainWindowFocusTests : IDisposable
         ItemBrowserViewModel ItemBrowserFactory() => new(registry, iconCache);
         MainPanelViewModel MainPanelFactory() => new(ItemBrowserFactory);
 
-        var configManager = new ConfigManager();
+        var configManager = new ConfigManager(_configDirectory);
         _viewModel = new MainWindowViewModel(configManager, new FileOperationQueue(), MainPanelFactory, () => null!, () => null!, () => null!);
 
         _window = new MainWindow(_viewModel, configManager.Shortcuts) { Width = 1024, Height = 640 };
@@ -53,7 +55,12 @@ public class MainWindowFocusTests : IDisposable
         Pump();
     }
 
-    public void Dispose() => Directory.Delete(_root, recursive: true);
+    public void Dispose()
+    {
+        Directory.Delete(_root, recursive: true);
+        if (Directory.Exists(_configDirectory))
+            Directory.Delete(_configDirectory, recursive: true);
+    }
 
     // NavigateToAsync does real (if fast, local) async I/O - MainPanelViewModel's own constructor
     // already fires one off (to UserProfile) per panel, fire-and-forget, same as production

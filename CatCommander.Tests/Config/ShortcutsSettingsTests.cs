@@ -104,6 +104,7 @@ public class ShortcutsSettingsTests
 
         Assert.Equal("Meta+B", defaults[Operation.ExpandCurrentFolder]);
         Assert.Equal("Meta+M", defaults[Operation.OpenBatchRename]);
+        Assert.Equal("Meta+G", defaults[Operation.OpenTerminal]);
     }
 
     [Fact]
@@ -113,6 +114,7 @@ public class ShortcutsSettingsTests
 
         Assert.Equal("Ctrl+B", defaults[Operation.ExpandCurrentFolder]);
         Assert.Equal("Ctrl+M", defaults[Operation.OpenBatchRename]);
+        Assert.Equal("Ctrl+G", defaults[Operation.OpenTerminal]);
     }
 
     [Fact]
@@ -121,6 +123,18 @@ public class ShortcutsSettingsTests
         var defaults = ShortcutsSettings.GetDefaults(KeyboardStyle.MacOS);
 
         Assert.Equal("Meta+Up", defaults[Operation.OpenSelectedFolderInNewTab]);
+    }
+
+    [Fact]
+    public void GetDefaults_CrossPanelBindings_PreserveDirection()
+    {
+        var windows = ShortcutsSettings.GetDefaults(KeyboardStyle.Windows);
+        var mac = ShortcutsSettings.GetDefaults(KeyboardStyle.MacOS);
+
+        Assert.Equal("Ctrl+Left", windows[Operation.OpenCurrentFolderInLeftPanel]);
+        Assert.Equal("Ctrl+Right", windows[Operation.OpenCurrentFolderInRightPanel]);
+        Assert.Equal("Meta+Left", mac[Operation.OpenCurrentFolderInLeftPanel]);
+        Assert.Equal("Meta+Right", mac[Operation.OpenCurrentFolderInRightPanel]);
     }
 
     [Fact]

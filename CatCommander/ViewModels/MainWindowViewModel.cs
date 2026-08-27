@@ -7,6 +7,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CatCommander.Config;
+using CatCommander.FileSystem;
+using CatCommander.Resources;
 using CatCommander.Services;
 using CatCommander.Shortcuts;
 using CatCommander.View;
@@ -20,6 +22,10 @@ public partial class MainWindowViewModel : IShortcutCommandSource
 {
     private readonly ConfigManager _configManager;
     private readonly FileOperationQueue _fileOperationQueue;
+    private readonly ResourceTransferService _transferService;
+    private readonly BrowserCommandPolicy _commandPolicy;
+    private readonly ShortcutInputContext? _shortcutInputContext;
+    private readonly ShortcutInputState? _shortcutInputState;
     private readonly Func<FindWindow> _findWindowFactory;
     private readonly Func<BatchRenameWindow> _batchRenameWindowFactory;
     private readonly Func<JobListWindow> _jobListWindowFactory;
@@ -69,10 +75,18 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         Func<MainPanelViewModel> mainPanelFactory,
         Func<FindWindow> findWindowFactory,
         Func<BatchRenameWindow> batchRenameWindowFactory,
-        Func<JobListWindow> jobListWindowFactory)
+        Func<JobListWindow> jobListWindowFactory,
+        ResourceTransferService? transferService = null,
+        BrowserCommandPolicy? commandPolicy = null,
+        ShortcutInputContext? shortcutInputContext = null,
+        ShortcutInputState? shortcutInputState = null)
     {
         _configManager = configManager;
         _fileOperationQueue = fileOperationQueue;
+        _transferService = transferService ?? new ResourceTransferService();
+        _commandPolicy = commandPolicy ?? new BrowserCommandPolicy();
+        _shortcutInputContext = shortcutInputContext;
+        _shortcutInputState = shortcutInputState;
 
         // Two distinct instances of the same type - needs a factory, not direct constructor
         // injection, same reasoning as MainPanelViewModel needing one for ItemBrowserViewModel.
@@ -85,6 +99,15 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         LeftPanel.OnActivated = () => SetActivePanel(LeftPanel);
         RightPanel.OnActivated = () => SetActivePanel(RightPanel);
         SetActivePanel(LeftPanel);
+
+        if (_configManager.LoadSession() is { } session)
+        {
+            LeftPanel.RestoreSession(session.Left);
+            RightPanel.RestoreSession(session.Right);
+            SetActivePanel(string.Equals(session.ActivePanel, "right", StringComparison.OrdinalIgnoreCase)
+                ? RightPanel
+                : LeftPanel);
+        }
 
         CopyCommand = ReactiveCommand.CreateFromTask(() => StartFileOperationAsync(FileOperationKind.Copy));
         MoveCommand = ReactiveCommand.CreateFromTask(() => StartFileOperationAsync(FileOperationKind.Move));
@@ -113,7 +136,8 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             [Operation.Delete] = DeleteCommand,
             [Operation.CreateDirectory] = OpenCreateDirectoryDialogCommand,
             [Operation.SwitchPanel] = ReactiveCommand.Create(SwitchPanel),
-            [Operation.OpenCurrentFolderInOppositePanel] = ReactiveCommand.Create(OpenCurrentFolderInOppositePanel),
+            [Operation.OpenCurrentFolderInLeftPanel] = ReactiveCommand.Create(() => OpenCurrentFolderInPanel(LeftPanel)),
+            [Operation.OpenCurrentFolderInRightPanel] = ReactiveCommand.Create(() => OpenCurrentFolderInPanel(RightPanel)),
             [Operation.OpenFind] = OpenFindCommand,
             [Operation.OpenBatchRename] = OpenBatchRenameCommand,
         };
@@ -134,6 +158,13 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         RightPanel.IsActive = panel == RightPanel;
     }
 
+    public SessionState CaptureSession() => new()
+    {
+        ActivePanel = ActivePanel == RightPanel ? "right" : "left",
+        Left = LeftPanel.CaptureSession(),
+        Right = RightPanel.CaptureSession(),
+    };
+
     // Commanded direction: SwitchPanel (Tab) needs to both record the new ActivePanel *and* push
     // real keyboard focus into it - unlike SetActivePanel above, nothing else is going to move
     // focus on its own here.
@@ -144,22 +175,22 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         target.RequestFocus();
     }
 
-    // Cmd/Ctrl+Left and +Right both do the same thing - "opposite panel" already accounts for
-    // direction (whichever panel isn't ActivePanel), so there's nothing left for the two gestures
-    // to disambiguate. Opens the *selected* folder in a new tab in the opposite panel - exactly
-    // OpenSelectedFolderInNewTab's (Cmd/Ctrl+Up) own logic, aimed across panels instead of within
-    // one. Deliberately GetSelectedEnterablePath(), not CurrentPath: CurrentPath is whatever
+    // Direction stays explicit all the way from gesture to command: Left targets LeftPanel and is
+    // valid only when RightPanel is active; Right is the mirror image. Deliberately uses the
+    // selected enterable resource, not CurrentPath: CurrentPath is whatever
     // directory the active tab is *browsing*, which is one level up from the highlighted row the
     // user is actually looking at - using it here would open the parent instead of the folder
     // they selected.
-    private void OpenCurrentFolderInOppositePanel()
+    private void OpenCurrentFolderInPanel(MainPanelViewModel targetPanel)
     {
-        var path = ActivePanel?.ActiveTab?.GetSelectedEnterablePath();
-        if (path is null)
+        if (ActivePanel == targetPanel)
             return;
 
-        var opposite = ActivePanel == LeftPanel ? RightPanel : LeftPanel;
-        opposite.OpenNewTab(path);
+        var resource = ActivePanel?.ActiveTab?.GetSelectedEnterableResource();
+        if (resource is null)
+            return;
+
+        targetPanel.OpenNewTab(resource.Value);
     }
 
     private void OpenFind() => _findWindowFactory().Show();
@@ -171,57 +202,68 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // own CreateDirectoryAsync) that plain DI factories don't thread through.
     private void OpenCreateDirectoryDialog()
     {
-        if (ActivePanel?.ActiveTab is not { } tab)
+        if (ActivePanel?.ActiveTab is not { } tab || !_commandPolicy.CanCreateDirectory(tab.Context))
             return;
 
         var viewModel = new NewFolderViewModel(tab.CreateDirectoryAsync);
-        new NewFolderWindow(viewModel, _configManager.Shortcuts).Show();
+        new NewFolderWindow(viewModel, _configManager.Shortcuts, _shortcutInputContext, _shortcutInputState).Show();
     }
 
     // F5/F6/Delete - see FileOperationQueue's own doc comment for why "blocking" vs "background"
     // are just two presentations of the same queued execution, not two different code paths here.
     // The destination (Copy/Move only - Delete has none) is always the opposite panel's *own*
     // current directory (its ActiveTab's CurrentPath, not GetSelectedEnterablePath() - unlike
-    // OpenCurrentFolderInOppositePanel above, this isn't about a selected row, it's "wherever that
+    // OpenCurrentFolderInPanel above, this isn't about a selected row, it's "wherever that
     // panel is already browsing").
     private async Task StartFileOperationAsync(FileOperationKind kind)
     {
         if (ActivePanel?.ActiveTab is not { } sourceTab)
             return;
 
-        var targets = sourceTab.GetOperationTargets();
-        if (targets.Count == 0 || sourceTab.Provider is not { } provider)
+        var targets = sourceTab.GetOperationBrowserItems();
+        if (targets.Count == 0)
             return;
 
-        string? destination = null;
+        ContainerRef? destination = null;
         MainPanelViewModel? destinationPanel = null;
 
         if (kind != FileOperationKind.Delete)
         {
             destinationPanel = ActivePanel == LeftPanel ? RightPanel : LeftPanel;
-            if (destinationPanel.ActiveTab is not { } destinationTab || string.IsNullOrEmpty(destinationTab.CurrentPath))
+            if (destinationPanel.ActiveTab?.WritableDestination is not { } writableDestination)
                 return;
 
-            destination = destinationTab.CurrentPath;
+            destination = writableDestination;
         }
+
+        if (!_commandPolicy.CanRunFileOperation(kind, targets, destination))
+            return;
 
         if (GetActiveWindow() is not { } owner)
             return;
 
-        var confirmViewModel = new FileOperationConfirmViewModel(kind, targets.Count, destination);
-        var confirmWindow = new FileOperationConfirmWindow(confirmViewModel, _configManager.Shortcuts);
+        var confirmViewModel = new FileOperationConfirmViewModel(kind, targets.Count, destination?.Resource.Path);
+        var confirmWindow = new FileOperationConfirmWindow(
+            confirmViewModel,
+            _configManager.Shortcuts,
+            _shortcutInputContext,
+            _shortcutInputState);
         var mode = await confirmWindow.ShowDialog<FileOperationMode?>(owner);
         if (mode is null)
             return;
 
-        var job = new FileOperationJob(kind, targets, destination, provider);
-        job.Finished += () => RefreshAfterFileOperation(sourceTab, destinationPanel, destination);
+        var job = new FileOperationJob(kind, targets, destination, _transferService);
+        job.Finished += () => RefreshAfterFileOperation(sourceTab, destinationPanel, destination?.Resource.Path);
         _fileOperationQueue.Enqueue(job);
 
         if (mode == FileOperationMode.RunNow)
         {
             var progressViewModel = new FileOperationProgressViewModel(job);
-            var progressWindow = new FileOperationProgressWindow(progressViewModel, _configManager.Shortcuts);
+            var progressWindow = new FileOperationProgressWindow(
+                progressViewModel,
+                _configManager.Shortcuts,
+                _shortcutInputContext,
+                _shortcutInputState);
             await progressWindow.ShowDialog(owner);
         }
         else
@@ -267,8 +309,37 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // active in the active panel - this is how navigation Operations (GoIntoCurrentFolder,
     // GotoFirstItem, ...) reach ItemBrowserViewModel without ShortcutRouter needing to know
     // panels/tabs exist at all.
-    public ICommand? GetCommand(Operation operation) =>
-        _commands.GetValueOrDefault(operation)
-        ?? ActivePanel?.GetCommand(operation)
-        ?? ActivePanel?.ActiveTab?.GetCommand(operation);
+    public ICommand? GetCommand(Operation operation)
+    {
+        if ((operation == Operation.OpenCurrentFolderInLeftPanel && ActivePanel == LeftPanel) ||
+            (operation == Operation.OpenCurrentFolderInRightPanel && ActivePanel == RightPanel))
+        {
+            return null;
+        }
+
+        if (ActivePanel?.ActiveTab is { } tab && operation is
+            Operation.Copy or Operation.Move or Operation.Delete or Operation.CreateDirectory)
+        {
+            var targets = tab.GetOperationBrowserItems();
+            var destination = operation is Operation.Copy or Operation.Move
+                ? (ActivePanel == LeftPanel ? RightPanel : LeftPanel).ActiveTab?.WritableDestination
+                : null;
+
+            var available = operation switch
+            {
+                Operation.Copy => _commandPolicy.CanCopy(targets, destination),
+                Operation.Move => _commandPolicy.CanMove(targets, destination),
+                Operation.Delete => _commandPolicy.CanDelete(targets),
+                Operation.CreateDirectory => _commandPolicy.CanCreateDirectory(tab.Context),
+                _ => true,
+            };
+
+            if (!available)
+                return null;
+        }
+
+        return _commands.GetValueOrDefault(operation)
+            ?? ActivePanel?.GetCommand(operation)
+            ?? ActivePanel?.ActiveTab?.GetCommand(operation);
+    }
 }

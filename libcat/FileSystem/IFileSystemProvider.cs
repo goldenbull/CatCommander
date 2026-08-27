@@ -1,4 +1,5 @@
 using CatCommander.Models;
+using CatCommander.Resources;
 
 namespace CatCommander.FileSystem;
 
@@ -10,6 +11,36 @@ namespace CatCommander.FileSystem;
 /// </summary>
 public interface IFileSystemProvider
 {
+    /// <summary>
+    /// Stable provider kind/session identifier used by ResourceRef diagnostics and persistence.
+    /// Existing providers get a compatible type-based default; connection-based providers should
+    /// override it with a session-aware id.
+    /// </summary>
+    string Id => GetType().FullName ?? GetType().Name;
+
+    /// <summary>Provider-wide defaults; individual resources may further restrict them later.</summary>
+    ResourceCapabilities ResourceCapabilities =>
+        CatCommander.Resources.ResourceCapabilities.Read |
+        CatCommander.Resources.ResourceCapabilities.EnumerateChildren |
+        CatCommander.Resources.ResourceCapabilities.Rename |
+        CatCommander.Resources.ResourceCapabilities.Delete |
+        CatCommander.Resources.ResourceCapabilities.OpenExternally;
+
+    ContainerCapabilities ContainerCapabilities =>
+        CatCommander.Resources.ContainerCapabilities.AcceptFiles |
+        CatCommander.Resources.ContainerCapabilities.AcceptDirectories |
+        CatCommander.Resources.ContainerCapabilities.CreateDirectory;
+
+    /// <summary>
+    /// Returns the parent address inside this provider's namespace. Archive/SFTP providers can
+    /// override path syntax without leaking it into BrowserContext.
+    /// </summary>
+    string? GetParentPath(string path)
+    {
+        var child = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return Path.GetDirectoryName(child);
+    }
+
     /// <summary>
     /// Lists the immediate children of <paramref name="path"/> (no ".." synthetic entry - that's
     /// a navigation affordance the ViewModel layer adds for list-mode display, not a real child).

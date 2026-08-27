@@ -7,11 +7,11 @@ namespace CatCommander.View;
 
 public partial class JobListWindow : Window
 {
-    public JobListWindow(JobListViewModel viewModel, ShortcutsSettings shortcuts)
+    public JobListWindow(JobListViewModel viewModel, ShortcutsSettings shortcuts, ShortcutInputContext? inputContext = null, ShortcutInputState? inputState = null)
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
 
         this.InstallEscapeToClose();
     }

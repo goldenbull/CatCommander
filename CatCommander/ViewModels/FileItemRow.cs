@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
+using CatCommander.Browsing;
 using CatCommander.Models;
 using CatCommander.Services;
 using Metalama.Patterns.Observability;
@@ -14,6 +15,7 @@ namespace CatCommander.ViewModels;
 [Observable]
 public partial class FileItemRow
 {
+    public BrowserItem BrowserItem { get; }
     public IFileSystemItem Item { get; }
 
     /// <summary>
@@ -61,9 +63,10 @@ public partial class FileItemRow
     /// </summary>
     public string EditedName { get; set; } = string.Empty;
 
-    public FileItemRow(IFileSystemItem item, IconCache iconCache)
+    public FileItemRow(BrowserItem browserItem, IconCache iconCache)
     {
-        Item = item;
+        BrowserItem = browserItem;
+        Item = browserItem.Item;
         _ = LoadIconAsync(iconCache);
     }
 

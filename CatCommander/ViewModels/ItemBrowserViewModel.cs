@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
@@ -14,9 +15,11 @@ using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using CatCommander.Browsing;
 using CatCommander.Config;
 using CatCommander.FileSystem;
 using CatCommander.Models;
+using CatCommander.Resources;
 using CatCommander.Services;
 using CatCommander.Shortcuts;
 using CatCommander.Utils;
@@ -44,10 +47,23 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     private readonly FileSystemProviderRegistry _providers;
     private readonly IconCache _iconCache;
+    private readonly ITerminalLauncher? _terminalLauncher;
     private readonly Dictionary<Operation, ICommand> _commands;
 
     private IFileSystemProvider? _provider;
     private IReadOnlyList<IFileSystemItem> _allItems = Array.Empty<IFileSystemItem>();
+    private IReadOnlyList<BrowserItem> _browserItems = Array.Empty<BrowserItem>();
+    [NotObservable]
+    private CancellationTokenSource? _navigationCts;
+
+    [NotObservable]
+    private int _navigationGeneration;
+
+    // Provider loads are intentionally concurrent/cancellable, but committing their results is a
+    // single-writer operation. TreeDataGrid's selection model is not safe to dispose/reconstruct
+    // concurrently, even when both callers passed the generation check moments earlier.
+    [NotObservable]
+    private readonly object _navigationCommitGate = new();
 
     /// <summary>
     /// The current listing's root-level rows (one FileItemRow per _allItems entry). Kept alive
@@ -60,11 +76,18 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     /// <summary>
     /// The provider currently resolved for CurrentPath - exposed so MainWindowViewModel.
-    /// StartFileOperation can hand it to a new FileOperationJob (both source and destination
-    /// always run through the same provider today - see IFileSystemProvider.CopyAsync/MoveAsync's
-    /// own doc comments on why that's fine while LocalFileSystemProvider is the only one).
+    /// Retained for directory/tree compatibility. Projected listings use each FileItemRow's own
+    /// BrowserItem.Resource.Provider instead, and transfers go through ResourceTransferService.
     /// </summary>
     public IFileSystemProvider? Provider => _provider;
+    public BrowserContext? Context { get; private set; }
+    public ContainerRef? WritableDestination => Context?.WritableDestination;
+
+    /// <summary>A stable provider path suitable for restoring this tab on the next launch.</summary>
+    [NotObservable]
+    public string? SessionPath => Context?.Kind == ListingKind.Directory
+        ? Context.Location?.Path
+        : SelectionModel?.SelectedItem?.BrowserItem.Container?.Path;
 
     public string CurrentPath { get; set; } = string.Empty;
     public ItemBrowserViewMode ViewMode { get; set; } = ItemBrowserViewMode.List;
@@ -173,10 +196,14 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     public ICommand NavigateToHistoryEntryCommand { get; }
 
-    public ItemBrowserViewModel(FileSystemProviderRegistry providers, IconCache iconCache)
+    public ItemBrowserViewModel(
+        FileSystemProviderRegistry providers,
+        IconCache iconCache,
+        ITerminalLauncher? terminalLauncher = null)
     {
         _providers = providers;
         _iconCache = iconCache;
+        _terminalLauncher = terminalLauncher;
 
         ToggleViewModeCommand = ReactiveCommand.Create(ToggleViewMode);
         NavigateToHistoryEntryCommand = ReactiveCommand.Create<string>(path => _ = NavigateToAsync(path));
@@ -191,30 +218,120 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.Rename] = ReactiveCommand.Create(BeginRenameCurrentItem),
             [Operation.Refresh] = ReactiveCommand.Create(RefreshCurrentFolder),
             [Operation.ToggleHiddenFiles] = ReactiveCommand.Create(ToggleHiddenFiles),
+            [Operation.ExpandCurrentFolder] = ReactiveCommand.Create(ExpandCurrentFolder),
+            [Operation.ExpandSelectedFolders] = ReactiveCommand.Create(ExpandSelectedFolders),
+            [Operation.OpenTerminal] = ReactiveCommand.Create(OpenTerminal),
         };
     }
 
-    public async Task NavigateToAsync(string path)
+    private string? GetLocalShellDirectory()
     {
+        var location = Context?.Location;
+        return location is { } resource &&
+               resource.Provider is ILocalShellContextProvider local
+            ? local.GetLocalShellDirectory(resource)
+            : null;
+    }
+
+    private void OpenTerminal()
+    {
+        if (GetLocalShellDirectory() is { } directory)
+            _terminalLauncher?.Open(directory);
+    }
+
+    public Task NavigateToAsync(string path) =>
+        NavigateCoreAsync(path, () => _providers.ResolveAsync(path));
+
+    public Task NavigateToAsync(ResourceRef resource) =>
+        NavigateCoreAsync(resource.Path, () => Task.FromResult((resource.Provider, resource.Path)));
+
+    private async Task NavigateCoreAsync(
+        string displayPath,
+        Func<Task<(IFileSystemProvider Provider, string RelativePath)>> resolve)
+    {
+        var generation = Interlocked.Increment(ref _navigationGeneration);
+        var navigationCts = new CancellationTokenSource();
+        var previousCts = Interlocked.Exchange(ref _navigationCts, navigationCts);
+        previousCts?.Cancel();
+
         try
         {
-            var (provider, relativePath) = await _providers.ResolveAsync(path);
-            var items = await provider.ListChildrenAsync(relativePath);
-
-            _provider = provider;
-            CurrentPath = path;
-            _allItems = Sort(items);
-
-            if (provider.TracksHistory)
-                RecordHistory(path);
-
-            RebuildSource();
-            RecomputeTotals();
+            var (provider, relativePath) = await resolve();
+            var listing = new DirectoryListingSource(provider, relativePath);
+            await LoadListingAsync(listing, displayPath, generation, navigationCts);
+        }
+        catch (OperationCanceledException) when (navigationCts.IsCancellationRequested)
+        {
+            // Superseded by a newer navigation in this tab.
         }
         catch (Exception ex)
         {
-            log.Error(ex, "Failed to navigate to {0}", path);
+            log.Error(ex, "Failed to navigate to {0}", displayPath);
         }
+        finally
+        {
+            Interlocked.CompareExchange(ref _navigationCts, null, navigationCts);
+            navigationCts.Dispose();
+        }
+    }
+
+    private async Task NavigateToListingAsync(IListingSource listing, string displayPath)
+    {
+        var generation = Interlocked.Increment(ref _navigationGeneration);
+        var navigationCts = new CancellationTokenSource();
+        var previousCts = Interlocked.Exchange(ref _navigationCts, navigationCts);
+        previousCts?.Cancel();
+
+        try
+        {
+            await LoadListingAsync(listing, displayPath, generation, navigationCts);
+        }
+        catch (OperationCanceledException) when (navigationCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Failed to load {0} listing", listing.Kind);
+        }
+        finally
+        {
+            Interlocked.CompareExchange(ref _navigationCts, null, navigationCts);
+            navigationCts.Dispose();
+        }
+    }
+
+    private async Task LoadListingAsync(
+        IListingSource listing,
+        string displayPath,
+        int generation,
+        CancellationTokenSource navigationCts)
+    {
+            var snapshot = await listing.LoadAsync(navigationCts.Token);
+
+            lock (_navigationCommitGate)
+            {
+                // Recheck only after obtaining the single-writer gate. Without that ordering, two
+                // completed loads can both pass the check and overlap Source disposal/recreation.
+                if (generation != Volatile.Read(ref _navigationGeneration) || navigationCts.IsCancellationRequested)
+                    return;
+
+                _provider = listing.Location?.Provider;
+                CurrentPath = displayPath;
+                Context = new BrowserContext(listing);
+                _browserItems = listing.Kind == ListingKind.Directory ? Sort(snapshot.Items) : snapshot.Items;
+                _allItems = _browserItems.Select(x => x.Item).ToList();
+
+                // Search/branch results are already an explicitly ordered projection, not a directory
+                // hierarchy for TreeDataGrid to discover again through ChildSelector.
+                if (listing.Kind != ListingKind.Directory)
+                    ViewMode = ItemBrowserViewMode.List;
+
+                if (listing.Location?.Provider.TracksHistory == true)
+                    RecordHistory(displayPath);
+
+                RebuildSource();
+                RecomputeTotals();
+            }
     }
 
     private void RecordHistory(string path)
@@ -232,13 +349,19 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    private static IReadOnlyList<BrowserItem> Sort(IReadOnlyList<BrowserItem> items) =>
+        items
+            .OrderByDescending(i => i.Item.ItemType == FileSystemItemType.Directory)
+            .ThenBy(i => i.Item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     private void RebuildSource()
     {
         (Source as IDisposable)?.Dispose();
         FilterText = string.Empty;
         IsFilterActive = false;
         // ShowHiddenFiles deliberately isn't reset here - see its own doc comment.
-        _rows = BuildRows(_allItems);
+        _rows = BuildRows(_browserItems);
         UpdateRowVisibilityFlags();
 
         // Built directly from the already-filtered rows, not the full _rows followed by an
@@ -333,15 +456,23 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// </summary>
     private void ApplyVisibility()
     {
+        // Source.Items replacement resets TreeDataGrid's current-row cursor. Preserve the row
+        // object while it remains visible: notably, Escape clearing a quick filter should keep
+        // the matching item under the cursor instead of jumping to the full list's first row.
+        var currentRow = SelectionModel?.SelectedItem;
         UpdateRowVisibilityFlags();
 
         if (Source is null)
             return;
 
-        Source.Items = _rows.Where(r => r.IsVisible).ToList();
+        var visibleRows = _rows.Where(r => r.IsVisible).ToList();
+        Source.Items = visibleRows;
 
         if (Source.Rows.Count > 0)
-            SetCurrentRow(0);
+        {
+            var retainedIndex = currentRow is null ? -1 : visibleRows.IndexOf(currentRow);
+            SetCurrentRow(retainedIndex >= 0 ? retainedIndex : 0);
+        }
 
         RecomputeSelection();
 
@@ -404,16 +535,23 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     // but tree-list mode needs real async lazy-loading before a remote provider can use it.
     private IEnumerable<FileItemRow>? ChildSelector(FileItemRow row)
     {
-        if (row.Item.ItemType != FileSystemItemType.Directory || _provider is null)
+        var provider = row.BrowserItem.Resource.Provider;
+        if (!row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
             return null;
 
         try
         {
-            var children = _provider.ListChildrenAsync(row.Item.FullPath).GetAwaiter().GetResult();
+            var children = provider.ListChildrenAsync(row.BrowserItem.Resource.Path).GetAwaiter().GetResult();
             if (!ShowHiddenFiles)
                 children = children.Where(i => !i.IsHidden).ToList();
 
-            return BuildRows(Sort(children));
+            var container = row.BrowserItem.Resource;
+            var browserItems = Sort(children).Select(item => new BrowserItem(
+                item,
+                new ResourceRef(provider, item.FullPath),
+                container,
+                provider.ResourceCapabilities));
+            return BuildRows(browserItems);
         }
         catch (Exception ex)
         {
@@ -422,7 +560,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         }
     }
 
-    private List<FileItemRow> BuildRows(IReadOnlyList<IFileSystemItem> items) =>
+    private List<FileItemRow> BuildRows(IEnumerable<BrowserItem> items) =>
         items.Select(i => new FileItemRow(i, _iconCache)).ToList();
 
     private static readonly IValueConverter NotConverter = new FuncValueConverter<bool, bool>(b => !b);
@@ -528,7 +666,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// </summary>
     private void BeginRenameCurrentItem()
     {
-        if (SelectionModel?.SelectedItem is not { } row || row.IsEditingName)
+        if (SelectionModel?.SelectedItem is not { } row || row.IsEditingName ||
+            !row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.Rename))
             return;
 
         row.EditedName = row.Item.Name;
@@ -550,26 +689,27 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         row.IsEditingName = false;
         var newName = row.EditedName.Trim();
 
-        if (string.IsNullOrEmpty(newName) || newName == row.Item.Name || _provider is null)
+        if (string.IsNullOrEmpty(newName) || newName == row.Item.Name ||
+            !row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.Rename))
         {
             RequestFocus();
             return;
         }
 
-        _ = ApplyRenameAsync(row.Item.FullPath, newName);
+        _ = ApplyRenameAsync(row.BrowserItem.Resource, newName);
     }
 
-    private async Task ApplyRenameAsync(string path, string newName)
+    private async Task ApplyRenameAsync(ResourceRef resource, string newName)
     {
         try
         {
-            var newPath = await _provider!.RenameAsync(path, newName);
-            await NavigateToAsync(CurrentPath);
+            var newPath = await resource.Provider.RenameAsync(resource.Path, newName);
+            await ReloadCurrentListingAsync();
             SelectItemByPath(newPath);
         }
         catch (Exception ex)
         {
-            log.Error(ex, "Failed to rename {0} to {1}", path, newName);
+            log.Error(ex, "Failed to rename {0} to {1}", resource.Path, newName);
             RequestFocus();
         }
     }
@@ -618,13 +758,14 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// </summary>
     public async Task CreateDirectoryAsync(string name)
     {
-        if (_provider is null)
+        if (Context?.WritableDestination is not { } destination ||
+            !destination.Capabilities.HasFlag(ContainerCapabilities.CreateDirectory))
             return;
 
         try
         {
-            var newPath = await _provider.CreateDirectoryAsync(CurrentPath, name);
-            await NavigateToAsync(CurrentPath);
+            var newPath = await destination.Resource.Provider.CreateDirectoryAsync(destination.Resource.Path, name);
+            await ReloadCurrentListingAsync();
             SelectItemByPath(newPath);
         }
         catch (Exception ex)
@@ -642,24 +783,25 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// </summary>
     public void OpenOrEnterCurrentItem()
     {
-        if (SelectionModel?.SelectedItem is not { } row || _provider is null)
+        if (SelectionModel?.SelectedItem is not { } row)
             return;
 
-        if (_provider.CanEnter(row.Item))
-            _ = NavigateToAsync(row.Item.FullPath);
+        var provider = row.BrowserItem.Resource.Provider;
+        if (row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
+            _ = NavigateToAsync(row.BrowserItem.Resource);
         else
-            _ = OpenExternallyAsync(row.Item.FullPath);
+            _ = OpenExternallyAsync(row.BrowserItem.Resource);
     }
 
-    private async Task OpenExternallyAsync(string path)
+    private async Task OpenExternallyAsync(ResourceRef resource)
     {
         try
         {
-            await _provider!.OpenExternallyAsync(path);
+            await resource.Provider.OpenExternallyAsync(resource.Path);
         }
         catch (Exception ex)
         {
-            log.Error(ex, "Failed to open {0} externally", path);
+            log.Error(ex, "Failed to open {0} externally", resource.Path);
         }
     }
 
@@ -714,14 +856,17 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// never requires marking first.
     /// </summary>
     public IReadOnlyList<IFileSystemItem> GetOperationTargets()
+        => GetOperationBrowserItems().Select(x => x.Item).ToList();
+
+    public IReadOnlyList<BrowserItem> GetOperationBrowserItems()
     {
-        var marked = _rows.Where(r => r.IsMarked).Select(r => r.Item).ToList();
+        var marked = _rows.Where(r => r.IsMarked).Select(r => r.BrowserItem).ToList();
         if (marked.Count > 0)
             return marked;
 
         return SelectionModel?.SelectedItem is { } current
-            ? new[] { current.Item }
-            : Array.Empty<IFileSystemItem>();
+            ? new[] { current.BrowserItem }
+            : Array.Empty<BrowserItem>();
     }
 
     private TreeDataGridRowSelectionModel<FileItemRow>? SelectionModel =>
@@ -733,11 +878,42 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         RebuildSource();
     }
 
+    private void ExpandCurrentFolder()
+    {
+        if (Context?.Location is not { } location)
+            return;
+
+        _ = NavigateToListingAsync(
+            new ExpandedListingSource([location]),
+            $"Branch: {location.Path}");
+    }
+
+    private void ExpandSelectedFolders()
+    {
+        var roots = _rows
+            .Where(row => row.IsMarked && row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
+            .Select(row => row.BrowserItem.Resource)
+            .ToList();
+
+        if (roots.Count == 0 && SelectionModel?.SelectedItem is { } current &&
+            current.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
+        {
+            roots.Add(current.BrowserItem.Resource);
+        }
+
+        if (roots.Count == 0)
+            return;
+
+        _ = NavigateToListingAsync(
+            new ExpandedListingSource(roots),
+            roots.Count == 1 ? $"Branch: {roots[0].Path}" : $"Branch: {roots.Count} folders");
+    }
+
     private void GoIntoCurrentFolder()
     {
-        var path = GetSelectedEnterablePath();
-        if (path is not null)
-            _ = NavigateToAsync(path);
+        var resource = GetSelectedEnterableResource();
+        if (resource is not null)
+            _ = NavigateToAsync(resource.Value);
     }
 
     /// <summary>
@@ -747,10 +923,14 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// acts on a sibling tab rather than this one.
     /// </summary>
     public string? GetSelectedEnterablePath()
+        => GetSelectedEnterableResource()?.Path;
+
+    public ResourceRef? GetSelectedEnterableResource()
     {
         var selected = SelectionModel?.SelectedItem;
-        return selected is not null && _provider is not null && _provider.CanEnter(selected.Item)
-            ? selected.Item.FullPath
+        return selected is not null &&
+               selected.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren)
+            ? selected.BrowserItem.Resource
             : null;
     }
 
@@ -770,26 +950,31 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     private async Task RefreshCurrentFolderAsync(string? previouslySelectedPath)
     {
-        await NavigateToAsync(CurrentPath);
+        await ReloadCurrentListingAsync();
         if (previouslySelectedPath is not null)
             SelectItemByPath(previouslySelectedPath);
     }
 
+    private Task ReloadCurrentListingAsync() => Context?.Listing is { } listing
+        ? NavigateToListingAsync(listing, CurrentPath)
+        : Task.CompletedTask;
+
     private void GoBackToParentFolder()
     {
-        var childPath = CurrentPath.TrimEnd(Path.DirectorySeparatorChar);
-        var parent = Path.GetDirectoryName(childPath);
-        if (!string.IsNullOrEmpty(parent))
-            _ = NavigateBackToParentAsync(parent, childPath);
+        var current = SelectionModel?.SelectedItem?.BrowserItem;
+        var target = Context?.GetBackTarget(current);
+        if (target is not null)
+            _ = NavigateBackToParentAsync(target.Value, current?.Resource);
     }
 
     // Keeps the folder just left selected in the parent listing, so browsing down a tree of
     // subfolders one at a time is Right, Left, Down, Right, Left, Down, ... instead of Left
     // dropping the cursor back to the top of the list every time.
-    private async Task NavigateBackToParentAsync(string parent, string childPath)
+    private async Task NavigateBackToParentAsync(ResourceRef parent, ResourceRef? child)
     {
         await NavigateToAsync(parent);
-        SelectItemByPath(childPath);
+        if (child is not null)
+            SelectItemByPath(child.Value.Path);
     }
 
     private void SelectItemByPath(string path)
@@ -823,5 +1008,21 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             SetCurrentRow(count - 1);
     }
 
-    public ICommand? GetCommand(Operation operation) => _commands.GetValueOrDefault(operation);
+    public ICommand? GetCommand(Operation operation)
+    {
+        var current = SelectionModel?.SelectedItem?.BrowserItem;
+        var available = operation switch
+        {
+            Operation.Rename => current?.Capabilities.HasFlag(ResourceCapabilities.Rename) == true,
+            Operation.ExpandCurrentFolder => Context?.Location is not null,
+            Operation.ExpandSelectedFolders => _rows.Any(row =>
+                (row.IsMarked || ReferenceEquals(row.BrowserItem, current)) &&
+                row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren)),
+            Operation.GoBackToParentFolder => Context?.GetBackTarget(current) is not null,
+            Operation.OpenTerminal => _terminalLauncher is not null && GetLocalShellDirectory() is not null,
+            _ => true,
+        };
+
+        return available ? _commands.GetValueOrDefault(operation) : null;
+    }
 }

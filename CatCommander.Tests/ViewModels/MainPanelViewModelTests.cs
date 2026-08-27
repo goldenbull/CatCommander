@@ -102,4 +102,26 @@ public class MainPanelViewModelTests : IDisposable
         Assert.Equal(1, firstTab.SelectedFolderCount);
         Assert.Equal(0, secondTab.SelectedFolderCount);
     }
+
+    [Fact]
+    public async Task RestoreSession_RecreatesTabsAndActiveTab()
+    {
+        var childA = Path.Combine(_root, "a");
+        var childB = Path.Combine(_root, "b");
+        Directory.CreateDirectory(childA);
+        Directory.CreateDirectory(childB);
+        var panel = CreatePanel();
+
+        panel.RestoreSession(new PanelSessionState
+        {
+            Tabs = [childA, childB],
+            ActiveTab = 1,
+        });
+        await WaitUntilAsync(() => panel.Tabs.All(tab => !string.IsNullOrEmpty(tab.CurrentPath)));
+
+        Assert.Equal(2, panel.Tabs.Count);
+        Assert.Equal(childA, panel.Tabs[0].CurrentPath);
+        Assert.Equal(childB, panel.Tabs[1].CurrentPath);
+        Assert.Same(panel.Tabs[1], panel.ActiveTab);
+    }
 }

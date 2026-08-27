@@ -15,8 +15,8 @@ Keyboard shortcut reference: see [shortcuts.md](shortcuts.md).
 | `libcat.Tests` | xUnit, pure unit tests against `libcat` - no Avalonia dependency, fast. |
 | `CatCommander.Tests` | xUnit + `Avalonia.Headless` - real (simulated) window/keyboard-driven tests against `CatCommander`. |
 
-No solution file; build/test each project directly (`dotnet build CatCommander/CatCommander.csproj`,
-`dotnet test CatCommander.Tests/CatCommander.Tests.csproj`, etc.).
+A `CatCommander.slnx` solution is provided; projects can also be built/tested directly
+(`dotnet build CatCommander/CatCommander.csproj`, `dotnet test CatCommander.Tests/CatCommander.Tests.csproj`, etc.).
 
 ## Architecture
 
@@ -61,10 +61,10 @@ detail here rather than left to be re-discovered.
   and the dispatch target names.
 - **`ShortcutsSettings`** - `GetDefaults(KeyboardStyle)` returns the hardcoded default keymap
   (Ctrl on Windows/Linux, Cmd on macOS, with named exceptions - see `shortcuts.md`).
-  `RebuildNormalized` merges the user's `[bindings]` overrides (from `keymap.toml`) on top of the
+  `RebuildNormalized` merges the user's `[shortcuts.bindings]` overrides (from `config.toml`) on top of the
   defaults into a runtime `KeyGesture -> Operation` lookup map. `ShortcutsSettings.CurrentStyle` is
   derived from `OperatingSystem.IsMacOS()` - the OS choice is hardcoded, not a user-facing setting;
-  the only shortcut-related UI is "Restore Default Shortcuts" (clears `[bindings]`).
+  the only shortcut-related UI is "Restore Default Shortcuts" (clears `[shortcuts.bindings]`).
 - **`IShortcutCommandSource`** - `ICommand? GetCommand(Operation)`. Implemented by
   `MainWindowViewModel`, `MainPanelViewModel`, and `ItemBrowserViewModel`. Dispatch is a chain of
   responsibility: window-level commands first, then the active panel's own commands (things that
@@ -74,17 +74,25 @@ detail here rather than left to be re-discovered.
   up the `Operation` for the pressed gesture and dispatches through `IShortcutCommandSource`,
   unless `TextEditKeyExceptions` says the focused control (a `TextBox`) should keep the keystroke
   for normal text editing instead (e.g. plain `Left`/`Right`/`Ctrl+C` while typing a path).
-- **`GlobalShortcutGuard`** + **`MacReservedCombos`** - macOS-only. A small set of gestures never
-  reach `ShortcutRouter` at all because macOS/AppKit consumes them before delivery to any app's
-  normal input pipeline (see "AppKit eats some key combos" below). `GlobalShortcutGuard` uses
-  SharpHook's `SimpleGlobalHook` to intercept those *specific* gestures at the OS level, suppress
-  the event, and dispatch through the same `IShortcutCommandSource` chain. It only acts on gestures
-  in `MacReservedCombos` - everything else flows through `ShortcutRouter` normally.
+- **`GlobalShortcutGuard`** is the primary macOS input source for every configured shortcut while
+  CatCommander is foreground. It uses SharpHook's synchronous `SimpleGlobalHook`, checks the same
+  effective `ShortcutsSettings` map as the rest of the app, suppresses a matched event, and
+  dispatches through the same `IShortcutCommandSource` chain. This means user-defined gestures that
+  AppKit/the OS/another global-hotkey app would otherwise consume need no special capture setting.
+  `SharpHookGestureState` is the native-side boundary: it only tracks physical modifiers and maps
+  key codes to an Avalonia `KeyGesture`; it never reads windows, view models, or commands. Command
+  lookup, `CanExecute`, and execution are always posted to the Avalonia UI thread. This separation
+  is required because a managed exception escaping SharpHook's native callback aborts the process
+  on macOS.
+  `ShortcutInputContext` is a thread-safe focus snapshot that prevents the hook from stealing normal
+  editing keys from a focused `TextBox`. `ShortcutRouter` remains installed as a passive fallback:
+  handled hook events are suppressed before Avalonia receives them; if the hook cannot start,
+  ordinary non-OS-reserved shortcuts continue through Avalonia.
 - **`MainWindow.axaml`'s `NativeMenuItem`s never hardcode `Gesture=`.** macOS's native menu bar
   keyEquivalents are a *fourth* input path - AppKit consumes them before Avalonia's input pipeline
   ever sees the keystroke, bypassing `ShortcutRouter` (and its logging) entirely. A hardcoded
   `Gesture="F2"` string would be a second, independent source of truth for that key that a user's
-  `keymap.toml` override could never reach. `MainWindow.axaml.cs`'s `ApplyMenuGestures` sets every
+  `config.toml` override could never reach. `MainWindow.axaml.cs`'s `ApplyMenuGestures` sets every
   item's `Gesture` from `ShortcutsSettings.GetPrimaryGesture(Operation)` instead (re-applied on
   `MainWindowViewModel.ShortcutsChanged`, raised by "Restore Default Shortcuts") - one keymap, one
   source, no matter which of the four paths a keystroke actually arrives through.
@@ -150,6 +158,56 @@ this code is touched:
 - A destination-name collision is overwritten, not skipped or prompted - jobs run unattended on the
   queue, where there's no one to prompt.
 
+### Providers, listings, and capabilities
+
+Storage and presentation are separate concepts. `IFileSystemProvider` owns a resource namespace
+(local disk today; SFTP/archive providers can be added), while `IListingSource` describes what one
+tab projects into its grid:
+
+- `DirectoryListingSource` lists one real provider container and may expose it as a writable target.
+- `SearchResultListingSource` and `ExpandedListingSource` are read-only projections. Every row keeps
+  its own `ResourceRef` (provider + provider-local path) and immediate container, so one result list
+  may safely mix providers.
+
+`BrowserContext` holds the active listing and its navigation policy. Left in a directory listing
+opens that listing's parent; Left in search/branch results opens the current row's own container.
+Resource and container capability flags, rather than provider type tests, decide whether Rename,
+Delete, Create Directory, Expand, Copy, or Move is valid. `BrowserCommandPolicy` centralizes those
+decisions.
+
+Copy/Move run through `ResourceTransferService`. Same-provider transfers use the provider's native
+operation; cross-provider copies stream from the source provider into an
+`IWritableResourceProvider`. A cross-provider Move is Copy followed by Delete and is therefore only
+available when every source item is deletable. Archive providers can expose readable/enumerable
+items without implementing the writable destination contract.
+
+`ExpandCurrentFolder` and `ExpandSelectedFolders` create a Total Commander-style branch view using
+`ExpandedListingSource`. The projection is never a Copy/Move destination, but its rows remain valid
+operation sources according to their original provider capabilities.
+
+Providers may additionally implement `ILocalShellContextProvider`. Cmd/Ctrl+G is exposed only for
+such a context: local filesystem tabs open a terminal in the current directory, while a local
+archive provider can map its virtual location to the archive file's containing directory. The
+terminal process is launched by `ITerminalLauncher`; on Windows `[terminal].windows_shell` selects
+`cmd` (default) or `powershell` without leaking platform process logic into the browser ViewModel.
+
+### Configuration and session restoration
+
+`ConfigManager` owns one per-user `config.toml`; shortcut overrides live under
+`[shortcuts.bindings]` and terminal preferences under `[terminal]`. An existing `Config/keymap.toml`
+is imported the first time the unified file is created. `session.toml` is separate runtime state:
+on clean application exit it records both panels' tab paths, active tab indices, and active panel,
+then restores them at the next launch. Projected search/expanded tabs fall back to their current
+item's real container because projections are not independently addressable provider locations.
+
+### Platform-specific behavior
+
+`libcat/Platform/PlatformInfo` is the single host-OS classification used across the application.
+Default keyboard style, SharpHook availability, terminal launching, quick-access roots, foreground
+application checks, and native icon selection consume `PlatformInfo`/`PlatformKind`; individual
+features must not introduce their own OS enums or repeat host detection. Services receive the same
+DI singleton, while low-level static libcat helpers use the immutable `PlatformInfo.Current` value.
+
 ### Theming
 
 `CatCommander/Styles/ClassicTheme.axaml`, loaded after `FluentTheme` in `App.axaml`, repaints the
@@ -195,8 +253,8 @@ Concrete things that cost real debugging time, kept here so they don't get re-di
    single-window app with no native tab group - macOS still consumes the Control modifier and
    passes through a bare `Tab` keystroke, which looks exactly like a plain Tab press in logs. If a
    real macOS user reports a `Ctrl+`/`Cmd+`-modified shortcut "doing the unmodified version
-   instead," suspect this before anything else. Confirmed reservations go in `MacReservedCombos`
-   and get patched via `GlobalShortcutGuard`.
+   instead," suspect this before anything else. The always-on `GlobalShortcutGuard` handles both
+   known reservations and user-defined bindings without maintaining a special-case list.
 3. **Avalonia's own Tab-key focus navigation ignores `e.Handled`.** It's an accessibility
    guarantee, not something app code can suppress by marking the event handled in a Tunnel-phase
    handler. Any focus correction triggered by a Tab-bound shortcut must be deferred to run *after*
@@ -245,9 +303,8 @@ Concrete things that cost real debugging time, kept here so they don't get re-di
    log line (see "Logging" below) against `ShortcutRouter`'s: `Ctrl+.`/`Alt+.` produced *both*
    lines, `Cmd+.` only ever produced `GlobalShortcutGuard`'s - proof the raw keystroke reaches a
    system-wide hook that sits strictly below Avalonia's own input pipeline, but never reaches
-   Avalonia itself. Fixed the same way as `Ctrl+Tab`: added to `MacReservedCombos`, letting
-   `GlobalShortcutGuard` suppress + dispatch it directly instead of relying on Avalonia to ever see
-   it. When a `Cmd+`-modified *punctuation* key (not a letter) silently does nothing, suspect this
+   Avalonia itself. The primary SharpHook input path suppresses + dispatches it directly instead of
+   relying on Avalonia to ever see it. When a `Cmd+`-modified *punctuation* key (not a letter) silently does nothing, suspect this
    specific AppKit convention before chasing an IME or a global hotkey tool.
 
 ## Logging
@@ -258,15 +315,9 @@ the equivalent on other platforms) at Debug level. `ShortcutRouter` and `GlobalS
 log every dispatched shortcut - the first thing to check when a shortcut "does nothing" is whether
 it's being dispatched at all.
 
-Both also log *unmatched* modified gestures, not just successful dispatches - `ShortcutRouter` for
-every `KeyDown` with a modifier held (`"ShortcutRouter saw key=... modifiers=... -> {Operation or
-Nop}"`), `GlobalShortcutGuard` for every raw `SharpHook` `KeyCode` it sees under the same condition.
-This pair is what actually diagnosed lesson 9 below: comparing which of the two logged a given
-keystroke (both, only the SharpHook one, or neither) pinpoints exactly which layer swallowed it -
-Avalonia's own input pipeline, something below that but above the OS-level `SharpHook` tap, or
-before even that. For this whole class of "a shortcut does literally nothing" bug, reproducing it
-live and reading these two logs side by side is far more direct than trying to reproduce the
-interception itself in a headless test - the interception is almost never in this app's own code.
+For input failures, first distinguish a successfully dispatched SharpHook event from the Avalonia
+fallback. OS-level interception itself is outside the headless test pipeline and still requires a
+real desktop smoke test.
 
 ## Build / run / test
 

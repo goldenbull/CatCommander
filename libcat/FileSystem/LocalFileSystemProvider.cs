@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using CatCommander.Models;
+using CatCommander.Resources;
 
 namespace CatCommander.FileSystem;
 
@@ -8,8 +9,17 @@ namespace CatCommander.FileSystem;
 /// interface stays consistent with providers that have genuine network latency (SFTP, etc.) -
 /// callers on the UI thread never block regardless of which provider they're talking to.
 /// </summary>
-public class LocalFileSystemProvider : IFileSystemProvider
+public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourceProvider, ILocalShellContextProvider
 {
+    public string? GetLocalShellDirectory(ResourceRef location)
+    {
+        if (!ReferenceEquals(location.Provider, this))
+            return null;
+        if (Directory.Exists(location.Path))
+            return location.Path;
+        return File.Exists(location.Path) ? Path.GetDirectoryName(location.Path) : null;
+    }
+
     public Task<IReadOnlyList<IFileSystemItem>> ListChildrenAsync(string path, CancellationToken ct = default)
     {
         return Task.Run(IReadOnlyList<IFileSystemItem> () =>
@@ -73,6 +83,15 @@ public class LocalFileSystemProvider : IFileSystemProvider
     {
         return Task.Run(Stream () => File.OpenRead(path), ct);
     }
+
+    public async Task<ResourceRef> CreateDirectoryResourceAsync(ResourceRef parent, string name, CancellationToken ct = default)
+    {
+        var path = await CreateDirectoryAsync(parent.Path, name, ct);
+        return new ResourceRef(this, path);
+    }
+
+    public Task<Stream> OpenWriteAsync(ResourceRef parent, string name, CancellationToken ct = default) =>
+        Task.Run(Stream () => File.Create(Path.Combine(parent.Path, name)), ct);
 
     // Cmd/Ctrl+. (ItemBrowserViewModel.ToggleHiddenFiles) needs "is this hidden" to mean the same
     // thing on every platform without the caller branching on OS: a leading '.' (the only signal

@@ -8,10 +8,11 @@ style" vs. "macOS style"; the app simply looks at which OS it's running on
 (`ShortcutsSettings.CurrentStyle`) and uses the matching table below. Windows and Linux share the
 same defaults.
 
-You can override any binding by adding it to `Config/keymap.toml` under `[bindings]`, e.g.:
+You can override any binding in the per-user `CatCommander/config.toml` file under
+`[shortcuts.bindings]`, e.g.:
 
 ```toml
-[bindings]
+[shortcuts.bindings]
 Copy = "Ctrl+Shift+C"
 ```
 
@@ -19,8 +20,8 @@ Multiple alternative gestures for the same operation are separated by `;` (see `
 an example). A user override *replaces* the default for that operation rather than adding to it.
 
 To wipe out all of your customizations and go back to the table below, use
-**Settings > Restore Default Shortcuts** in the app menu - this clears `[bindings]` in
-`keymap.toml` entirely.
+**Settings > Restore Default Shortcuts** in the app menu - this clears `[shortcuts.bindings]` in
+`config.toml` entirely.
 
 | Operation | Windows / Linux | macOS |
 |---|---|---|
@@ -42,9 +43,11 @@ To wipe out all of your customizations and go back to the table below, use
 | Switch tab in same panel | `Ctrl+Tab` | `Ctrl+Tab` |
 | Switch panel | `Tab` | `Tab` |
 | Close tab | `Ctrl+W` | `Cmd+W` |
-| Open current folder in opposite panel | `Ctrl+Left`, `Ctrl+Right` | `Cmd+Left`, `Cmd+Right` |
+| Open current folder in left panel | `Ctrl+Left` | `Cmd+Left` |
+| Open current folder in right panel | `Ctrl+Right` | `Cmd+Right` |
 | Find | `Alt+F7` | `Alt+F7` |
 | Batch rename | `Ctrl+M` | `Cmd+M` |
+| Open terminal in local context | `Ctrl+G` | `Cmd+G` |
 
 `Switch tab in same panel` stays `Ctrl+Tab` on macOS rather than becoming `Cmd+Tab`, because
 `Cmd+Tab` is macOS's own system-wide app switcher - a true OS-level reservation, not just an app
@@ -60,11 +63,10 @@ pipeline, the same way it does for the Mission Control combos below.
 it was the first tab). If it's the panel's only tab, closing it doesn't remove it - a panel always
 keeps at least one tab, so the tab is reset to the Home folder in place instead.
 
-`Open current folder in opposite panel` opens the *selected* folder (not the directory the active
-tab is currently browsing) in a new tab in the *other* panel - exactly `Open selected folder in new
-tab`'s own logic, aimed across panels instead of within one. Both `Left` and `Right` trigger the
-same action, since "opposite panel" already means whichever one isn't active; there's no direction
-left for the two keys to disambiguate.
+The cross-panel operations are directional. Right only works while the left panel is active and
+opens the selected folder as a new right-panel tab; Left only works while the right panel is active
+and opens it as a new left-panel tab. Pressing toward the already-active panel does nothing. The
+selected folder is used, not the directory the active tab is currently browsing.
 
 `Reverse selection` flips the marked state of every currently *visible* row (see Multi-selection
 below) - a row hidden by the quick filter is left alone, since marking it would violate "marked is
@@ -73,6 +75,23 @@ always a subset of visible".
 This table is generated from `ShortcutsSettings.GetDefaults` in
 `CatCommander/Config/ShortcutsSettings.cs` - if you change the defaults there, update this table
 to match.
+
+On macOS, configured shortcuts are captured through SharpHook while CatCommander is foreground. This applies
+to defaults and user overrides alike, so a custom gesture swallowed by macOS/AppKit or registered as
+a global shortcut by another application does not need a separate "capture mode" setting. A matched
+gesture is suppressed synchronously and command availability is then resolved on the UI thread;
+text-editing gestures are left to a focused text box. Avalonia's window shortcut router remains the fallback if the
+low-level hook is unavailable.
+
+`Expand current folder` creates a recursive branch-result listing rooted at the directory currently
+being browsed. `Expand selected folders` uses all marked folders, falling back to the cursor folder
+when none are marked. Branch results keep each item's original provider/container, are valid Copy
+sources, and are not writable Copy/Move destinations. Left opens the current result's container.
+
+`Open terminal in local context` is available only when the active provider exposes a local shell
+directory. A local directory opens there; a local archive provider should expose the directory
+containing the archive. On Windows, `[terminal].windows_shell` in `config.toml` selects `"cmd"`
+(default) or `"powershell"`.
 
 ## Multi-selection
 

@@ -7,11 +7,11 @@ namespace CatCommander.View;
 
 public partial class FileOperationConfirmWindow : Window
 {
-    public FileOperationConfirmWindow(FileOperationConfirmViewModel viewModel, ShortcutsSettings shortcuts)
+    public FileOperationConfirmWindow(FileOperationConfirmViewModel viewModel, ShortcutsSettings shortcuts, ShortcutInputContext? inputContext = null, ShortcutInputState? inputState = null)
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
 
         // Close(object?) is what feeds a value back out through the caller's
         // ShowDialog<FileOperationMode?>(owner) await - see MainWindowViewModel.StartFileOperation.

@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CatCommander.Config;
 using CatCommander.QuickAccess;
+using CatCommander.Resources;
 using CatCommander.Shortcuts;
 using Metalama.Patterns.Observability;
 using ReactiveUI;
@@ -93,14 +94,14 @@ public partial class MainPanelViewModel : IShortcutCommandSource
     // itself has no way to reach (it doesn't know about the Tabs collection it lives in).
     private void OpenSelectedFolderInNewTab()
     {
-        var path = ActiveTab?.GetSelectedEnterablePath();
-        if (path is not null)
-            OpenNewTab(path);
+        var resource = ActiveTab?.GetSelectedEnterableResource();
+        if (resource is not null)
+            OpenNewTab(resource.Value);
     }
 
     /// <summary>
     /// Opens path in a brand new tab, activating it. Public (unlike the Operations above) because
-    /// MainWindowViewModel's OpenCurrentFolderInOppositePanel calls it across panels - it already
+    /// MainWindowViewModel's directional OpenCurrentFolderInPanel calls it across panels - it already
     /// holds direct references to both, the same access OpenSelectedFolderInNewTab doesn't need
     /// since it only ever targets its own panel.
     /// </summary>
@@ -110,6 +111,48 @@ public partial class MainPanelViewModel : IShortcutCommandSource
         Tabs.Add(tab);
         SetActiveTab(tab);
         _ = tab.NavigateToAsync(path);
+    }
+
+    public void OpenNewTab(ResourceRef resource)
+    {
+        var tab = _itemBrowserFactory();
+        Tabs.Add(tab);
+        SetActiveTab(tab);
+        _ = tab.NavigateToAsync(resource);
+    }
+
+    public PanelSessionState CaptureSession()
+    {
+        var paths = Tabs.Select(tab => tab.SessionPath)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Cast<string>()
+            .ToList();
+        var activePath = ActiveTab?.SessionPath;
+        return new PanelSessionState
+        {
+            Tabs = paths,
+            ActiveTab = activePath is null ? 0 : Math.Max(0, paths.IndexOf(activePath)),
+        };
+    }
+
+    public void RestoreSession(PanelSessionState state)
+    {
+        var paths = state.Tabs.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+        if (paths.Count == 0)
+            return;
+
+        // Reuse the constructor-created tab. Its startup Home navigation is cancelled by the
+        // restored navigation through ItemBrowserViewModel's generation/CTS mechanism.
+        var first = Tabs[0];
+        _ = first.NavigateToAsync(paths[0]);
+        for (var i = 1; i < paths.Count; i++)
+        {
+            var tab = _itemBrowserFactory();
+            Tabs.Add(tab);
+            _ = tab.NavigateToAsync(paths[i]);
+        }
+
+        SetActiveTab(Tabs[Math.Clamp(state.ActiveTab, 0, Tabs.Count - 1)]);
     }
 
     // A panel always has at least one tab (see the constructor) - closing the only one would leave

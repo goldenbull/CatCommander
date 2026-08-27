@@ -1,9 +1,9 @@
 using System;
-using System.Collections.Generic;
 using Avalonia.Input;
 using Avalonia.Threading;
 using CatCommander.Config;
 using CatCommander.Utils;
+using CatCommander.Platform;
 using NLog;
 using SharpHook;
 using SharpHook.Data;
@@ -11,18 +11,17 @@ using SharpHook.Data;
 namespace CatCommander.Shortcuts;
 
 /// <summary>
-/// SharpHook-based patch path for gestures in MacReservedCombos - macOS grabs these at the OS
-/// level for its own global shortcuts (Mission Control, etc.) before they ever reach any
-/// application, including a focused CatCommander window, so Avalonia's own KeyDownEvent
-/// (ShortcutRouter) never sees them. SimpleGlobalHook is the only SharpHook hook type that
+/// Primary input path for every configured shortcut. This also covers gestures macOS or another
+/// application consumes before Avalonia's KeyDown pipeline sees them. SimpleGlobalHook is the only
+/// SharpHook hook type that
 /// supports synchronously suppressing an event (KeyboardHookEventArgs.SuppressEvent, set inside
 /// the handler) - EventLoopGlobalHook/TaskPoolGlobalHook run handlers on another thread, too late
 /// for suppression to take effect.
 ///
-/// This is *not* an app-wide replacement for ShortcutRouter: only gestures in MacReservedCombos
-/// are acted on here; everything else is left completely alone (not suppressed, not dispatched)
-/// so it flows through the normal path exactly as if this guard didn't exist. The two paths are
-/// mutually exclusive per gesture, not competing - see the design plan's flow diagram.
+/// Unbound gestures and gestures owned by a focused text editor are never suppressed. A bound
+/// gesture is suppressed synchronously, then availability and execution are resolved on the UI
+/// thread. ShortcutRouter remains a passive startup/permission-failure fallback for gestures that
+/// still reach Avalonia.
 /// </summary>
 public sealed class GlobalShortcutGuard : IDisposable
 {
@@ -31,7 +30,9 @@ public sealed class GlobalShortcutGuard : IDisposable
     private readonly SimpleGlobalHook _hook;
     private readonly ShortcutsSettings _settings;
     private readonly Func<IShortcutCommandSource?> _activeCommandSourceProvider;
-    private readonly HashSet<KeyCode> _pressedModifiers = new();
+    private readonly ShortcutInputContext _inputContext;
+    private readonly PlatformInfo _platform;
+    private readonly SharpHookGestureState _gestureState = new();
 
     /// <param name="settings">Same ShortcutsSettings instance ShortcutRouter uses - one source of truth.</param>
     /// <param name="activeCommandSourceProvider">
@@ -39,35 +40,45 @@ public sealed class GlobalShortcutGuard : IDisposable
     /// window's DataContext. Supplied by the composition root, which is the only place that knows
     /// about the live Window set.
     /// </param>
-    public GlobalShortcutGuard(ShortcutsSettings settings, Func<IShortcutCommandSource?> activeCommandSourceProvider)
+    public GlobalShortcutGuard(
+        ShortcutsSettings settings,
+        Func<IShortcutCommandSource?> activeCommandSourceProvider,
+        ShortcutInputContext inputContext,
+        PlatformInfo? platform = null)
     {
         _settings = settings;
         _activeCommandSourceProvider = activeCommandSourceProvider;
+        _inputContext = inputContext;
+        _platform = platform ?? PlatformInfo.Current;
         _hook = new SimpleGlobalHook();
         _hook.KeyPressed += OnKeyPressed;
         _hook.KeyReleased += OnKeyReleased;
     }
 
     /// <summary>
-    /// Starts the global hook. No-op on non-macOS platforms - the reserved-combo problem this
-    /// patches is macOS-specific (Windows/Linux don't need it; see MacReservedCombos).
+    /// Starts the global hook when foreground-safe capture is available.
     /// </summary>
-    public void Start()
+    public bool Start()
     {
-        if (!OperatingSystem.IsMacOS())
+        // The foreground-process guard is currently implemented only for macOS. Starting a global
+        // suppressing hook on another platform without an equivalent guard could steal configured
+        // gestures while another application is active; use Avalonia's fallback there for now.
+        if (!_platform.IsMacOS)
         {
-            log.Info("GlobalShortcutGuard not started: only needed on macOS");
-            return;
+            log.Info("GlobalShortcutGuard not started: foreground-safe low-level capture is currently macOS-only");
+            return false;
         }
 
         try
         {
             _hook.RunAsync();
-            log.Info("GlobalShortcutGuard started");
+            log.Info("GlobalShortcutGuard started as the primary shortcut input source");
+            return true;
         }
         catch (Exception ex)
         {
-            log.Error(ex, "Failed to start GlobalShortcutGuard - reserved macOS combos won't be patched");
+            log.Error(ex, "Failed to start GlobalShortcutGuard - falling back to Avalonia shortcut input");
+            return false;
         }
     }
 
@@ -75,21 +86,23 @@ public sealed class GlobalShortcutGuard : IDisposable
 
     private void OnKeyPressed(object? sender, KeyboardHookEventArgs e)
     {
-        var code = e.Data.KeyCode;
-
-        if (IsModifier(code))
+        // Never let a managed exception cross SharpHook's native event-tap callback boundary.
+        // macOS/.NET turns such an exception into process-wide SIGABRT rather than routing it to
+        // Avalonia's normal unhandled-exception machinery.
+        try
         {
-            _pressedModifiers.Add(code);
-            return;
+            HandleKeyPressed(e);
         }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Unhandled error while processing SharpHook key press {0}", e.Data.KeyCode);
+        }
+    }
 
-        if (!TryToAvaloniaKey(code, out var key))
+    private void HandleKeyPressed(KeyboardHookEventArgs e)
+    {
+        if (!_gestureState.TryPress(e.Data.KeyCode, out var gesture))
             return;
-
-        var gesture = new KeyGesture(key, CurrentModifiers());
-        if (!MacReservedCombos.Contains(gesture))
-            return;
-
         var operation = _settings.GetOperation(gesture);
         if (operation == Operation.Nop)
             return;
@@ -100,65 +113,51 @@ public sealed class GlobalShortcutGuard : IDisposable
         if (!ForegroundAppChecker.IsFrontmostApplication())
             return;
 
+        if (TextEditKeyExceptions.ShouldYieldToTextEditing(gesture, _inputContext.IsTextEditing))
+            return;
+
         // Must be set synchronously inside this handler - see the class doc on why SimpleGlobalHook.
         e.SuppressEvent = true;
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            var command = _activeCommandSourceProvider()?.GetCommand(operation);
-            if (command?.CanExecute(null) == true)
-                command.Execute(null);
-        });
+        // Window lookup, command routing, and CanExecute all touch Avalonia/ViewModel state and must
+        // happen on the UI thread. Doing any of them synchronously in this native callback caused
+        // the Cmd+. crash recorded in macOS DiagnosticReports (SIGABRT on dispatch_key_press).
+        Dispatcher.UIThread.Post(() => DispatchOnUiThread(operation));
 
-        log.Debug("GlobalShortcutGuard suppressed + dispatched {0} for {1}", operation, gesture);
+        log.Debug("GlobalShortcutGuard suppressed + queued {0} for {1}", operation, gesture);
     }
 
     private void OnKeyReleased(object? sender, KeyboardHookEventArgs e)
     {
-        if (IsModifier(e.Data.KeyCode))
-            _pressedModifiers.Remove(e.Data.KeyCode);
+        try
+        {
+            _gestureState.Release(e.Data.KeyCode);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Unhandled error while processing SharpHook key release {0}", e.Data.KeyCode);
+        }
     }
 
-    private KeyModifiers CurrentModifiers()
+    private void DispatchOnUiThread(Operation operation)
     {
-        var modifiers = KeyModifiers.None;
-        foreach (var code in _pressedModifiers)
+        try
         {
-            modifiers |= code switch
+            var command = _activeCommandSourceProvider()?.GetCommand(operation);
+            if (command?.CanExecute(null) == true)
             {
-                KeyCode.VcLeftControl or KeyCode.VcRightControl => KeyModifiers.Control,
-                KeyCode.VcLeftAlt or KeyCode.VcRightAlt => KeyModifiers.Alt,
-                KeyCode.VcLeftShift or KeyCode.VcRightShift => KeyModifiers.Shift,
-                KeyCode.VcLeftMeta or KeyCode.VcRightMeta => KeyModifiers.Meta,
-                _ => KeyModifiers.None,
-            };
+                command.Execute(null);
+                log.Debug("GlobalShortcutGuard dispatched {0} on UI thread", operation);
+            }
+            else
+            {
+                log.Debug("GlobalShortcutGuard ignored unavailable operation {0} on UI thread", operation);
+            }
         }
-
-        return modifiers;
-    }
-
-    private static bool IsModifier(KeyCode code) => code is
-        KeyCode.VcLeftControl or KeyCode.VcRightControl or
-        KeyCode.VcLeftAlt or KeyCode.VcRightAlt or
-        KeyCode.VcLeftShift or KeyCode.VcRightShift or
-        KeyCode.VcLeftMeta or KeyCode.VcRightMeta;
-
-    /// <summary>
-    /// Deliberately small - only the keys MacReservedCombos actually references. Extend this
-    /// alongside MacReservedCombos, not ahead of it.
-    /// </summary>
-    private static bool TryToAvaloniaKey(KeyCode code, out Key key)
-    {
-        switch (code)
+        catch (Exception ex)
         {
-            case KeyCode.VcLeft: key = Key.Left; return true;
-            case KeyCode.VcRight: key = Key.Right; return true;
-            case KeyCode.VcUp: key = Key.Up; return true;
-            case KeyCode.VcDown: key = Key.Down; return true;
-            case KeyCode.VcF3: key = Key.F3; return true;
-            case KeyCode.VcTab: key = Key.Tab; return true;
-            case KeyCode.VcPeriod: key = Key.OemPeriod; return true;
-            default: key = Key.None; return false;
+            log.Error(ex, "Failed to dispatch SharpHook operation {0} on UI thread", operation);
         }
     }
+
 }

@@ -1,3 +1,5 @@
+using CatCommander.Platform;
+
 namespace CatCommander.QuickAccess;
 
 /// <summary>
@@ -11,7 +13,7 @@ public static class QuickAccessService
     {
         var entries = new List<QuickAccessEntry>();
 
-        if (OperatingSystem.IsWindows())
+        if (PlatformInfo.Current.IsWindows)
         {
             AddWindowsDrives(entries);
         }
@@ -19,9 +21,9 @@ public static class QuickAccessService
         {
             AddCommonFolders(entries);
 
-            if (OperatingSystem.IsMacOS())
+            if (PlatformInfo.Current.IsMacOS)
                 AddMacOSVolumes(entries);
-            else if (OperatingSystem.IsLinux())
+            else if (PlatformInfo.Current.IsLinux)
                 AddLinuxMounts(entries);
         }
 

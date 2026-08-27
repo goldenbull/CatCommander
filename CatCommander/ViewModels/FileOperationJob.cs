@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using CatCommander.Browsing;
 using CatCommander.FileSystem;
 using CatCommander.Models;
+using CatCommander.Resources;
 using Metalama.Patterns.Observability;
 
 namespace CatCommander.ViewModels;
@@ -41,11 +43,11 @@ public enum FileOperationJobStatus
 [Observable]
 public partial class FileOperationJob
 {
-    private readonly IFileSystemProvider _provider;
+    private readonly ResourceTransferService _transferService;
 
     public FileOperationKind Kind { get; }
-    public IReadOnlyList<IFileSystemItem> Items { get; }
-    public string? Destination { get; }
+    public IReadOnlyList<BrowserItem> Items { get; }
+    public ContainerRef? Destination { get; }
 
     // Items/Kind/Destination are fixed for the job's whole lifetime (set once here, in the
     // constructor, never after) - this computed property's value can't go stale, so it doesn't
@@ -64,7 +66,7 @@ public partial class FileOperationJob
         var itemWord = Items.Count == 1 ? "item" : "items";
         return Kind == FileOperationKind.Delete
             ? $"Delete {Items.Count} {itemWord}"
-            : $"{Kind} {Items.Count} {itemWord} to {Destination}";
+            : $"{Kind} {Items.Count} {itemWord} to {Destination?.Resource.Path}";
     }
 
     public FileOperationJobStatus Status { get; set; } = FileOperationJobStatus.Queued;
@@ -84,12 +86,38 @@ public partial class FileOperationJob
     /// </summary>
     public event Action? Finished;
 
-    public FileOperationJob(FileOperationKind kind, IReadOnlyList<IFileSystemItem> items, string? destination, IFileSystemProvider provider)
+    public FileOperationJob(
+        FileOperationKind kind,
+        IReadOnlyList<BrowserItem> items,
+        ContainerRef? destination,
+        ResourceTransferService transferService)
     {
         Kind = kind;
         Items = items;
         Destination = destination;
-        _provider = provider;
+        _transferService = transferService;
+    }
+
+    // Compatibility constructor for callers/tests being migrated from the original single-provider
+    // job model. New code should pass BrowserItems so heterogeneous projected results keep their
+    // provider provenance.
+    public FileOperationJob(
+        FileOperationKind kind,
+        IReadOnlyList<IFileSystemItem> items,
+        string? destination,
+        IFileSystemProvider provider)
+        : this(
+            kind,
+            items.Select(item => new BrowserItem(
+                item,
+                new ResourceRef(provider, item.FullPath),
+                null,
+                provider.ResourceCapabilities)).ToList(),
+            destination is null
+                ? null
+                : new ContainerRef(new ResourceRef(provider, destination), provider.ContainerCapabilities),
+            new ResourceTransferService())
+    {
     }
 
     /// <summary>
@@ -111,7 +139,7 @@ public partial class FileOperationJob
             if (_cts.IsCancellationRequested)
                 break;
 
-            var itemName = item.Name;
+            var itemName = item.Item.Name;
             Dispatcher.UIThread.Post(() => CurrentItemName = itemName);
 
             var progress = new Progress<string>(path => Dispatcher.UIThread.Post(() => CurrentDetail = path));
@@ -119,11 +147,11 @@ public partial class FileOperationJob
             try
             {
                 if (Kind == FileOperationKind.Copy)
-                    await _provider.CopyAsync(item.FullPath, Destination!, progress, _cts.Token);
+                    await _transferService.CopyAsync(item, Destination!.Value, progress, _cts.Token);
                 else if (Kind == FileOperationKind.Move)
-                    await _provider.MoveAsync(item.FullPath, Destination!, progress, _cts.Token);
+                    await _transferService.MoveAsync(item, Destination!.Value, progress, _cts.Token);
                 else
-                    await _provider.DeleteAsync(item.FullPath, _cts.Token);
+                    await _transferService.DeleteAsync(item, _cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -131,7 +159,7 @@ public partial class FileOperationJob
             }
             catch (Exception ex)
             {
-                errors.Add($"{item.Name}: {ex.Message}");
+                errors.Add($"{item.Item.Name}: {ex.Message}");
             }
 
             completed++;

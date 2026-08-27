@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Avalonia.Input;
 using NLog;
+using CatCommander.Platform;
 
 namespace CatCommander.Config;
 
@@ -40,9 +41,11 @@ public enum Operation
     SwitchTabInSamePanel,
     SwitchPanel,
     CloseTab,
-    OpenCurrentFolderInOppositePanel,
+    OpenCurrentFolderInLeftPanel,
+    OpenCurrentFolderInRightPanel,
     OpenFind,
     OpenBatchRename,
+    OpenTerminal,
 }
 
 /// <summary>
@@ -57,10 +60,14 @@ public class ShortcutsSettings
     /// straight from the OS it's running on, never stored or user-selectable. Keeps "which default
     /// keymap applies" a hardcoded fact instead of a setting that can drift from the real platform.
     /// </summary>
-    public static KeyboardStyle CurrentStyle => OperatingSystem.IsMacOS() ? KeyboardStyle.MacOS : KeyboardStyle.Windows;
+    public static KeyboardStyle CurrentStyle => ForPlatform(PlatformInfo.Current);
+
+    public static KeyboardStyle ForPlatform(PlatformInfo platform) =>
+        platform.IsMacOS ? KeyboardStyle.MacOS : KeyboardStyle.Windows;
 
     /// <summary>
-    /// Forward map: Operation name -> key bindings in string format, as a [bindings] table in TOML.
+    /// Forward map: Operation name -> key bindings in string format, serialized as the nested
+    /// [shortcuts.bindings] table in config.toml.
     /// Keyed by string (Operation.ToString()), not the enum itself - Tomlyn 2.x only supports
     /// string-keyed dictionaries as TOML tables. Each value can contain multiple alternatives
     /// separated by semicolons (e.g. "F5;Ctrl+C").
@@ -96,7 +103,7 @@ public class ShortcutsSettings
     /// The Windows and macOS sets are identical except that Ctrl becomes Meta (Cmd) throughout -
     /// with one deliberate exception: SwitchTabInSamePanel stays Ctrl+Tab even in the macOS set,
     /// because Cmd+Tab is macOS's own system-wide app switcher (a true OS-level reservation, the
-    /// same class of problem GlobalShortcutGuard/MacReservedCombos exists for) and remapping it is
+    /// same class of problem GlobalShortcutGuard's low-level capture exists for) and remapping it is
     /// unreliable even with an accessibility-level hook. Every other Ctrl+ binding here only
     /// collides with app-level conventions (e.g. Cmd+M = minimize), which don't intercept before
     /// delivery, so CatCommander simply receives them normally.
@@ -125,9 +132,11 @@ public class ShortcutsSettings
             [Operation.SwitchTabInSamePanel] = "Ctrl+Tab",
             [Operation.SwitchPanel] = "Tab",
             [Operation.CloseTab] = $"{primaryModifier}+W",
-            [Operation.OpenCurrentFolderInOppositePanel] = $"{primaryModifier}+Left;{primaryModifier}+Right",
+            [Operation.OpenCurrentFolderInLeftPanel] = $"{primaryModifier}+Left",
+            [Operation.OpenCurrentFolderInRightPanel] = $"{primaryModifier}+Right",
             [Operation.OpenFind] = "Alt+F7",
             [Operation.OpenBatchRename] = $"{primaryModifier}+M",
+            [Operation.OpenTerminal] = $"{primaryModifier}+G",
         };
     }
 

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls.Selection;
+using CatCommander.Browsing;
 using CatCommander.Config;
 using CatCommander.FileSystem;
 using CatCommander.Services;
@@ -30,6 +31,46 @@ public class ItemBrowserViewModelTests : IDisposable
         var registry = new FileSystemProviderRegistry();
         registry.Register(new LocalFileSystemProviderFactory());
         return new ItemBrowserViewModel(registry, new IconCache());
+    }
+
+    [Fact]
+    public async Task ExpandCurrentFolder_BuildsReadOnlyBranchListing_WithOriginalContainers()
+    {
+        var nestedFile = Path.Combine(_child, "nested.txt");
+        File.WriteAllText(nestedFile, "content");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+
+        vm.GetCommand(Operation.ExpandCurrentFolder)!.Execute(null);
+        for (var i = 0; i < 100 && vm.Context?.Kind != ListingKind.ExpandedResults; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        Assert.Equal(ListingKind.ExpandedResults, vm.Context?.Kind);
+        Assert.Null(vm.WritableDestination);
+        var nested = Assert.Single(
+            vm.Source!.Items.Cast<FileItemRow>(),
+            row => row.Item.FullPath == nestedFile);
+        Assert.Equal(_child, nested.BrowserItem.Container?.Path);
+    }
+
+    [Fact]
+    public async Task LeftFromBranchListing_NavigatesToCurrentItemsContainer()
+    {
+        var nestedFile = Path.Combine(_child, "nested.txt");
+        File.WriteAllText(nestedFile, "content");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_child);
+        vm.GetCommand(Operation.ExpandCurrentFolder)!.Execute(null);
+
+        for (var i = 0; i < 100 && vm.Context?.Kind != ListingKind.ExpandedResults; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        vm.GetCommand(Operation.GoBackToParentFolder)!.Execute(null);
+        for (var i = 0; i < 100 && vm.Context?.Kind != ListingKind.Directory; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        Assert.Equal(_child, vm.CurrentPath);
+        Assert.Equal(ListingKind.Directory, vm.Context?.Kind);
     }
 
     [Fact]
@@ -85,6 +126,51 @@ public class ItemBrowserViewModelTests : IDisposable
         await vm.NavigateToAsync(_root); // revisiting should move it back to front, not duplicate it
 
         Assert.Equal(new[] { _root, _child }, vm.NavigationHistory);
+    }
+
+    [Fact]
+    public async Task ConcurrentNavigations_CommitOnlyLatestListingWithoutSelectionBatchFailure()
+    {
+        var other = Path.Combine(_root, "other");
+        Directory.CreateDirectory(other);
+        File.WriteAllText(Path.Combine(other, "latest.txt"), "latest");
+        var vm = CreateViewModel();
+
+        var navigations = Enumerable.Range(0, 40)
+            .Select(i => vm.NavigateToAsync(i == 39 ? other : _root))
+            .ToArray();
+        await Task.WhenAll(navigations);
+
+        Assert.Equal(other, vm.CurrentPath);
+        var selection = (TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!;
+        Assert.Equal(Path.Combine(other, "latest.txt"), selection.SelectedItem?.Item.FullPath);
+    }
+
+    [Fact]
+    public async Task OpenTerminal_IsAvailableForLocalDirectory_AndUsesCurrentDirectory()
+    {
+        var terminal = new RecordingTerminalLauncher();
+        var vm = new ItemBrowserViewModel(_registryForTest(), new IconCache(), terminal);
+        await vm.NavigateToAsync(_root);
+
+        var command = vm.GetCommand(Operation.OpenTerminal);
+        Assert.NotNull(command);
+        command.Execute(null);
+
+        Assert.Equal(_root, terminal.OpenedDirectory);
+    }
+
+    private FileSystemProviderRegistry _registryForTest()
+    {
+        var registry = new FileSystemProviderRegistry();
+        registry.Register(new LocalFileSystemProviderFactory());
+        return registry;
+    }
+
+    private sealed class RecordingTerminalLauncher : ITerminalLauncher
+    {
+        public string? OpenedDirectory { get; private set; }
+        public void Open(string directory) => OpenedDirectory = directory;
     }
 
     [Fact]
@@ -232,6 +318,25 @@ public class ItemBrowserViewModelTests : IDisposable
         vm.AppendFilterText("a.txt"); // filters out "child", leaving only "a.txt" visible
 
         Assert.Equal(0, vm.SelectedFolderCount); // "child" was unmarked when it became invisible
+    }
+
+    [Fact]
+    public async Task ClearFilter_KeepsCurrentMatchingItem()
+    {
+        var matchingPath = Path.Combine(_root, "match.txt");
+        File.WriteAllText(matchingPath, "match");
+        File.WriteAllText(Path.Combine(_root, "other.txt"), "other");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+
+        vm.AppendFilterText("match");
+        var filteredSelection = (TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!;
+        Assert.Equal(matchingPath, filteredSelection.SelectedItem?.Item.FullPath);
+
+        vm.ClearFilter();
+        var restoredSelection = (TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!;
+        Assert.Equal(string.Empty, vm.FilterText);
+        Assert.Equal(matchingPath, restoredSelection.SelectedItem?.Item.FullPath);
     }
 
     [Fact]

@@ -21,8 +21,17 @@ public static class ShortcutRouter
 {
     private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
-    public static void Install(TopLevel window, ShortcutsSettings settings)
+    public static void Install(
+        TopLevel window,
+        ShortcutsSettings settings,
+        ShortcutInputContext? inputContext = null,
+        ShortcutInputState? inputState = null)
     {
+        inputContext?.Track(window);
+
+        // Kept as a passive fallback: when SharpHook handles a configured gesture it suppresses
+        // the native event before Avalonia can see it; if the hook is unavailable, this same
+        // handler continues to provide every non-OS-reserved shortcut without rebuilding windows.
         window.AddHandler(
             InputElement.KeyDownEvent,
             (sender, e) => OnKeyDown(window, e, settings),

@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Diagnostics.CodeAnalysis;
+using CatCommander.Platform;
 
 namespace CatCommander.Utils;
 
@@ -28,6 +30,7 @@ public static class SystemIconProvider
     /// a tight verification loop. Callers get a correct, just larger-than-requested, image;
     /// Avalonia's Image control downscales fine for on-screen display.
     /// </param>
+    [UnconditionalSuppressMessage("Interoperability", "CA1416", Justification = "PlatformInfo gates each platform-only call.")]
     public static byte[]? GetIconBytes(string fullPath, bool isDirectory, int size = 32)
     {
         if (string.IsNullOrEmpty(fullPath))
@@ -35,11 +38,11 @@ public static class SystemIconProvider
 
         try
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            if (PlatformInfo.Current.IsMacOS)
                 return GetMacOSIconBytes(fullPath, size);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (PlatformInfo.Current.IsWindows)
                 return GetWindowsIconBytes(fullPath, isDirectory, size);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            if (PlatformInfo.Current.IsLinux)
                 return GetLinuxIconBytes(fullPath, isDirectory, size);
 
             return null;
