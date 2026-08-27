@@ -48,6 +48,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private readonly FileSystemProviderRegistry _providers;
     private readonly IconCache _iconCache;
     private readonly ITerminalLauncher? _terminalLauncher;
+    private readonly IArchivePasswordPrompt? _archivePasswordPrompt;
+    private readonly IArchivePasswordStore? _archivePasswords;
     private readonly Dictionary<Operation, ICommand> _commands;
 
     private IFileSystemProvider? _provider;
@@ -86,7 +88,11 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// <summary>A stable provider path suitable for restoring this tab on the next launch.</summary>
     [NotObservable]
     public string? SessionPath => Context?.Kind == ListingKind.Directory
-        ? Context.Location?.Path
+        ? Context.Location is { } location
+            ? location.Provider is IExternalPathProvider external
+                ? external.GetExternalPath(location.Path)
+                : location.Path
+            : null
         : SelectionModel?.SelectedItem?.BrowserItem.Container?.Path;
 
     public string CurrentPath { get; set; } = string.Empty;
@@ -199,11 +205,15 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     public ItemBrowserViewModel(
         FileSystemProviderRegistry providers,
         IconCache iconCache,
-        ITerminalLauncher? terminalLauncher = null)
+        ITerminalLauncher? terminalLauncher = null,
+        IArchivePasswordPrompt? archivePasswordPrompt = null,
+        IArchivePasswordStore? archivePasswords = null)
     {
         _providers = providers;
         _iconCache = iconCache;
         _terminalLauncher = terminalLauncher;
+        _archivePasswordPrompt = archivePasswordPrompt;
+        _archivePasswords = archivePasswords;
 
         ToggleViewModeCommand = ReactiveCommand.Create(ToggleViewMode);
         NavigateToHistoryEntryCommand = ReactiveCommand.Create<string>(path => _ = NavigateToAsync(path));
@@ -243,7 +253,11 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         NavigateCoreAsync(path, () => _providers.ResolveAsync(path));
 
     public Task NavigateToAsync(ResourceRef resource) =>
-        NavigateCoreAsync(resource.Path, () => Task.FromResult((resource.Provider, resource.Path)));
+        NavigateCoreAsync(
+            resource.Provider is IExternalPathProvider external
+                ? external.GetExternalPath(resource.Path)
+                : resource.Path,
+            () => Task.FromResult((resource.Provider, resource.Path)));
 
     private async Task NavigateCoreAsync(
         string displayPath,
@@ -306,7 +320,23 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         int generation,
         CancellationTokenSource navigationCts)
     {
-            var snapshot = await listing.LoadAsync(navigationCts.Token);
+            ListingSnapshot snapshot;
+            while (true)
+            {
+                try
+                {
+                    snapshot = await listing.LoadAsync(navigationCts.Token);
+                    break;
+                }
+                catch (ArchivePasswordRequiredException ex) when (
+                    _archivePasswordPrompt is not null && _archivePasswords is not null)
+                {
+                    var password = await _archivePasswordPrompt.RequestAsync(ex.ArchivePath);
+                    if (password is null)
+                        return;
+                    _archivePasswords.Set(ex.ArchivePath, password);
+                }
+            }
 
             lock (_navigationCommitGate)
             {
@@ -789,6 +819,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         var provider = row.BrowserItem.Resource.Provider;
         if (row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
             _ = NavigateToAsync(row.BrowserItem.Resource);
+        else if (_providers.TryResolveEnterable(row.Item.FullPath, out var container))
+            _ = NavigateToAsync(container);
         else
             _ = OpenExternallyAsync(row.BrowserItem.Resource);
     }
@@ -928,10 +960,10 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     public ResourceRef? GetSelectedEnterableResource()
     {
         var selected = SelectionModel?.SelectedItem;
-        return selected is not null &&
-               selected.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren)
-            ? selected.BrowserItem.Resource
-            : null;
+        if (selected is null) return null;
+        if (selected.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
+            return selected.BrowserItem.Resource;
+        return _providers.TryResolveEnterable(selected.Item.FullPath, out var container) ? container : null;
     }
 
     /// <summary>
@@ -964,17 +996,37 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         var current = SelectionModel?.SelectedItem?.BrowserItem;
         var target = Context?.GetBackTarget(current);
         if (target is not null)
-            _ = NavigateBackToParentAsync(target.Value, current?.Resource);
+            _ = NavigateBackToParentAsync(target.Value, Context?.GetBackSelection(current));
     }
 
     // Keeps the folder just left selected in the parent listing, so browsing down a tree of
     // subfolders one at a time is Right, Left, Down, Right, Left, Down, ... instead of Left
     // dropping the cursor back to the top of the list every time.
-    private async Task NavigateBackToParentAsync(ResourceRef parent, ResourceRef? child)
+    private async Task NavigateBackToParentAsync(ResourceRef parent, ResourceRef? selection)
     {
         await NavigateToAsync(parent);
-        if (child is not null)
-            SelectItemByPath(child.Value.Path);
+        if (selection is not null)
+            SelectItem(selection.Value);
+    }
+
+    private void SelectItem(ResourceRef resource)
+    {
+        var visibleIndex = 0;
+        foreach (var row in _rows)
+        {
+            if (!row.IsVisible)
+                continue;
+
+            var candidate = row.BrowserItem.Resource;
+            if (candidate.ProviderId == resource.ProviderId &&
+                string.Equals(candidate.Path, resource.Path, StringComparison.OrdinalIgnoreCase))
+            {
+                SetCurrentRow(visibleIndex);
+                return;
+            }
+
+            visibleIndex++;
+        }
     }
 
     private void SelectItemByPath(string path)

@@ -37,9 +37,11 @@ internal class Program
         // One shared registry/cache for the whole app - registry only ever needs one
         // LocalFileSystemProviderFactory (registered last, unconditional catch-all - see its own
         // doc comment); IconCache's whole point is caching across every ItemBrowserViewModel.
-        services.AddSingleton<FileSystemProviderRegistry>(_ =>
+        services.AddSingleton<IArchivePasswordStore, ArchivePasswordStore>();
+        services.AddSingleton<FileSystemProviderRegistry>(sp =>
         {
             var registry = new FileSystemProviderRegistry();
+            registry.Register(new ArchiveFileSystemProviderFactory(sp.GetRequiredService<IArchivePasswordStore>()));
             registry.Register(new LocalFileSystemProviderFactory());
             return registry;
         });
@@ -51,6 +53,7 @@ internal class Program
         services.AddSingleton<ResourceTransferService>();
         services.AddSingleton<BrowserCommandPolicy>();
         services.AddSingleton<ITerminalLauncher, TerminalLauncher>();
+        services.AddSingleton<IArchivePasswordPrompt, ArchivePasswordPrompt>();
         services.AddSingleton<ShortcutInputContext>();
         services.AddSingleton<ShortcutInputState>();
 

@@ -2,10 +2,15 @@ using CatCommander.Resources;
 
 namespace CatCommander.Browsing;
 
-public sealed class DirectoryNavigationPolicy(Func<ResourceRef, ResourceRef?> getParent) : INavigationPolicy
+public sealed class DirectoryNavigationPolicy(
+    Func<ResourceRef, ResourceRef?> getParent,
+    Func<ResourceRef, ResourceRef> getParentSelection) : INavigationPolicy
 {
     public ResourceRef? GetBackTarget(IListingSource source, BrowserItem? currentItem) =>
         source.Location is { } location ? getParent(location) : null;
+
+    public ResourceRef? GetBackSelection(IListingSource source, BrowserItem? currentItem) =>
+        source.Location is { } location ? getParentSelection(location) : null;
 }
 
 public sealed class ProjectedListingNavigationPolicy : INavigationPolicy
@@ -18,4 +23,7 @@ public sealed class ProjectedListingNavigationPolicy : INavigationPolicy
 
     public ResourceRef? GetBackTarget(IListingSource source, BrowserItem? currentItem) =>
         currentItem?.Container;
+
+    public ResourceRef? GetBackSelection(IListingSource source, BrowserItem? currentItem) =>
+        currentItem?.Resource;
 }

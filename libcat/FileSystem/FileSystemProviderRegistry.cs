@@ -1,3 +1,5 @@
+using CatCommander.Resources;
+
 namespace CatCommander.FileSystem;
 
 /// <summary>
@@ -22,9 +24,24 @@ public class FileSystemProviderRegistry
         foreach (var factory in _factories)
         {
             if (factory.CanHandle(path))
-                return Task.FromResult((factory.Create(path), path));
+                return Task.FromResult((factory.Create(path), factory.GetInitialPath(path)));
         }
 
         throw new InvalidOperationException($"No registered IFileSystemProviderFactory can handle '{path}'.");
+    }
+
+    public bool TryResolveEnterable(string path, out ResourceRef resource)
+    {
+        foreach (var factory in _factories)
+        {
+            if (factory.CanEnter(path))
+            {
+                resource = new ResourceRef(factory.Create(path), factory.GetInitialPath(path));
+                return true;
+            }
+        }
+
+        resource = default;
+        return false;
     }
 }

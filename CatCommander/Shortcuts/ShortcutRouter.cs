@@ -25,22 +25,30 @@ public static class ShortcutRouter
         TopLevel window,
         ShortcutsSettings settings,
         ShortcutInputContext? inputContext = null,
-        ShortcutInputState? inputState = null)
+        ShortcutInputState? inputState = null,
+        ShortcutScope scope = ShortcutScope.Operations)
     {
-        inputContext?.Track(window);
+        inputContext?.Track(window, scope);
 
         // Kept as a passive fallback: when SharpHook handles a configured gesture it suppresses
         // the native event before Avalonia can see it; if the hook is unavailable, this same
         // handler continues to provide every non-OS-reserved shortcut without rebuilding windows.
         window.AddHandler(
             InputElement.KeyDownEvent,
-            (sender, e) => OnKeyDown(window, e, settings),
+            (sender, e) => OnKeyDown(window, e, settings, scope),
             RoutingStrategies.Tunnel);
     }
 
-    private static void OnKeyDown(TopLevel window, KeyEventArgs e, ShortcutsSettings settings)
+    private static void OnKeyDown(
+        TopLevel window,
+        KeyEventArgs e,
+        ShortcutsSettings settings,
+        ShortcutScope scope)
     {
         var gesture = new KeyGesture(e.Key, e.KeyModifiers);
+        if (ShortcutRoutingPolicy.ShouldYieldToWindowConvention(gesture, scope))
+            return;
+
         var operation = settings.GetOperation(gesture);
         if (operation == Operation.Nop)
             return;

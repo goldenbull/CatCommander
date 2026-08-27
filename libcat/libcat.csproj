@@ -12,7 +12,10 @@
       file-system layer (models, providers, archive/icon logic) and must stay
       independent of the UI framework. Convert to Avalonia types only in CatCommander.
     -->
-    <ItemGroup>
+  <ItemGroup>
+    <!-- Read-only archive backends: SharpCompress handles ZIP/7z/RAR/TAR and single-stream
+         compression; DiscUtils supplies the ISO-9660 filesystem reader. -->
+    <PackageReference Include="LTRData.DiscUtils.Iso9660" Version="1.0.88" />
         <PackageReference Include="NLog" Version="6.2.0" />
         <PackageReference Include="Metalama.Patterns.Observability" Version="2026.1.25" />
         <PackageReference Include="SharpCompress" Version="1.0.0" />

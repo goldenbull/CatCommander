@@ -113,6 +113,12 @@ public sealed class GlobalShortcutGuard : IDisposable
         if (!ForegroundAppChecker.IsFrontmostApplication())
             return;
 
+        // Enter/Escape are dialog conventions, not operations, while a dialog is active. Yield
+        // before suppression so the Window's tunnel handler can run even when the same gesture is
+        // present in the configurable keymap (Enter normally means GoIntoCurrentFolder).
+        if (_inputContext.ShouldYieldToActiveWindowConvention(gesture))
+            return;
+
         if (TextEditKeyExceptions.ShouldYieldToTextEditing(gesture, _inputContext.IsTextEditing))
             return;
 

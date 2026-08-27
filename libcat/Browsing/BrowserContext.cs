@@ -11,4 +11,7 @@ public sealed record BrowserContext(IListingSource Listing)
 
     public ResourceRef? GetBackTarget(BrowserItem? currentItem) =>
         Listing.Navigation.GetBackTarget(Listing, currentItem);
+
+    public ResourceRef? GetBackSelection(BrowserItem? currentItem) =>
+        Listing.Navigation.GetBackSelection(Listing, currentItem);
 }

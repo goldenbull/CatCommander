@@ -11,7 +11,7 @@ public partial class FileOperationProgressWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState, ShortcutScope.Dialog);
 
         viewModel.RequestClose += Close;
 
@@ -20,5 +20,6 @@ public partial class FileOperationProgressWindow : Window
         // Close() is exactly what "Send to Background" already does, so the default onEscape is
         // correct as-is.
         this.InstallEscapeToClose();
+        this.InstallEnterSubmits(viewModel.SendToBackgroundCommand);
     }
 }

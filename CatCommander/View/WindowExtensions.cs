@@ -9,9 +9,9 @@ namespace CatCommander.View;
 /// <summary>
 /// Dialog-window keyboard conventions every small `Window` in this app wants (Escape-to-close,
 /// Enter-submits-the-default-button), factored out so each window's code-behind states its intent
-/// in one line instead of hand-rolling its own Tunnel-phase `KeyDown` handler. Both install
-/// Tunnel-phase, after `ShortcutRouter.Install` (called first in every constructor) - a real
-/// `Operation` bound to Escape or Enter, if any, still gets first refusal.
+/// in one line instead of hand-rolling its own Tunnel-phase `KeyDown` handler. Dialog windows
+/// install `ShortcutRouter` with `ShortcutScope.Dialog`, so both the Avalonia and SharpHook input
+/// paths yield plain Enter/Escape to these handlers.
 ///
 /// Neither of these is a user-configurable `Operation`: they're universal dialog conventions, not
 /// keyboard shortcuts someone would want to rebind. `TextEditKeyExceptions` already keeps
@@ -34,13 +34,16 @@ public static class WindowExtensions
     }
 
     public static void InstallEnterSubmits(this Window window, ICommand command)
+        => window.InstallEnterSubmits(() => command.Execute(null), () => command.CanExecute(null));
+
+    public static void InstallEnterSubmits(this Window window, Action submit, Func<bool>? canSubmit = null)
     {
         window.AddHandler(InputElement.KeyDownEvent, (_, e) =>
         {
-            if (e.Handled || e.Key != Key.Enter || !command.CanExecute(null))
+            if (e.Handled || e.Key != Key.Enter || canSubmit?.Invoke() == false)
                 return;
 
-            command.Execute(null);
+            submit();
             e.Handled = true;
         }, RoutingStrategies.Tunnel);
     }

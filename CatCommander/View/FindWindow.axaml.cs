@@ -11,7 +11,7 @@ public partial class FindWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState, ShortcutScope.Dialog);
 
         this.InstallEscapeToClose();
     }

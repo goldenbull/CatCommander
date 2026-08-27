@@ -181,6 +181,22 @@ operation; cross-provider copies stream from the source provider into an
 available when every source item is deletable. Archive providers can expose readable/enumerable
 items without implementing the writable destination contract.
 
+Local archives are read-only virtual filesystems. `ArchiveFileSystemProvider` uses SharpCompress
+for ZIP, 7z, RAR, TAR and compression wrappers; `IsoFileSystemProvider` uses DiscUtils ISO-9660.
+Entry paths are normalized and traversal components are rejected. Explicit and implicit folders
+produce the same tree, and a plain GZip stream becomes a virtual root containing one output file.
+
+Entering an archive changes provider instead of extracting it. External addresses use
+`archive-path!/inner/path`, allowing address-bar navigation and session restoration. Left at the
+archive root crosses back to the local containing directory. F5 uses the existing cross-provider
+transfer: it recursively enumerates the archive source and streams `OpenReadAsync` into the
+opposite panel, so Copy is extraction without a temporary directory.
+
+`.tar.gz`/`.tgz` is treated as a composed stream: `GZipStream` feeds `TarReader` directly. The TAR
+tree is read for browsing and the selected entry is streamed again during Copy. Encrypted payloads
+are probed while entering; `ArchivePasswordRequiredException` is converted by
+`IArchivePasswordPrompt` into a modal request, cached only for this process, and retried.
+
 `ExpandCurrentFolder` and `ExpandSelectedFolders` create a Total Commander-style branch view using
 `ExpandedListingSource`. The projection is never a Copy/Move destination, but its rows remain valid
 operation sources according to their original provider capabilities.

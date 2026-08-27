@@ -9,6 +9,7 @@ using CatCommander.FileSystem;
 using CatCommander.Services;
 using CatCommander.ViewModels;
 using Xunit;
+using System.IO.Compression;
 
 namespace CatCommander.Tests.ViewModels;
 
@@ -118,6 +119,24 @@ public class ItemBrowserViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task GoBackToParentFolder_SelectsDirectoryJustLeft_NotItsCurrentChild()
+    {
+        var grandchild = Directory.CreateDirectory(Path.Combine(_child, "grandchild")).FullName;
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_child);
+        Assert.Equal(grandchild,
+            ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedItem?.Item.FullPath);
+
+        vm.GetCommand(Operation.GoBackToParentFolder)!.Execute(null);
+        await WaitUntilAsync(() =>
+            ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedItem?.Item.FullPath == _child);
+
+        Assert.Equal(_root, vm.CurrentPath);
+        Assert.Equal(_child,
+            ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedItem?.Item.FullPath);
+    }
+
+    [Fact]
     public async Task NavigateToAsync_RecordsHistory_MostRecentFirst_Deduplicated()
     {
         var vm = CreateViewModel();
@@ -158,6 +177,40 @@ public class ItemBrowserViewModelTests : IDisposable
         command.Execute(null);
 
         Assert.Equal(_root, terminal.OpenedDirectory);
+    }
+
+    [Fact]
+    public async Task RightOnLocalArchive_EntersItsVirtualRoot_AndLeftReturnsToContainingDirectory()
+    {
+        var archiveDirectory = Directory.CreateDirectory(Path.Combine(_root, "archives")).FullName;
+        var archivePath = Path.Combine(archiveDirectory, "sample.zip");
+        using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            archive.CreateEntry("inside.txt");
+        var passwords = new ArchivePasswordStore();
+        var registry = new FileSystemProviderRegistry();
+        registry.Register(new ArchiveFileSystemProviderFactory(passwords));
+        registry.Register(new LocalFileSystemProviderFactory());
+        var vm = new ItemBrowserViewModel(registry, new IconCache());
+        await vm.NavigateToAsync(archiveDirectory);
+
+        vm.GetCommand(Operation.GoIntoCurrentFolder)!.Execute(null);
+        await WaitUntilAsync(() => vm.Provider is ArchiveFileSystemProvider);
+
+        Assert.IsType<ArchiveFileSystemProvider>(vm.Provider);
+        Assert.Equal($"{archivePath}!/", vm.CurrentPath);
+        Assert.Equal("inside.txt", Assert.Single(vm.Source!.Items.Cast<FileItemRow>()).Item.Name);
+
+        vm.GetCommand(Operation.GoBackToParentFolder)!.Execute(null);
+        await WaitUntilAsync(() => vm.Provider is LocalFileSystemProvider);
+        Assert.Equal(archiveDirectory, vm.CurrentPath);
+        Assert.Equal(archivePath,
+            ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedItem?.Item.FullPath);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        for (var i = 0; i < 100 && !condition(); i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
     }
 
     private FileSystemProviderRegistry _registryForTest()

@@ -14,11 +14,9 @@ public sealed class DirectoryListingSource : IListingSource
     {
         _provider = provider;
         Location = new ResourceRef(provider, path);
-        Navigation = new DirectoryNavigationPolicy(getParent ?? (location =>
-        {
-            var parent = provider.GetParentPath(location.Path);
-            return string.IsNullOrEmpty(parent) ? null : new ResourceRef(provider, parent);
-        }));
+        Navigation = new DirectoryNavigationPolicy(
+            getParent ?? provider.GetParentResource,
+            provider.GetParentSelectionResource);
 
         if (provider.ContainerCapabilities != ContainerCapabilities.None)
             WritableDestination = new ContainerRef(Location.Value, provider.ContainerCapabilities);

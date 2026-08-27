@@ -47,6 +47,7 @@ public sealed class ListingSourceTests : IDisposable
         var target = source.Navigation.GetBackTarget(source, item);
 
         Assert.Equal(container, target);
+        Assert.Equal(item.Resource, source.Navigation.GetBackSelection(source, item));
     }
 
     public void Dispose()

@@ -11,7 +11,7 @@ public partial class NewFolderWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState, ShortcutScope.Dialog);
 
         viewModel.RequestClose += Close;
 

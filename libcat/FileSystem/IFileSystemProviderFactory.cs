@@ -10,5 +10,11 @@ public interface IFileSystemProviderFactory
 {
     bool CanHandle(string path);
 
+    /// <summary>Whether a local-looking item is actually an enterable provider root.</summary>
+    bool CanEnter(string path) => false;
+
+    /// <summary>Initial provider-local path when entering a recognized root.</summary>
+    string GetInitialPath(string path) => path;
+
     IFileSystemProvider Create(string path);
 }

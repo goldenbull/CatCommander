@@ -28,4 +28,5 @@ public interface IListingSource
 public interface INavigationPolicy
 {
     ResourceRef? GetBackTarget(IListingSource source, BrowserItem? currentItem);
+    ResourceRef? GetBackSelection(IListingSource source, BrowserItem? currentItem);
 }

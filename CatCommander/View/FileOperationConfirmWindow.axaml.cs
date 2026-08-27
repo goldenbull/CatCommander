@@ -11,7 +11,7 @@ public partial class FileOperationConfirmWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
-        ShortcutRouter.Install(this, shortcuts, inputContext, inputState);
+        ShortcutRouter.Install(this, shortcuts, inputContext, inputState, ShortcutScope.Dialog);
 
         // Close(object?) is what feeds a value back out through the caller's
         // ShowDialog<FileOperationMode?>(owner) await - see MainWindowViewModel.StartFileOperation.
@@ -20,5 +20,6 @@ public partial class FileOperationConfirmWindow : Window
         // Escape means Cancel, i.e. a null result - not the parameterless Close() the default
         // onEscape would call.
         this.InstallEscapeToClose(() => Close(null));
+        this.InstallEnterSubmits(viewModel.RunNowCommand);
     }
 }

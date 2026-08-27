@@ -41,6 +41,19 @@ public interface IFileSystemProvider
         return Path.GetDirectoryName(child);
     }
 
+    ResourceRef? GetParentResource(ResourceRef location)
+    {
+        var parent = GetParentPath(location.Path);
+        return string.IsNullOrEmpty(parent) ? null : new ResourceRef(this, parent);
+    }
+
+    /// <summary>
+    /// Resource that should become current after leaving <paramref name="location"/> for its
+    /// parent. Usually this is the directory just left. Providers whose root is backed by a
+    /// resource in another provider (archives/ISO images) return that backing resource instead.
+    /// </summary>
+    ResourceRef GetParentSelectionResource(ResourceRef location) => location;
+
     /// <summary>
     /// Lists the immediate children of <paramref name="path"/> (no ".." synthetic entry - that's
     /// a navigation affordance the ViewModel layer adds for list-mode display, not a real child).
