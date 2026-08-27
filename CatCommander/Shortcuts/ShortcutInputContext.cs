@@ -32,9 +32,10 @@ public sealed class ShortcutInputContext
     public bool HasActiveDialogConventions => Volatile.Read(ref _activeDialogConventionCount) > 0;
 
     public bool ShouldYieldToActiveWindowConvention(KeyGesture gesture)
-        => ShortcutRoutingPolicy.ShouldYieldToWindowConvention(
-            gesture,
-            HasActiveDialogConventions ? ShortcutScope.Dialog : ShortcutScope.Operations);
+        => gesture is { Key: Key.Escape, KeyModifiers: KeyModifiers.None }
+           || ShortcutRoutingPolicy.ShouldYieldToWindowConvention(
+               gesture,
+               HasActiveDialogConventions ? ShortcutScope.Dialog : ShortcutScope.Operations);
 
     public void Track(TopLevel topLevel, ShortcutScope scope = ShortcutScope.Operations)
     {

@@ -111,6 +111,10 @@ public class ShortcutsSettingsTests
         Assert.Equal("Meta+F3", defaults[Operation.SortByName]);
         Assert.Equal("Meta+F4", defaults[Operation.SortByExtension]);
         Assert.Equal("Meta+F5", defaults[Operation.SortBySize]);
+        Assert.Equal("Meta+A", defaults[Operation.SelectAll]);
+        Assert.Equal("Escape", defaults[Operation.ClearSelection]);
+        Assert.Equal("Meta+Shift+R", defaults[Operation.ReverseSelection]);
+        Assert.Equal("Meta+C", defaults[Operation.CopyFilesToClipboard]);
         Assert.Equal("Meta+F6", defaults[Operation.SortByDate]);
 
         var settings = new ShortcutsSettings();
@@ -133,6 +137,10 @@ public class ShortcutsSettingsTests
         Assert.Equal("Ctrl+F3", defaults[Operation.SortByName]);
         Assert.Equal("Ctrl+F4", defaults[Operation.SortByExtension]);
         Assert.Equal("Ctrl+F5", defaults[Operation.SortBySize]);
+        Assert.Equal("Ctrl+A", defaults[Operation.SelectAll]);
+        Assert.Equal("Escape", defaults[Operation.ClearSelection]);
+        Assert.Equal("Ctrl+Shift+R", defaults[Operation.ReverseSelection]);
+        Assert.Equal("Ctrl+C", defaults[Operation.CopyFilesToClipboard]);
         Assert.Equal("Ctrl+F6", defaults[Operation.SortByDate]);
     }
 
@@ -197,7 +205,7 @@ public class ShortcutsSettingsTests
         settings.RebuildNormalized(KeyboardStyle.Windows);
 
         Assert.Equal(Operation.Copy, settings.GetOperation(KeyGesture.Parse("F5")));
-        Assert.Equal(Operation.Nop, settings.GetOperation(KeyGesture.Parse("Ctrl+C")));
+        Assert.Equal(Operation.CopyFilesToClipboard, settings.GetOperation(KeyGesture.Parse("Ctrl+C")));
     }
 
     // GetPrimaryGesture backs MainWindow.axaml.cs's NativeMenuItem.Gesture assignment - the whole

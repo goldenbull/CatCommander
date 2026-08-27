@@ -128,3 +128,9 @@ public interface IFileSystemProvider
     /// </summary>
     bool TracksHistory { get; }
 }
+
+/// <summary>Maps provider resources to real OS paths suitable for native clipboard file items.</summary>
+public interface IClipboardFileProvider
+{
+    string? GetClipboardFilePath(ResourceRef resource);
+}

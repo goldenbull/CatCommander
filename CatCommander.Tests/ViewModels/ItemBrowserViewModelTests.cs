@@ -260,11 +260,43 @@ public class ItemBrowserViewModelTests : IDisposable
     private sealed class RecordingClipboard : IClipboardService
     {
         public string? Text { get; private set; }
+        public IReadOnlyList<string>? Files { get; private set; }
         public Task SetTextAsync(string text)
         {
             Text = text;
             return Task.CompletedTask;
         }
+        public Task SetFilesAsync(IReadOnlyList<string> paths)
+        {
+            Files = paths;
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task SelectionCommands_UseMarks_AndNativeCopyUsesFilePaths()
+    {
+        var file = Path.Combine(_root, "a.txt");
+        File.WriteAllText(file, "a");
+        var clipboard = new RecordingClipboard();
+        var vm = new ItemBrowserViewModel(_registryForTest(), new IconCache(), clipboard: clipboard);
+        await vm.NavigateToAsync(_root);
+        var gridSelection = Assert.IsType<TreeDataGridRowSelectionModel<FileItemRow>>(vm.Source!.Selection);
+        Assert.True(gridSelection.SingleSelect);
+
+        vm.GetCommand(Operation.SelectAll)!.Execute(null);
+        Assert.Equal(1, vm.SelectedFolderCount);
+        Assert.Equal(1, vm.SelectedFileCount);
+
+        vm.GetCommand(Operation.CopyFilesToClipboard)!.Execute(null);
+        Assert.Equal(new[] { _child, file }, clipboard.Files);
+
+        vm.GetCommand(Operation.ClearSelection)!.Execute(null);
+        Assert.Equal(0, vm.SelectedFolderCount);
+        Assert.Equal(0, vm.SelectedFileCount);
+
+        vm.AppendFilterText("a");
+        Assert.Null(vm.GetCommand(Operation.ClearSelection));
     }
 
     [Fact]

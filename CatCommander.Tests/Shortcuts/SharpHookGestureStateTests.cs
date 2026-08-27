@@ -59,4 +59,12 @@ public sealed class SharpHookGestureStateTests
 
         Assert.False(state.TryPress(KeyCode.VcUndefined, out _));
     }
+
+    [Fact]
+    public void InputContext_LowLevelHookYieldsPlainEscape_ToAvaloniaRouting()
+    {
+        var context = new ShortcutInputContext();
+
+        Assert.True(context.ShouldYieldToActiveWindowConvention(new KeyGesture(Key.Escape)));
+    }
 }

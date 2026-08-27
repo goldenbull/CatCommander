@@ -53,6 +53,9 @@ public enum Operation
     SortByExtension,
     SortByDate,
     SortBySize,
+    SelectAll,
+    ClearSelection,
+    CopyFilesToClipboard,
 }
 
 /// <summary>
@@ -132,7 +135,10 @@ public class ShortcutsSettings
             [Operation.GoBackToParentFolder] = "Left",
             [Operation.GotoFirstItem] = "Home",
             [Operation.GotoLastItem] = "End",
-            [Operation.ReverseSelection] = "Alt+R",
+            [Operation.ReverseSelection] = $"{primaryModifier}+Shift+R",
+            [Operation.SelectAll] = $"{primaryModifier}+A",
+            [Operation.ClearSelection] = "Escape",
+            [Operation.CopyFilesToClipboard] = $"{primaryModifier}+C",
             [Operation.Refresh] = $"{primaryModifier}+R",
             [Operation.ToggleHiddenFiles] = $"{primaryModifier}+.",
             [Operation.OpenSelectedFolderInNewTab] = $"{primaryModifier}+Up",
@@ -161,13 +167,16 @@ public class ShortcutsSettings
     /// </summary>
     public void RebuildNormalized(KeyboardStyle style)
     {
-        var effective = new Dictionary<string, string>(StringComparer.Ordinal);
+        var effective = new List<KeyValuePair<string, string>>();
         foreach (var (op, keys) in GetDefaults(style))
-            effective[op.ToString()] = keys;
+        {
+            if (!Bindings.TryGetValue(op.ToString(), out var custom) || string.IsNullOrWhiteSpace(custom))
+                effective.Add(new KeyValuePair<string, string>(op.ToString(), keys));
+        }
         foreach (var (opName, keys) in Bindings)
         {
             if (!string.IsNullOrWhiteSpace(keys))
-                effective[opName] = keys;
+                effective.Add(new KeyValuePair<string, string>(opName, keys));
         }
 
         var map = new Dictionary<KeyGesture, Operation>();

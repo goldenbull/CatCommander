@@ -198,13 +198,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     // The one place the current item is ever set to a specific row index - keeps selection and
     // "make sure it's actually visible" (ScrollToRowRequested above) together.
     //
-    // Setting SelectedIndex, not calling Select(): the selection model is multi-select
-    // (SingleSelect = false, for future multi-file operations), and Select() only *adds* to
-    // whatever's already selected - once anything is selected, a later Select() call doesn't move
-    // SelectedItem/SelectedIndex at all, it just grows the selection. SelectedIndex's setter
-    // (Clear() + Select()) is the one that actually replaces the current item, which matters the
-    // moment more than one caller sets the current row during the same navigation (e.g.
-    // GoBackToParentFolder's default-then-restore).
+    // TreeDataGrid selection is deliberately single-select and represents only the current row.
+    // Multi-item selection belongs exclusively to FileItemRow.IsMarked, so the grid can never
+    // paint several pale-blue "current" rows alongside the dark-blue marked rows.
     private void SetCurrentRow(int rowIndex)
     {
         if (SelectionModel is { } selectionModel)
@@ -253,6 +249,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.SortByExtension] = ReactiveCommand.Create(() => SortBy(BrowserSortField.Extension)),
             [Operation.SortByDate] = ReactiveCommand.Create(() => SortBy(BrowserSortField.Date)),
             [Operation.SortBySize] = ReactiveCommand.Create(() => SortBy(BrowserSortField.Size)),
+            [Operation.SelectAll] = ReactiveCommand.Create(SelectAll),
+            [Operation.ClearSelection] = ReactiveCommand.Create(ClearSelection),
+            [Operation.CopyFilesToClipboard] = ReactiveCommand.Create(CopyFilesToClipboard),
         };
     }
 
@@ -277,6 +276,31 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         var items = GetOperationBrowserItems();
         if (items.Count > 0)
             _ = _clipboard.SetTextAsync(string.Join(Environment.NewLine, items.Select(format)));
+    }
+
+    private void CopyFilesToClipboard()
+    {
+        var paths = GetClipboardFilePaths();
+        if (_clipboard is null || paths is null)
+            return;
+
+        if (paths.Count > 0)
+            _ = _clipboard.SetFilesAsync(paths);
+    }
+
+    private IReadOnlyList<string>? GetClipboardFilePaths()
+    {
+        var paths = new List<string>();
+        foreach (var item in GetOperationBrowserItems())
+        {
+            if (item.Resource.Provider is not IClipboardFileProvider provider ||
+                provider.GetClipboardFilePath(item.Resource) is not { } path)
+            {
+                return null;
+            }
+            paths.Add(path);
+        }
+        return paths;
     }
 
     private string? GetLocalShellDirectory()
@@ -555,7 +579,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 new TextColumn<FileItemRow, DateTime>(CreateColumnHeader("Modified", BrowserSortField.Date), x => x.Item.Modified, new GridLength(150)),
             },
         };
-        source.RowSelection!.SingleSelect = false;
+        source.RowSelection!.SingleSelect = true;
         return source;
     }
 
@@ -576,7 +600,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 new TextColumn<FileItemRow, DateTime>(CreateColumnHeader("Modified", BrowserSortField.Date), x => x.Item.Modified, new GridLength(150)),
             },
         };
-        source.RowSelection!.SingleSelect = false;
+        source.RowSelection!.SingleSelect = true;
         return source;
     }
 
@@ -1018,6 +1042,20 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         RecomputeSelection();
     }
 
+    private void SelectAll()
+    {
+        foreach (var row in _rows.Where(row => row.IsVisible))
+            row.IsMarked = true;
+        RecomputeSelection();
+    }
+
+    private void ClearSelection()
+    {
+        foreach (var row in _rows)
+            row.IsMarked = false;
+        RecomputeSelection();
+    }
+
     /// <summary>
     /// What Copy/Move/Delete operate on: every marked row if any are marked, otherwise whatever's
     /// under the cursor right now - Total Commander's own fallback, so a single-item operation
@@ -1211,6 +1249,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             Operation.CopyContainerPath => _clipboard is not null && CurrentPath.Length > 0,
             Operation.CopyItemNames or Operation.CopyItemPaths =>
                 _clipboard is not null && GetOperationBrowserItems().Count > 0,
+            Operation.SelectAll => _rows.Any(row => row.IsVisible),
+            Operation.ClearSelection => !IsFilterActive,
+            Operation.CopyFilesToClipboard => _clipboard is not null && GetClipboardFilePaths() is { Count: > 0 },
             _ => true,
         };
 

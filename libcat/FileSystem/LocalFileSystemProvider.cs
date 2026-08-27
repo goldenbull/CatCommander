@@ -9,8 +9,11 @@ namespace CatCommander.FileSystem;
 /// interface stays consistent with providers that have genuine network latency (SFTP, etc.) -
 /// callers on the UI thread never block regardless of which provider they're talking to.
 /// </summary>
-public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourceProvider, ILocalShellContextProvider
+public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourceProvider, ILocalShellContextProvider, IClipboardFileProvider
 {
+    public string? GetClipboardFilePath(ResourceRef resource) =>
+        ReferenceEquals(resource.Provider, this) ? resource.Path : null;
+
     public string? GetLocalShellDirectory(ResourceRef location)
     {
         if (!ReferenceEquals(location.Provider, this))
