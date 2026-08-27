@@ -226,6 +226,44 @@ public class ItemBrowserViewModelTests : IDisposable
         public void Open(string directory) => OpenedDirectory = directory;
     }
 
+    private sealed class RecordingClipboard : IClipboardService
+    {
+        public string? Text { get; private set; }
+        public Task SetTextAsync(string text)
+        {
+            Text = text;
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task ClipboardOperations_CopyContainer_CurrentItem_AndMarkedItemLists()
+    {
+        var a = Path.Combine(_root, "a.txt");
+        var b = Path.Combine(_root, "b.txt");
+        File.WriteAllText(a, "a");
+        File.WriteAllText(b, "b");
+        var clipboard = new RecordingClipboard();
+        var vm = new ItemBrowserViewModel(_registryForTest(), new IconCache(), clipboard: clipboard);
+        await vm.NavigateToAsync(_root);
+
+        vm.GetCommand(Operation.CopyContainerPath)!.Execute(null);
+        Assert.Equal(_root, clipboard.Text);
+
+        vm.GetCommand(Operation.CopyItemNames)!.Execute(null);
+        Assert.Equal("child", clipboard.Text);
+
+        vm.ToggleMarkCurrentItem();
+        ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedIndex = new Avalonia.Controls.IndexPath(1);
+        vm.ToggleMarkCurrentItem();
+
+        vm.GetCommand(Operation.CopyItemNames)!.Execute(null);
+        Assert.Equal(string.Join(Environment.NewLine, "child", "a.txt"), clipboard.Text);
+
+        vm.GetCommand(Operation.CopyItemPaths)!.Execute(null);
+        Assert.Equal(string.Join(Environment.NewLine, _child, a), clipboard.Text);
+    }
+
     [Fact]
     public async Task ToggleViewMode_DoesNotRecordHistory()
     {

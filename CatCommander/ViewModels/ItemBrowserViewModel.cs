@@ -48,6 +48,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private readonly FileSystemProviderRegistry _providers;
     private readonly IconCache _iconCache;
     private readonly ITerminalLauncher? _terminalLauncher;
+    private readonly IClipboardService? _clipboard;
     private readonly IArchivePasswordPrompt? _archivePasswordPrompt;
     private readonly IArchivePasswordStore? _archivePasswords;
     private readonly Dictionary<Operation, ICommand> _commands;
@@ -206,12 +207,14 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         FileSystemProviderRegistry providers,
         IconCache iconCache,
         ITerminalLauncher? terminalLauncher = null,
+        IClipboardService? clipboard = null,
         IArchivePasswordPrompt? archivePasswordPrompt = null,
         IArchivePasswordStore? archivePasswords = null)
     {
         _providers = providers;
         _iconCache = iconCache;
         _terminalLauncher = terminalLauncher;
+        _clipboard = clipboard;
         _archivePasswordPrompt = archivePasswordPrompt;
         _archivePasswords = archivePasswords;
 
@@ -231,7 +234,33 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.ExpandCurrentFolder] = ReactiveCommand.Create(ExpandCurrentFolder),
             [Operation.ExpandSelectedFolders] = ReactiveCommand.Create(ExpandSelectedFolders),
             [Operation.OpenTerminal] = ReactiveCommand.Create(OpenTerminal),
+            [Operation.CopyContainerPath] = ReactiveCommand.Create(CopyContainerPath),
+            [Operation.CopyItemNames] = ReactiveCommand.Create(CopyItemNames),
+            [Operation.CopyItemPaths] = ReactiveCommand.Create(CopyItemPaths),
         };
+    }
+
+    private void CopyContainerPath()
+    {
+        if (_clipboard is not null && CurrentPath.Length > 0)
+            _ = _clipboard.SetTextAsync(CurrentPath);
+    }
+
+    private void CopyItemNames() => CopyItemsToClipboard(item => item.Item.Name);
+
+    private void CopyItemPaths() => CopyItemsToClipboard(item =>
+        item.Resource.Provider is IExternalPathProvider external
+            ? external.GetExternalPath(item.Resource.Path)
+            : item.Resource.Path);
+
+    private void CopyItemsToClipboard(Func<BrowserItem, string> format)
+    {
+        if (_clipboard is null)
+            return;
+
+        var items = GetOperationBrowserItems();
+        if (items.Count > 0)
+            _ = _clipboard.SetTextAsync(string.Join(Environment.NewLine, items.Select(format)));
     }
 
     private string? GetLocalShellDirectory()
@@ -1072,6 +1101,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren)),
             Operation.GoBackToParentFolder => Context?.GetBackTarget(current) is not null,
             Operation.OpenTerminal => _terminalLauncher is not null && GetLocalShellDirectory() is not null,
+            Operation.CopyContainerPath => _clipboard is not null && CurrentPath.Length > 0,
+            Operation.CopyItemNames or Operation.CopyItemPaths =>
+                _clipboard is not null && GetOperationBrowserItems().Count > 0,
             _ => true,
         };
 

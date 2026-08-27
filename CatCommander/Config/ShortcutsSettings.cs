@@ -46,6 +46,9 @@ public enum Operation
     OpenFind,
     OpenBatchRename,
     OpenTerminal,
+    CopyContainerPath,
+    CopyItemNames,
+    CopyItemPaths,
 }
 
 /// <summary>
@@ -137,6 +140,9 @@ public class ShortcutsSettings
             [Operation.OpenFind] = "Alt+F7",
             [Operation.OpenBatchRename] = $"{primaryModifier}+M",
             [Operation.OpenTerminal] = $"{primaryModifier}+G",
+            [Operation.CopyContainerPath] = $"{primaryModifier}+F1",
+            [Operation.CopyItemNames] = $"{primaryModifier}+F2",
+            [Operation.CopyItemPaths] = $"{primaryModifier}+F3",
         };
     }
 
