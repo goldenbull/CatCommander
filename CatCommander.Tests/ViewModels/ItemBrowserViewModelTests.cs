@@ -233,4 +233,57 @@ public class ItemBrowserViewModelTests : IDisposable
 
         Assert.Equal(0, vm.SelectedFolderCount); // "child" was unmarked when it became invisible
     }
+
+    [Fact]
+    public async Task Refresh_PicksUpChangesMadeOutsideTheApp_AndKeepsTheCursorOnTheSameItem()
+    {
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        // Rows: "child" (the only entry so far) - cursor defaults to row 0.
+
+        // Simulate another process creating a file while this folder is already open.
+        var newFile = Path.Combine(_root, "a.txt");
+        File.WriteAllText(newFile, "hello");
+
+        vm.GetCommand(Operation.Refresh)!.Execute(null);
+
+        for (var i = 0; i < 100 && vm.TotalFileCount == 0; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        var selection = (TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!;
+        Assert.Equal(1, vm.TotalFileCount); // "a.txt" is now picked up
+        Assert.Equal(_child, selection.SelectedItem?.Item.FullPath); // cursor stayed on "child"
+    }
+
+    [Fact]
+    public async Task ToggleHiddenFiles_HidesDotfilesByDefault_AndShowsThemWhenToggled()
+    {
+        File.WriteAllText(Path.Combine(_root, ".hidden.txt"), "secret");
+        File.WriteAllText(Path.Combine(_root, "visible.txt"), "public");
+
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        // _allItems: "child" (dir), ".hidden.txt", "visible.txt" - 3 real entries.
+
+        Assert.False(vm.ShowHiddenFiles);
+        Assert.Equal(2, vm.Source!.Rows.Count); // ".hidden.txt" excluded by default
+
+        vm.GetCommand(Operation.ToggleHiddenFiles)!.Execute(null);
+
+        Assert.True(vm.ShowHiddenFiles);
+        Assert.Equal(3, vm.Source!.Rows.Count); // now included
+    }
+
+    [Fact]
+    public async Task ToggleHiddenFiles_PersistsAcrossNavigation_UnlikeTheQuickFilter()
+    {
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        vm.GetCommand(Operation.ToggleHiddenFiles)!.Execute(null);
+        Assert.True(vm.ShowHiddenFiles);
+
+        await vm.NavigateToAsync(_child);
+
+        Assert.True(vm.ShowHiddenFiles); // not reset by RebuildSource, unlike FilterText
+    }
 }

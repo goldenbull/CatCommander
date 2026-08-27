@@ -30,7 +30,7 @@ public class LocalFileSystemProvider : IFileSystemProvider
                         Created = info.CreationTime,
                         Modified = info.LastWriteTime,
                         Accessed = info.LastAccessTime,
-                        IsHidden = info.Attributes.HasFlag(FileAttributes.Hidden),
+                        IsHidden = IsHiddenEntry(info.Name, info.Attributes),
                     });
                 }
                 catch (Exception)
@@ -56,7 +56,7 @@ public class LocalFileSystemProvider : IFileSystemProvider
                         Created = info.CreationTime,
                         Modified = info.LastWriteTime,
                         Accessed = info.LastAccessTime,
-                        IsHidden = info.Attributes.HasFlag(FileAttributes.Hidden),
+                        IsHidden = IsHiddenEntry(info.Name, info.Attributes),
                         CanWrite = !info.IsReadOnly,
                     });
                 }
@@ -73,6 +73,14 @@ public class LocalFileSystemProvider : IFileSystemProvider
     {
         return Task.Run(Stream () => File.OpenRead(path), ct);
     }
+
+    // Cmd/Ctrl+. (ItemBrowserViewModel.ToggleHiddenFiles) needs "is this hidden" to mean the same
+    // thing on every platform without the caller branching on OS: a leading '.' (the only signal
+    // macOS/Linux ever have) OR the Windows Hidden file attribute (which .NET may or may not also
+    // set for a dot-file on Unix, depending on runtime/filesystem - the OR makes that irrelevant
+    // either way, rather than depending on FileAttributes.Hidden alone to already reflect it).
+    private static bool IsHiddenEntry(string name, FileAttributes attributes) =>
+        name.StartsWith('.') || attributes.HasFlag(FileAttributes.Hidden);
 
     public Task<string> CreateDirectoryAsync(string parentPath, string name, CancellationToken ct = default)
     {
@@ -169,6 +177,9 @@ public class LocalFileSystemProvider : IFileSystemProvider
         else
             File.Delete(path);
     }
+
+    public Task DeleteAsync(string path, CancellationToken ct = default) =>
+        Task.Run(() => DeleteRecursive(path), ct);
 
     public bool CanEnter(IFileSystemItem item) => item.ItemType is FileSystemItemType.Directory;
 

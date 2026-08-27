@@ -13,6 +13,7 @@ public enum FileOperationKind
 {
     Copy,
     Move,
+    Delete,
 }
 
 public enum FileOperationJobStatus
@@ -25,10 +26,11 @@ public enum FileOperationJobStatus
 }
 
 /// <summary>
-/// One F5/F6 batch: a snapshot of the items GetOperationTargets() returned at the moment the user
-/// confirmed, a fixed destination directory (the opposite panel's CurrentPath at that same
-/// moment - never re-resolved later, so the job's target can't drift under it), and the provider
-/// to run both sides through (only ever LocalFileSystemProvider today - see IFileSystemProvider).
+/// One F5/F6/Delete batch: a snapshot of the items GetOperationTargets() returned at the moment
+/// the user confirmed, a fixed destination directory for Copy/Move (the opposite panel's
+/// CurrentPath at that same moment - never re-resolved later, so the job's target can't drift
+/// under it; null for Delete, which has no destination), and the provider to run everything
+/// through (only ever LocalFileSystemProvider today - see IFileSystemProvider).
 ///
 /// Only ever driven by FileOperationQueue's background worker calling RunAsync - never called
 /// directly from the UI. Every property mutation below is posted through Dispatcher.UIThread
@@ -43,13 +45,27 @@ public partial class FileOperationJob
 
     public FileOperationKind Kind { get; }
     public IReadOnlyList<IFileSystemItem> Items { get; }
-    public string Destination { get; }
+    public string? Destination { get; }
 
     // Items/Kind/Destination are fixed for the job's whole lifetime (set once here, in the
     // constructor, never after) - this computed property's value can't go stale, so it doesn't
     // need [Observable]'s change notification the way the explicitly-set properties below do.
-    public string Description =>
-        $"{Kind} {Items.Count} item{(Items.Count == 1 ? "" : "s")} to {Destination}";
+    //
+    // A plain method, not an expression-bodied property directly branching on Kind/Items - the
+    // Observable aspect's dependency analysis of a conditional expression whose *condition* reads
+    // one property (Kind) and whose *branches* read another (Items) misparses them as a single
+    // "Kind.Items" member-access chain to watch (a real Metalama bug, not anything meaningful in
+    // this code) and fails to compile. Description itself just forwards to this method, which the
+    // aspect doesn't attempt to deep-analyze the same way.
+    public string Description => BuildDescription();
+
+    private string BuildDescription()
+    {
+        var itemWord = Items.Count == 1 ? "item" : "items";
+        return Kind == FileOperationKind.Delete
+            ? $"Delete {Items.Count} {itemWord}"
+            : $"{Kind} {Items.Count} {itemWord} to {Destination}";
+    }
 
     public FileOperationJobStatus Status { get; set; } = FileOperationJobStatus.Queued;
     public int CompletedCount { get; set; }
@@ -68,7 +84,7 @@ public partial class FileOperationJob
     /// </summary>
     public event Action? Finished;
 
-    public FileOperationJob(FileOperationKind kind, IReadOnlyList<IFileSystemItem> items, string destination, IFileSystemProvider provider)
+    public FileOperationJob(FileOperationKind kind, IReadOnlyList<IFileSystemItem> items, string? destination, IFileSystemProvider provider)
     {
         Kind = kind;
         Items = items;
@@ -103,9 +119,11 @@ public partial class FileOperationJob
             try
             {
                 if (Kind == FileOperationKind.Copy)
-                    await _provider.CopyAsync(item.FullPath, Destination, progress, _cts.Token);
+                    await _provider.CopyAsync(item.FullPath, Destination!, progress, _cts.Token);
+                else if (Kind == FileOperationKind.Move)
+                    await _provider.MoveAsync(item.FullPath, Destination!, progress, _cts.Token);
                 else
-                    await _provider.MoveAsync(item.FullPath, Destination, progress, _cts.Token);
+                    await _provider.DeleteAsync(item.FullPath, _cts.Token);
             }
             catch (OperationCanceledException)
             {

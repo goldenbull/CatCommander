@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CatCommander.FileSystem;
@@ -153,5 +154,59 @@ public class LocalFileSystemProviderTests : IDisposable
 
         Assert.False(Directory.Exists(source));
         Assert.True(File.Exists(Path.Combine(destinationDir, "srcTree", "inside.txt")));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DeletesAFile()
+    {
+        var path = Path.Combine(_root, "a.txt");
+        File.WriteAllText(path, "hello");
+
+        await _provider.DeleteAsync(path, TestContext.Current.CancellationToken);
+
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DeletesADirectory_Recursively()
+    {
+        var dir = NewDir("srcTree");
+        Directory.CreateDirectory(Path.Combine(dir, "nested"));
+        File.WriteAllText(Path.Combine(dir, "top.txt"), "top");
+        File.WriteAllText(Path.Combine(dir, "nested", "deep.txt"), "deep");
+
+        await _provider.DeleteAsync(dir, TestContext.Current.CancellationToken);
+
+        Assert.False(Directory.Exists(dir));
+    }
+
+    [Fact]
+    public async Task ListChildrenAsync_MarksDotPrefixedEntries_AsHidden()
+    {
+        // Cmd/Ctrl+. (ItemBrowserViewModel.ToggleHiddenFiles) needs this to be true regardless of
+        // platform - a leading '.' is the only signal macOS/Linux ever have for "hidden".
+        File.WriteAllText(Path.Combine(_root, ".hidden.txt"), "secret");
+        File.WriteAllText(Path.Combine(_root, "visible.txt"), "public");
+        NewDir(".hiddenDir");
+        NewDir("visibleDir");
+
+        var items = await _provider.ListChildrenAsync(_root, TestContext.Current.CancellationToken);
+
+        Assert.True(items.Single(i => i.Name == ".hidden.txt").IsHidden);
+        Assert.False(items.Single(i => i.Name == "visible.txt").IsHidden);
+        Assert.True(items.Single(i => i.Name == ".hiddenDir").IsHidden);
+        Assert.False(items.Single(i => i.Name == "visibleDir").IsHidden);
+    }
+
+    [Fact]
+    public async Task ListChildrenAsync_MarksAnEntryWithTheHiddenAttribute_AsHidden_EvenWithoutADotPrefix()
+    {
+        var path = Path.Combine(_root, "secret.txt");
+        File.WriteAllText(path, "secret");
+        File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.Hidden);
+
+        var items = await _provider.ListChildrenAsync(_root, TestContext.Current.CancellationToken);
+
+        Assert.True(items.Single(i => i.Name == "secret.txt").IsHidden);
     }
 }

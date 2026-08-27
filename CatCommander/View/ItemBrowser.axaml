@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CatCommander.ViewModels"
              xmlns:view="using:CatCommander.View"
+             xmlns:conv="using:CatCommander.Converters"
              x:Class="CatCommander.View.ItemBrowser"
              x:DataType="vm:ItemBrowserViewModel">
     <UserControl.Styles>
@@ -38,9 +39,34 @@
             <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
         </Style>
 
+        <!-- Inactive panel's cursor row: back to no background at all, not the framework's own
+             app-wide gray (TreeDataGridSelectedCellBackgroundBrush) that Themes/Generic.axaml
+             paints on any selected row with no scoping of its own - that gray has nothing to do
+             with Classes.active, so simply not matching it (the way the .active rules above just
+             don't match while inactive) isn't enough to suppress it; it has to be overridden back
+             to Transparent explicitly, same two layers as the .active override above.
+
+             A real Classes.inactive, not a :not(.active) selector - matching TextBox.active/
+             TreeDataGrid.active's own positive-selector-only shape (see the comment above): :not()
+             was already found not to react reliably to Classes.active toggling on TreeDataGrid
+             specifically. Bound via BooleanConverters.Not rather than an XAML "!" prefix, which
+             doesn't reliably compose with this ancestor-lookup-plus-cast binding expression. -->
+        <Style Selector="TreeDataGrid.inactive TreeDataGridRow:selected /template/ TreeDataGridCellsPresenter#PART_CellsPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TreeDataGrid.inactive :is(TreeDataGridCell):selected">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
         <!-- Marked rows (Space-toggled multi-selection - ItemBrowserViewModel.ToggleMarkCurrentItem,
              FileItemRow.IsMarked): navy background, white text, Total Commander's own "marked file"
-             look - applied regardless of active/inactive panel or cursor position.
+             look - scoped to TreeDataGrid.active for the same reason the cursor styles above are:
+             an inactive panel's marked rows would otherwise keep competing for attention (strong
+             navy/white) while the user is working in the *other* panel. Losing that panel's own
+             at-a-glance "what's marked here" reminder while it's inactive is the deliberate
+             trade-off - IsMarked itself is untouched (Copy/Move/Delete still act on the real marked
+             set regardless of which panel is currently active), only the visual goes back to a
+             plain, unmarked-looking row.
 
              This is a Classes.marked selector, not a {Binding IsMarked} Setter like the cursor
              styles above - a bound Setter competing on the *same* property as another Style, tried
@@ -58,13 +84,13 @@
              its FileItemRow's IsMarked (RowPrepared/RowClearing + a PropertyChanged subscription),
              since nothing in this XAML file can address a row control directly - TreeDataGrid
              synthesizes rows from its own template, they're never declared here. -->
-        <Style Selector="TreeDataGridRow.marked /template/ TreeDataGridCellsPresenter#PART_CellsPresenter">
+        <Style Selector="TreeDataGrid.active TreeDataGridRow.marked /template/ TreeDataGridCellsPresenter#PART_CellsPresenter">
             <Setter Property="Background" Value="{DynamicResource TcMarkedBrush}" />
         </Style>
-        <Style Selector="TreeDataGridRow.marked :is(TreeDataGridCell)">
+        <Style Selector="TreeDataGrid.active TreeDataGridRow.marked :is(TreeDataGridCell)">
             <Setter Property="Background" Value="{DynamicResource TcMarkedBrush}" />
         </Style>
-        <Style Selector="TreeDataGridRow.marked TextBlock">
+        <Style Selector="TreeDataGrid.active TreeDataGridRow.marked TextBlock">
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -150,6 +176,7 @@
         <TreeDataGrid x:Name="FileGrid"
                       Focusable="True"
                       Classes.active="{Binding $parent[view:MainPanel].((vm:MainPanelViewModel)DataContext).IsActive}"
+                      Classes.inactive="{Binding $parent[view:MainPanel].((vm:MainPanelViewModel)DataContext).IsActive, Converter={x:Static conv:BooleanConverters.Not}}"
                       Source="{Binding Source}"
                       ShowColumnHeaders="True"
                       CanUserResizeColumns="True" />

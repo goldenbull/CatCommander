@@ -26,10 +26,10 @@ public partial class FileItemRow
 
     /// <summary>
     /// Whether this row currently passes ItemBrowserViewModel's quick filter (see
-    /// ItemBrowserViewModel.ApplyFilter) - false rows are excluded from Source.Items so
+    /// ItemBrowserViewModel.ApplyVisibility) - false rows are excluded from Source.Items so
     /// TreeDataGrid never renders them. Kept as a real per-row property, not just an
     /// exclude-from-list decision, because IsMarked below must hold the invariant "marked is
-    /// always a subset of visible" (an invisible row must never stay silently marked) - ApplyFilter
+    /// always a subset of visible" (an invisible row must never stay silently marked) - ApplyVisibility
     /// is the one place both properties are kept in sync.
     /// </summary>
     public bool IsVisible { get; set; } = true;

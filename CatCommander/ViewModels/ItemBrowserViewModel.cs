@@ -51,7 +51,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     /// <summary>
     /// The current listing's root-level rows (one FileItemRow per _allItems entry). Kept alive
-    /// across filter changes so ApplyFilter can just pick a subset of these into Source.Items
+    /// across filter changes so ApplyVisibility can just pick a subset of these into Source.Items
     /// rather than rebuilding rows from scratch (which would re-trigger every FileItemRow's async
     /// icon load per keystroke). Rebuilt only by RebuildSource - i.e. on navigation and view-mode
     /// toggles.
@@ -71,7 +71,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     public ITreeDataGridSource<FileItemRow>? Source { get; private set; }
 
     /// <summary>
-    /// Total Commander-style quick filter text - see ApplyFilter. Reset to empty by every
+    /// Total Commander-style quick filter text - see ApplyVisibility. Reset to empty by every
     /// RebuildSource (a new folder listing starts unfiltered); otherwise only ever changed via
     /// AppendFilterText/RemoveLastFilterCharacter/ClearFilter, called by the View in response to
     /// characters typed while FileGrid has focus (see ItemBrowser.axaml.cs).
@@ -87,6 +87,15 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// that dependency inference for something the UI actually needs to react to.
     /// </summary>
     public bool IsFilterActive { get; private set; }
+
+    /// <summary>
+    /// Cmd/Ctrl+. (ToggleHiddenFiles) - whether dotfiles/the OS Hidden attribute (see
+    /// LocalFileSystemProvider.IsHiddenEntry) are included in the listing. Unlike FilterText/
+    /// IsFilterActive, this deliberately survives RebuildSource (navigating to a new folder) - a
+    /// "show hidden files" preference is sticky for the whole tab, the way Finder/Explorer/Total
+    /// Commander's own equivalents are, not scoped to one directory listing.
+    /// </summary>
+    public bool ShowHiddenFiles { get; private set; }
 
     /// <summary>
     /// Paths visited via NavigateToAsync, most-recent-first, backing the address bar's history
@@ -180,6 +189,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.GotoLastItem] = ReactiveCommand.Create(GotoLastItem),
             [Operation.ReverseSelection] = ReactiveCommand.Create(ReverseSelection),
             [Operation.Rename] = ReactiveCommand.Create(BeginRenameCurrentItem),
+            [Operation.Refresh] = ReactiveCommand.Create(RefreshCurrentFolder),
+            [Operation.ToggleHiddenFiles] = ReactiveCommand.Create(ToggleHiddenFiles),
         };
     }
 
@@ -226,12 +237,20 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         (Source as IDisposable)?.Dispose();
         FilterText = string.Empty;
         IsFilterActive = false;
+        // ShowHiddenFiles deliberately isn't reset here - see its own doc comment.
         _rows = BuildRows(_allItems);
+        UpdateRowVisibilityFlags();
 
+        // Built directly from the already-filtered rows, not the full _rows followed by an
+        // ApplyVisibility()-style Items swap: TreeSelectionModelBase's own batch-update tracking
+        // doesn't tolerate reassigning Items again immediately after a brand-new selection model's
+        // own construction (confirmed via a real "No batch update in progress" exception this
+        // shape triggered) - a freshly-constructed Source needs to already contain the right rows.
+        var visibleRows = _rows.Where(r => r.IsVisible).ToList();
         if (ViewMode == ItemBrowserViewMode.List)
-            Source = BuildFlatSource(_rows);
+            Source = BuildFlatSource(visibleRows);
         else
-            Source = BuildHierarchicalSource(_rows);
+            Source = BuildHierarchicalSource(visibleRows);
 
         // A fresh listing defaults its current item to the first row rather than leaving nothing
         // selected, matching Total Commander. GoBackToParentFolder's NavigateBackToParentAsync
@@ -240,7 +259,22 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         if (Source.Rows.Count > 0)
             SetCurrentRow(0);
 
+        RecomputeSelection();
         RequestFocus();
+    }
+
+    // The row-visibility half of ApplyVisibility, without the Source.Items swap - RebuildSource
+    // needs this to decide what to construct a brand-new Source *with*, before one exists to swap
+    // Items on (see RebuildSource's own comment on why swapping immediately after construction
+    // isn't safe).
+    private void UpdateRowVisibilityFlags()
+    {
+        foreach (var row in _rows)
+        {
+            row.IsVisible = (ShowHiddenFiles || !row.Item.IsHidden) && QuickFilter.Matches(FilterText, row.Item.Name);
+            if (!row.IsVisible)
+                row.IsMarked = false;
+        }
     }
 
     private FlatTreeDataGridSource<FileItemRow> BuildFlatSource(IReadOnlyList<FileItemRow> rows)
@@ -281,11 +315,15 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     }
 
     /// <summary>
-    /// Recomputes which of _rows currently match FilterText (see QuickFilter) and pushes just
-    /// the matches into Source.Items - swapping Items on the existing source rather than
-    /// RebuildSource's tear-down-and-recreate approach, since that would also reconstruct every
-    /// FileItemRow and re-trigger its async icon load for what needs to be an instant
-    /// per-keystroke update.
+    /// Recomputes which of _rows are currently visible - both from the quick filter (FilterText,
+    /// see QuickFilter) and from ShowHiddenFiles - and pushes the result into Source.Items. The
+    /// single place row visibility is ever decided: SetFilterText, ToggleHiddenFiles, and
+    /// RebuildSource all just update their own piece of state and call this, rather than each
+    /// maintaining its own "what's visible" logic that the others would need to stay in sync with.
+    ///
+    /// Swaps Items on the existing source rather than RebuildSource's tear-down-and-recreate
+    /// approach, since that would also reconstruct every FileItemRow and re-trigger its async icon
+    /// load for what needs to be an instant per-keystroke (or per-toggle) update.
     ///
     /// Swapping Items resets the selection model's source (TreeDataGridRowSelectionModel drops
     /// any current-row cursor no longer present in the new set) - that's cursor-only, though;
@@ -293,14 +331,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// independently of the grid's selection model and swapping Items alone wouldn't touch it -
     /// this is what actually keeps "marked" a subset of "visible" (see FileItemRow.IsMarked).
     /// </summary>
-    private void ApplyFilter()
+    private void ApplyVisibility()
     {
-        foreach (var row in _rows)
-        {
-            row.IsVisible = QuickFilter.Matches(FilterText, row.Item.Name);
-            if (!row.IsVisible)
-                row.IsMarked = false;
-        }
+        UpdateRowVisibilityFlags();
 
         if (Source is null)
             return;
@@ -323,7 +356,17 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     {
         FilterText = text;
         IsFilterActive = FilterText.Length > 0;
-        ApplyFilter();
+        ApplyVisibility();
+    }
+
+    /// <summary>
+    /// Cmd/Ctrl+. - toggles whether dotfiles/OS-hidden entries are included in the listing (see
+    /// ShowHiddenFiles's own doc comment).
+    /// </summary>
+    private void ToggleHiddenFiles()
+    {
+        ShowHiddenFiles = !ShowHiddenFiles;
+        ApplyVisibility();
     }
 
     /// <summary>
@@ -367,6 +410,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         try
         {
             var children = _provider.ListChildrenAsync(row.Item.FullPath).GetAwaiter().GetResult();
+            if (!ShowHiddenFiles)
+                children = children.Where(i => !i.IsHidden).ToList();
+
             return BuildRows(Sort(children));
         }
         catch (Exception ex)
@@ -652,7 +698,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     }
 
     // Alt+R - flips every currently visible row's marked state. Scoped to IsVisible rows only
-    // (not all of _rows): rows hidden by the quick filter are never marked (see ApplyFilter), and
+    // (not all of _rows): rows hidden by the quick filter are never marked (see ApplyVisibility), and
     // reversing them too would mark rows the user can't currently see, breaking that invariant.
     private void ReverseSelection()
     {
@@ -706,6 +752,27 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         return selected is not null && _provider is not null && _provider.CanEnter(selected.Item)
             ? selected.Item.FullPath
             : null;
+    }
+
+    /// <summary>
+    /// Ctrl/Cmd+R - re-reads CurrentPath from the file system without navigating away (picking up
+    /// changes made outside CatCommander - another app writing a file, a mounted drive's contents
+    /// changing, ...), restoring the cursor to the same item afterward if it's still there. Same
+    /// "capture a path, re-navigate, restore" shape CreateDirectoryAsync/ApplyRenameAsync already
+    /// use after their own listing-changing operations - refresh is just that same pattern with no
+    /// operation of its own in between.
+    /// </summary>
+    private void RefreshCurrentFolder()
+    {
+        var selectedPath = SelectionModel?.SelectedItem?.Item.FullPath;
+        _ = RefreshCurrentFolderAsync(selectedPath);
+    }
+
+    private async Task RefreshCurrentFolderAsync(string? previouslySelectedPath)
+    {
+        await NavigateToAsync(CurrentPath);
+        if (previouslySelectedPath is not null)
+            SelectItemByPath(previouslySelectedPath);
     }
 
     private void GoBackToParentFolder()

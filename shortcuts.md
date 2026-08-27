@@ -36,6 +36,8 @@ To wipe out all of your customizations and go back to the table below, use
 | Go to first item | `Home` | `Home` |
 | Go to last item | `End` | `End` |
 | Reverse selection | `Alt+R` | `Alt+R` |
+| Refresh | `Ctrl+R` | `Cmd+R` |
+| Toggle hidden files | `Ctrl+.` | `Cmd+.` |
 | Open selected folder in new tab | `Ctrl+Up` | `Cmd+Up` |
 | Switch tab in same panel | `Ctrl+Tab` | `Ctrl+Tab` |
 | Switch panel | `Tab` | `Tab` |
@@ -89,23 +91,26 @@ switching to another tab and back leaves a tab's marks exactly as you left them.
 filter hides is unmarked at the moment it's hidden (see "marked is always a subset of visible"
 above) - widening or changing the filter afterward does not bring an old mark back.
 
-## Copy / Move
+## Copy / Move / Delete
 
-`F5`/`F6` first show a small confirmation dialog naming the target count and the destination -
-always the *opposite* panel's own current directory, not editable (unlike Total Commander's dialog,
-there's no destination path field). It offers three choices:
+`F5`/`F6`/`F8` (or `Delete`) first show a small confirmation dialog naming the target count -
+Copy/Move also show the destination, always the *opposite* panel's own current directory, not
+editable (unlike Total Commander's dialog, there's no destination path field); Delete has no
+destination to show, just an "this cannot be undone" warning. It offers three choices:
 
-- **Copy**/**Move** - runs the job now, in a modal progress dialog that blocks the main window
-  while it tracks the job live. Its own **Send to Background** button closes the dialog without
-  cancelling the job - it just keeps running, now only visible via **File Operations** below.
+- **Copy**/**Move**/**Delete** - runs the job now, in a modal progress dialog that blocks the main
+  window while it tracks the job live. Its own **Send to Background** button closes the dialog
+  without cancelling the job - it just keeps running, now only visible via **File Operations**
+  below.
 - **Background** - queues the job and returns control to the main window immediately, with no
   progress dialog at all.
 - **Cancel** - does nothing.
 
-Either way, every Copy/Move job runs through one shared, serial background queue - "blocking" vs.
-"background" is only how the UI presents an already-running job, never a different execution path.
-**File > File Operations...** (also on the toolbar) opens a non-modal window listing every job ever
-queued this session, each with a live progress bar - not just the ones started in Background mode.
+Either way, every Copy/Move/Delete job runs through one shared, serial background queue -
+"blocking" vs. "background" is only how the UI presents an already-running job, never a different
+execution path. **File > File Operations...** (also on the toolbar) opens a non-modal window
+listing every job ever queued this session, each with a live progress bar - not just the ones
+started in Background mode.
 
 A name collision at the destination is overwritten, not skipped or prompted for - jobs run
 unattended on the queue, where there's no one to prompt.
@@ -137,3 +142,11 @@ filter one character at a time; `Escape` clears it and shows the folder's full c
 `Space` is the one exception: while a filter is already active it's a word separator like any other
 typed character, but with no filter active yet it doesn't start one - it toggles a mark instead (see
 Multi-selection above).
+
+## Hidden files
+
+`Toggle hidden files` starts off, hiding dotfiles on every platform and, on Windows, anything with
+the OS Hidden attribute set too (a Windows file can be hidden either way; macOS/Linux only ever use
+the dot prefix). Unlike the quick filter, this is a per-tab preference that survives navigating to a
+new folder - it isn't reset the way `FilterText` is on every fresh listing. Tree-list mode's
+expanded folders respect it too, not just the top-level listing.

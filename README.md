@@ -155,10 +155,15 @@ this code is touched:
 `CatCommander/Styles/ClassicTheme.axaml`, loaded after `FluentTheme` in `App.axaml`, repaints the
 whole app to a fixed classic-Total-Commander palette (`RequestedThemeVariant="Light"` - no
 dark-mode variant to maintain). 12pt font, square corners, thin gray borders. The active/inactive
-panel distinction is done via a `Classes.active` binding threaded from `MainPanelViewModel.IsActive`
-down into `ItemBrowser`'s `TreeDataGrid`/`TextBox` (using an ancestor-lookup binding, since
-`ItemBrowser`'s own `DataContext` is the per-tab `ItemBrowserViewModel`, not the panel) - the
-active panel's address bar and selection go navy, the inactive one's selection goes muted gray.
+panel distinction is done via `Classes.active`/`Classes.inactive` bindings (the second is the
+logical negation of the first, via `BooleanConverters.Not` - not a `:not(.active)` selector, which
+was already found not to react reliably to `Classes.active` toggling on `TreeDataGrid`) threaded
+from `MainPanelViewModel.IsActive` down into `ItemBrowser`'s `TreeDataGrid`/`TextBox` (using an
+ancestor-lookup binding, since `ItemBrowser`'s own `DataContext` is the per-tab
+`ItemBrowserViewModel`, not the panel) - the active panel's address bar and cursor row go navy/pale
+blue, the inactive one's cursor row and any marked rows go back to no background at all, not the
+framework's own default gray, so an inactive panel never visually competes with whichever one the
+keyboard is actually listening to.
 
 ## Testing strategy - and its limits
 
@@ -232,6 +237,18 @@ Concrete things that cost real debugging time, kept here so they don't get re-di
    input pipeline at all. When a keyboard shortcut does something but nothing in the app's own
    logging shows it being dispatched, check whether it's actually a `NativeMenuItem.Gesture` (or
    another OS-level binding) firing instead of the code path being debugged.
+9. **`Cmd+.` is Mac OS's own system-wide "Cancel" gesture** (a Classic Mac OS convention AppKit
+   still honors) - `NSApplication` generically intercepts it as an implicit abort signal whether or
+   not any app registers it, the same class of problem as `Ctrl+Tab`'s window-tab cycling (lesson
+   2) but for a punctuation key instead of a letter, easy to instead suspect an IME or a
+   third-party remapping tool first. Diagnosed by comparing `GlobalShortcutGuard`'s own SharpHook
+   log line (see "Logging" below) against `ShortcutRouter`'s: `Ctrl+.`/`Alt+.` produced *both*
+   lines, `Cmd+.` only ever produced `GlobalShortcutGuard`'s - proof the raw keystroke reaches a
+   system-wide hook that sits strictly below Avalonia's own input pipeline, but never reaches
+   Avalonia itself. Fixed the same way as `Ctrl+Tab`: added to `MacReservedCombos`, letting
+   `GlobalShortcutGuard` suppress + dispatch it directly instead of relying on Avalonia to ever see
+   it. When a `Cmd+`-modified *punctuation* key (not a letter) silently does nothing, suspect this
+   specific AppKit convention before chasing an IME or a global hotkey tool.
 
 ## Logging
 
@@ -240,6 +257,16 @@ setup call) logs to both the console and `~/Library/Application Support/CatComma
 the equivalent on other platforms) at Debug level. `ShortcutRouter` and `GlobalShortcutGuard` both
 log every dispatched shortcut - the first thing to check when a shortcut "does nothing" is whether
 it's being dispatched at all.
+
+Both also log *unmatched* modified gestures, not just successful dispatches - `ShortcutRouter` for
+every `KeyDown` with a modifier held (`"ShortcutRouter saw key=... modifiers=... -> {Operation or
+Nop}"`), `GlobalShortcutGuard` for every raw `SharpHook` `KeyCode` it sees under the same condition.
+This pair is what actually diagnosed lesson 9 below: comparing which of the two logged a given
+keystroke (both, only the SharpHook one, or neither) pinpoints exactly which layer swallowed it -
+Avalonia's own input pipeline, something below that but above the OS-level `SharpHook` tap, or
+before even that. For this whole class of "a shortcut does literally nothing" bug, reproducing it
+live and reading these two logs side by side is far more direct than trying to reproduce the
+interception itself in a headless test - the interception is almost never in this app's own code.
 
 ## Build / run / test
 

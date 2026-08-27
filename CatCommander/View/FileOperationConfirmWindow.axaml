@@ -10,7 +10,11 @@
         WindowStartupLocation="CenterOwner">
     <StackPanel Margin="12" Spacing="12">
         <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding Destination}" FontWeight="Bold" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding Destination}"
+                   IsVisible="{Binding ShowDestination}"
+                   FontWeight="Bold"
+                   TextWrapping="Wrap"
+                   TextTrimming="CharacterEllipsis" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
             <Button Content="Cancel" Command="{Binding CancelCommand}" />
             <Button Content="Background" Command="{Binding BackgroundCommand}" />

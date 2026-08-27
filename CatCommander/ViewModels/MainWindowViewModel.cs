@@ -7,12 +7,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CatCommander.Config;
-using CatCommander.Models;
 using CatCommander.Services;
 using CatCommander.Shortcuts;
 using CatCommander.View;
 using Metalama.Patterns.Observability;
-using NLog;
 using ReactiveUI;
 
 namespace CatCommander.ViewModels;
@@ -20,8 +18,6 @@ namespace CatCommander.ViewModels;
 [Observable]
 public partial class MainWindowViewModel : IShortcutCommandSource
 {
-    private static readonly Logger log = LogManager.GetCurrentClassLogger();
-
     private readonly ConfigManager _configManager;
     private readonly FileOperationQueue _fileOperationQueue;
     private readonly Func<FindWindow> _findWindowFactory;
@@ -98,7 +94,7 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         // registered in _commands below: doing so would shadow the tab-level command in
         // GetCommand's dispatch chain, since window-level entries get first refusal.
         RenameCommand = ReactiveCommand.Create(() => ActivePanel?.ActiveTab?.GetCommand(Operation.Rename)?.Execute(null));
-        DeleteCommand = ReactiveCommand.Create(() => LogStubFileOperation(Operation.Delete));
+        DeleteCommand = ReactiveCommand.CreateFromTask(() => StartFileOperationAsync(FileOperationKind.Delete));
         OpenFindCommand = ReactiveCommand.Create(OpenFind);
         OpenBatchRenameCommand = ReactiveCommand.Create(OpenBatchRename);
         OpenCreateDirectoryDialogCommand = ReactiveCommand.Create(OpenCreateDirectoryDialog);
@@ -182,25 +178,12 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         new NewFolderWindow(viewModel, _configManager.Shortcuts).Show();
     }
 
-    // Delete isn't implemented yet - this just proves menu/toolbar/keyboard all reach the same
-    // command. Copy/Move went through this same stub until StartFileOperationAsync replaced it;
-    // Rename doesn't go through here at all: renaming several items at once needs a pattern,
-    // which is what OpenBatchRename is for, not a bare "Rename" invocation.
-    private void LogStubFileOperation(Operation operation)
-    {
-        var targets = ActivePanel?.ActiveTab?.GetOperationTargets() ?? Array.Empty<IFileSystemItem>();
-        log.Info(
-            "{0} command executed (stub, ActivePanel={1}, targets=[{2}])",
-            operation,
-            ActivePanel == LeftPanel ? "Left" : "Right",
-            string.Join(", ", targets.Select(t => t.Name)));
-    }
-
-    // F5/F6 - see FileOperationQueue's own doc comment for why "blocking" vs "background" are
-    // just two presentations of the same queued execution, not two different code paths here.
-    // The destination is always the opposite panel's *own* current directory (its ActiveTab's
-    // CurrentPath, not GetSelectedEnterablePath() - unlike OpenCurrentFolderInOppositePanel above,
-    // this isn't about a selected row, it's "wherever that panel is already browsing").
+    // F5/F6/Delete - see FileOperationQueue's own doc comment for why "blocking" vs "background"
+    // are just two presentations of the same queued execution, not two different code paths here.
+    // The destination (Copy/Move only - Delete has none) is always the opposite panel's *own*
+    // current directory (its ActiveTab's CurrentPath, not GetSelectedEnterablePath() - unlike
+    // OpenCurrentFolderInOppositePanel above, this isn't about a selected row, it's "wherever that
+    // panel is already browsing").
     private async Task StartFileOperationAsync(FileOperationKind kind)
     {
         if (ActivePanel?.ActiveTab is not { } sourceTab)
@@ -210,11 +193,18 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         if (targets.Count == 0 || sourceTab.Provider is not { } provider)
             return;
 
-        var destinationPanel = ActivePanel == LeftPanel ? RightPanel : LeftPanel;
-        if (destinationPanel.ActiveTab is not { } destinationTab || string.IsNullOrEmpty(destinationTab.CurrentPath))
-            return;
+        string? destination = null;
+        MainPanelViewModel? destinationPanel = null;
 
-        var destination = destinationTab.CurrentPath;
+        if (kind != FileOperationKind.Delete)
+        {
+            destinationPanel = ActivePanel == LeftPanel ? RightPanel : LeftPanel;
+            if (destinationPanel.ActiveTab is not { } destinationTab || string.IsNullOrEmpty(destinationTab.CurrentPath))
+                return;
+
+            destination = destinationTab.CurrentPath;
+        }
+
         if (GetActiveWindow() is not { } owner)
             return;
 
@@ -240,17 +230,19 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         }
     }
 
-    // Move makes items disappear from the source listing and appear at the destination; Copy only
-    // does the latter - refreshing both unconditionally is simplest and harmless (NavigateToAsync
-    // re-lists whatever's actually there either way). The destination tab is only refreshed if
-    // it's still showing the same directory the job was aimed at - the user may have navigated
-    // that panel elsewhere while a background job was running, and forcibly yanking them back to
-    // `destination` would be a worse surprise than a listing that's one refresh stale.
-    private static void RefreshAfterFileOperation(ItemBrowserViewModel sourceTab, MainPanelViewModel destinationPanel, string destination)
+    // Move/Delete make items disappear from the source listing (Delete: gone entirely; Move: gone
+    // from here, appear at the destination); Copy only does the latter, and Delete has no
+    // destination at all - refreshing the source unconditionally and the destination only if one
+    // exists is simplest and harmless (NavigateToAsync re-lists whatever's actually there either
+    // way). The destination tab is only refreshed if it's still showing the same directory the job
+    // was aimed at - the user may have navigated that panel elsewhere while a background job was
+    // running, and forcibly yanking them back to `destination` would be a worse surprise than a
+    // listing that's one refresh stale.
+    private static void RefreshAfterFileOperation(ItemBrowserViewModel sourceTab, MainPanelViewModel? destinationPanel, string? destination)
     {
         _ = sourceTab.NavigateToAsync(sourceTab.CurrentPath);
 
-        if (destinationPanel.ActiveTab is { } destinationTab && destinationTab.CurrentPath == destination)
+        if (destinationPanel?.ActiveTab is { } destinationTab && destinationTab.CurrentPath == destination)
             _ = destinationTab.NavigateToAsync(destination);
     }
 

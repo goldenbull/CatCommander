@@ -30,6 +30,14 @@ public static class MacReservedCombos
         // consumes the Control modifier before Avalonia's own input pipeline ever sees it) - even
         // though CatCommander is a single-window app with no native tab group to cycle to.
         new KeyGesture(Key.Tab, KeyModifiers.Control),   // AppKit: show next/previous window tab
+
+        // Cmd+. is Mac OS's own long-standing system-wide "Cancel" gesture (predates Cocoa) -
+        // AppKit's NSApplication generically intercepts it as an implicit Escape/abort signal, not
+        // something tied to any specific app registering it. Confirmed by testing: GlobalShortcutGuard's
+        // own SharpHook hook (strictly lower-level than Avalonia's input pipeline) logs seeing the
+        // raw keystroke every time, but ShortcutRouter's own log never once fires for it - Ctrl+.
+        // and Alt+. both reach ShortcutRouter normally, only the Meta (Cmd) modifier is swallowed.
+        new KeyGesture(Key.OemPeriod, KeyModifiers.Meta), // AppKit: system-wide Cancel gesture
     };
 
     public static bool Contains(KeyGesture gesture) => All.Contains(gesture);

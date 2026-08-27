@@ -133,7 +133,7 @@ public class MainWindowFocusTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task ActivePanelCursor_IsPaleBlue_InactivePanelCursor_IsGray()
+    public async Task ActivePanelCursor_IsPaleBlue_InactivePanelCursor_IsTransparent()
     {
         // Regression: the first fix (a positive TreeDataGrid.active selector on the *cell*) still
         // left the active panel's selection looking gray - a different gray than the inactive
@@ -157,19 +157,26 @@ public class MainWindowFocusTests : IDisposable
         Pump();
         Assert.Contains("active", leftGrid.Classes);
         Assert.DoesNotContain("active", rightGrid.Classes);
+        Assert.Contains("inactive", rightGrid.Classes);
 
-        // TcCursorColor / TcInactiveSelectionColor - see ClassicTheme.axaml. The cursor color is
-        // deliberately pale (not the navy MarkedToBackgroundBrushConverter uses for marked rows) -
-        // see ItemBrowser.axaml's own comment on why that no longer needs a white-text override.
+        // TcCursorColor - see ClassicTheme.axaml. The cursor color is deliberately pale (not the
+        // navy MarkedToBackgroundBrushConverter uses for marked rows) - see ItemBrowser.axaml's
+        // own comment on why that no longer needs a white-text override. The inactive panel's
+        // cursor row goes fully transparent, not the framework's own default gray - see
+        // ItemBrowser.axaml's TreeDataGrid.inactive styles for why that needs an explicit override
+        // rather than just not matching a positive .active selector.
         Assert.Equal(Color.Parse("#D1E7FD"), SelectedRowPresenterBackgroundColor(leftGrid));
-        Assert.Equal(Color.Parse("#C0C0C0"), SelectedRowPresenterBackgroundColor(rightGrid));
+        Assert.Equal(Colors.Transparent, SelectedRowPresenterBackgroundColor(rightGrid));
     }
 
     private static Color SelectedRowPresenterBackgroundColor(TreeDataGrid grid)
     {
         var row = grid.GetVisualDescendants().OfType<TreeDataGridRow>().Single(r => r.IsSelected);
         var presenter = row.GetVisualDescendants().OfType<TreeDataGridCellsPresenter>().Single();
-        return Assert.IsType<SolidColorBrush>(presenter.Background).Color;
+        // ISolidColorBrush, not the concrete SolidColorBrush - a XAML Setter resolves a literal
+        // color string like "Transparent" to the immutable ImmutableSolidColorBrush instead, not
+        // the mutable type a DynamicResource brush resolves to.
+        return Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Background).Color;
     }
 
     [AvaloniaFact]

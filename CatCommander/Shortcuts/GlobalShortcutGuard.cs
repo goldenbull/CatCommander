@@ -157,6 +157,7 @@ public sealed class GlobalShortcutGuard : IDisposable
             case KeyCode.VcDown: key = Key.Down; return true;
             case KeyCode.VcF3: key = Key.F3; return true;
             case KeyCode.VcTab: key = Key.Tab; return true;
+            case KeyCode.VcPeriod: key = Key.OemPeriod; return true;
             default: key = Key.None; return false;
         }
     }

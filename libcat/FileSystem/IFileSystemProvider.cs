@@ -60,6 +60,14 @@ public interface IFileSystemProvider
     Task MoveAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default);
 
     /// <summary>
+    /// Deletes <paramref name="path"/> - a file, or a directory and everything in it - Del/F8's
+    /// Delete, always run off the UI thread by FileOperationQueue rather than called directly from
+    /// a ViewModel. No per-file progress reporting, unlike CopyAsync/MoveAsync: a local recursive
+    /// delete has no meaningful per-file latency to report on the way through.
+    /// </summary>
+    Task DeleteAsync(string path, CancellationToken ct = default);
+
+    /// <summary>
     /// Whether this item is itself another browsable root within this same provider (e.g. a
     /// directory). Archive providers will later say "no" for an item that's actually a nested
     /// archive - entering that needs a different provider, resolved via FileSystemProviderRegistry.
