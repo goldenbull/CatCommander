@@ -8,6 +8,10 @@
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <ApplicationManifest>app.manifest</ApplicationManifest>
+        <!-- All XAML root Windows are intentionally constructor-injected and instantiated by DI;
+             they use compiled InitializeComponent(), never AvaloniaXamlLoader runtime creation.
+             AVLN3001 is Avalonia's known false positive for this TopLevel/DI pattern. -->
+        <NoWarn>$(NoWarn);AVLN3001</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

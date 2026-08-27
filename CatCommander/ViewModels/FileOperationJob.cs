@@ -61,6 +61,7 @@ public partial class FileOperationJob
     // aspect doesn't attempt to deep-analyze the same way.
     public string Description => BuildDescription();
 
+    [Constant]
     private string BuildDescription()
     {
         var itemWord = Items.Count == 1 ? "item" : "items";
@@ -71,6 +72,8 @@ public partial class FileOperationJob
 
     public FileOperationJobStatus Status { get; set; } = FileOperationJobStatus.Queued;
     public int CompletedCount { get; set; }
+    // Items is an immutable constructor snapshot, so TotalCount never changes during a job.
+    [NotObservable]
     public int TotalCount => Items.Count;
     public string CurrentItemName { get; set; } = string.Empty;
     public string CurrentDetail { get; set; } = string.Empty;

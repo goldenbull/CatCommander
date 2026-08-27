@@ -96,7 +96,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// </summary>
     public IFileSystemProvider? Provider => _provider;
     public BrowserContext? Context { get; private set; }
-    public ContainerRef? WritableDestination => Context?.WritableDestination;
+    public ContainerRef? WritableDestination { get; private set; }
 
     /// <summary>A stable provider path suitable for restoring this tab on the next launch.</summary>
     [NotObservable]
@@ -417,6 +417,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 _provider = listing.Location?.Provider;
                 CurrentPath = displayPath;
                 Context = new BrowserContext(listing);
+                WritableDestination = listing.WritableDestination;
                 _browserItems = listing.Kind == ListingKind.Directory || _activeSortField is not null
                     ? Sort(snapshot.Items, _activeSortField ?? BrowserSortField.Name, _sortAscending)
                     : snapshot.Items;
