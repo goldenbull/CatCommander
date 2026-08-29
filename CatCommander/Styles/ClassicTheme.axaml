@@ -11,8 +11,9 @@
   <Styles.Resources>
     <ResourceDictionary>
       <!-- Palette: classic Win32 "3D Face" gray chrome, white file-list background, navy accents -->
-      <Color x:Key="TcChromeColor">#D4D0C8</Color>
+      <Color x:Key="TcChromeColor">#F3F6FA</Color>
       <Color x:Key="TcPanelColor">#FFFFFF</Color>
+      <Color x:Key="TcMenuColor">#F2F2F2</Color>
       <Color x:Key="TcBorderColor">#808080</Color>
       <Color x:Key="TcSelectionColor">#2C4A85</Color>
       <Color x:Key="TcTextColor">#000000</Color>
@@ -45,6 +46,7 @@
 
       <SolidColorBrush x:Key="TcChromeBrush" Color="{StaticResource TcChromeColor}" />
       <SolidColorBrush x:Key="TcPanelBrush" Color="{StaticResource TcPanelColor}" />
+      <SolidColorBrush x:Key="TcMenuBrush" Color="{StaticResource TcMenuColor}" />
       <SolidColorBrush x:Key="TcBorderBrush" Color="{StaticResource TcBorderColor}" />
       <SolidColorBrush x:Key="TcSelectionBrush" Color="{StaticResource TcSelectionColor}" />
       <SolidColorBrush x:Key="TcMarkedBrush" Color="{StaticResource TcMarkedColor}" />
@@ -86,7 +88,7 @@
 
   <!-- ============ Window / dialog chrome ============ -->
   <Style Selector="Window">
-    <Setter Property="Background" Value="{StaticResource TcChromeBrush}" />
+    <Setter Property="Background" Value="{StaticResource TcPanelBrush}" />
   </Style>
 
   <!-- ============ Buttons: flat, square, thin gray border, compact padding ============ -->

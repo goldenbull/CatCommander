@@ -158,4 +158,25 @@ public class MainPanelViewModelTests : IDisposable
         Assert.Same(panel.Tabs[0], panel.ActiveTab);
         Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), panel.ActiveTab!.CurrentPath);
     }
+
+    [Fact]
+    public async Task FavoritesOperationRequestsPopup_AndAddCurrentDirectoryPersistsIt()
+    {
+        var config = new ConfigManager(Path.Combine(_root, "config"));
+        var panel = new MainPanelViewModel(
+            () => new ItemBrowserViewModel(_registry, _iconCache), config);
+        await panel.ActiveTab!.NavigateToAsync(_root);
+        var requested = false;
+        panel.ShowFavoritesRequested += () => requested = true;
+
+        panel.GetCommand(Operation.ShowFavorites)!.Execute(null);
+        panel.AddCurrentToFavoritesCommand.Execute(null);
+
+        Assert.True(requested);
+        Assert.Contains(panel.FavoriteEntries, entry => entry.Path == _root);
+        Assert.Contains(panel.FavoriteMenuEntries, item => item.Favorite?.Path == _root);
+        Assert.True(panel.FavoriteMenuEntries[^1].IsAddCurrent);
+        Assert.Null(panel.FavoriteMenuEntries[^1].Favorite);
+        Assert.Contains(_root, new ConfigManager(Path.Combine(_root, "config")).Settings.Favorites.Paths);
+    }
 }

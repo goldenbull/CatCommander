@@ -14,6 +14,16 @@ public class QuickAccessServiceTests
     }
 
     [Fact]
+    public void GetDefaultFavorites_IsSmallAndContainsOnlyExistingCommonFolders()
+    {
+        var entries = QuickAccessService.GetDefaultFavorites();
+
+        Assert.InRange(entries.Count, 1, 4);
+        Assert.All(entries, entry => Assert.True(System.IO.Directory.Exists(entry.Path)));
+        Assert.Contains(entries, entry => entry.DisplayName == "Home");
+    }
+
+    [Fact]
     public void GetEntries_AllPathsExist()
     {
         // Every entry should point at somewhere real on this machine - a stale/wrong path here

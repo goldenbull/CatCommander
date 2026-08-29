@@ -18,7 +18,7 @@
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="BorderThickness" Value="1,1,1,0" />
             <Setter Property="BorderBrush" Value="{DynamicResource TcBorderBrush}" />
-            <Setter Property="Background" Value="{DynamicResource TcChromeBrush}" />
+            <Setter Property="Background" Value="{DynamicResource TcHeaderBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TcTextBrush}" />
         </Style>
         <Style Selector="Button.tabHeader.selected">
@@ -27,13 +27,96 @@
         <Style Selector="Button.tabHeader.selected.panelActive">
             <Setter Property="Background" Value="{DynamicResource TcActiveTabBrush}" />
         </Style>
+        <Style Selector="Button.panelCommand">
+            <Setter Property="Background" Value="{DynamicResource TcPanelBrush}" />
+        </Style>
+        <Style Selector="Button.driveItem">
+            <Setter Property="Padding" Value="5,2" />
+            <Setter Property="MinHeight" Value="22" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.driveItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
+        </Style>
+        <!-- The favorites popup behaves like a native menu: one focusable vertical list,
+             arrow-key navigation, and a subtle surface color to delimit the popup. -->
+        <Style Selector="ListBox.favoriteMenu">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Background" Value="{DynamicResource TcMenuBrush}" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.favoriteMenu ListBoxItem">
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.favoriteMenu ListBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
+        </Style>
+        <Style Selector="ListBox.favoriteMenu ListBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TcTextBrush}" />
+        </Style>
+        <Style Selector="Button.favoriteAction">
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.favoriteAction:pointerover">
+            <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
+        </Style>
+        <Style Selector="FlyoutPresenter">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Background" Value="{DynamicResource TcMenuBrush}" />
+        </Style>
     </UserControl.Styles>
 
     <!-- Background="Transparent" (not left null) is required for the interior to be hit-test
          visible at all - otherwise clicks inside it don't register as hitting this control. -->
-    <Border Background="Transparent">
+    <Border Background="{DynamicResource TcPanelBrush}">
         <DockPanel>
-            <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding QuickAccessEntries}">
+            <DockPanel DockPanel.Dock="Top" Background="{DynamicResource TcPanelBrush}">
+                <Button x:Name="FavoritesButton"
+                        DockPanel.Dock="Left"
+                        Classes="panelCommand"
+                        Margin="1"
+                        Content="★"
+                        ToolTip.Tip="Directory favorites (Cmd/Ctrl+D)">
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedLeft"
+                                Opened="OnFavoritesOpened">
+                            <Border Background="{DynamicResource TcMenuBrush}" Padding="2">
+                                <StackPanel MinWidth="280">
+                                    <ListBox x:Name="FavoritesList"
+                                             Classes="favoriteMenu"
+                                             ItemsSource="{Binding FavoriteMenuEntries}"
+                                             SelectionMode="Single"
+                                             KeyDown="OnFavoritesKeyDown"
+                                             PointerReleased="OnFavoritePointerReleased">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:FavoriteMenuItem">
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           ToolTip.Tip="{Binding Path}" />
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </StackPanel>
+                            </Border>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <ItemsControl ItemsSource="{Binding QuickAccessEntries}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal" />
@@ -41,7 +124,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="qa:QuickAccessEntry">
-                        <Button Margin="1"
+                        <Button Margin="1" Classes="driveItem"
                                 Command="{Binding $parent[ItemsControl].((vm:MainPanelViewModel)DataContext).NavigateToQuickAccessCommand}"
                                 CommandParameter="{Binding}"
                                 ToolTip.Tip="{Binding Path}">
@@ -52,7 +135,8 @@
                         </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                </ItemsControl>
+            </DockPanel>
 
             <!-- One row of tab-header buttons, driving which Tabs entry ItemBrowser below displays -
                  see MainPanelViewModel's doc comment for why this isn't a TabControl. -->

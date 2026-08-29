@@ -12,6 +12,12 @@ using ReactiveUI;
 
 namespace CatCommander.ViewModels;
 
+public sealed record FavoriteMenuItem(
+    string DisplayName,
+    string? Path,
+    QuickAccessEntry? Favorite,
+    bool IsAddCurrent = false);
+
 /// <summary>
 /// ViewModel for one MainPanel (one side of the dual-pane view): a quick access row, a strip of
 /// tab-header buttons, and the backend data (Tabs) they select between.
@@ -45,28 +51,47 @@ public partial class MainPanelViewModel : IShortcutCommandSource
     public Action? OnActivated { get; set; }
 
     public IReadOnlyList<QuickAccessEntry> QuickAccessEntries { get; } = QuickAccessService.GetEntries();
+    public ObservableCollection<QuickAccessEntry> FavoriteEntries { get; } = new();
+    public ObservableCollection<FavoriteMenuItem> FavoriteMenuEntries { get; } = new();
     public ObservableCollection<ItemBrowserViewModel> Tabs { get; } = new();
     public ItemBrowserViewModel? ActiveTab { get; private set; }
 
     public ICommand NavigateToQuickAccessCommand { get; }
     public ICommand SelectTabCommand { get; }
+    public ICommand NavigateToFavoriteCommand { get; }
+    public ICommand AddCurrentToFavoritesCommand { get; }
+    public event Action? ShowFavoritesRequested;
+    public event Action? HideFavoritesRequested;
 
     private readonly Func<ItemBrowserViewModel> _itemBrowserFactory;
+    private readonly ConfigManager? _configManager;
     private readonly Dictionary<Operation, ICommand> _commands;
 
-    public MainPanelViewModel(Func<ItemBrowserViewModel> itemBrowserFactory)
+    public MainPanelViewModel(
+        Func<ItemBrowserViewModel> itemBrowserFactory,
+        ConfigManager? configManager = null)
     {
         _itemBrowserFactory = itemBrowserFactory;
+        _configManager = configManager;
 
         NavigateToQuickAccessCommand = ReactiveCommand.Create<QuickAccessEntry>(entry =>
             _ = ActiveTab?.NavigateToAsync(entry.Path));
         SelectTabCommand = ReactiveCommand.Create<ItemBrowserViewModel>(SetActiveTab);
+        NavigateToFavoriteCommand = ReactiveCommand.Create<QuickAccessEntry>(entry =>
+        {
+            _ = ActiveTab?.NavigateToAsync(entry.Path);
+            HideFavoritesRequested?.Invoke();
+        });
+        AddCurrentToFavoritesCommand = ReactiveCommand.Create(AddCurrentToFavorites);
+        LoadFavorites();
+        RebuildFavoriteMenuEntries();
 
         _commands = new Dictionary<Operation, ICommand>
         {
             [Operation.OpenSelectedFolderInNewTab] = ReactiveCommand.Create(OpenSelectedFolderInNewTab),
             [Operation.SwitchTabInSamePanel] = ReactiveCommand.Create(SwitchTabInSamePanel),
             [Operation.CloseTab] = ReactiveCommand.Create(CloseTab),
+            [Operation.ShowFavorites] = ReactiveCommand.Create(() => ShowFavoritesRequested?.Invoke()),
         };
 
         // Just one tab to start - old-ref opened two "for testing", which isn't a real default.
@@ -78,6 +103,52 @@ public partial class MainPanelViewModel : IShortcutCommandSource
 
     // Shared with CloseTab's last-tab fallback below - both mean "what a brand new tab starts at".
     private static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+    private void LoadFavorites()
+    {
+        var configured = _configManager?.Settings.Favorites.Paths;
+        if (configured is { Count: > 0 })
+        {
+            foreach (var path in configured.Where(path => !string.IsNullOrWhiteSpace(path)))
+                FavoriteEntries.Add(CreateFavorite(path));
+            return;
+        }
+
+        foreach (var entry in QuickAccessService.GetDefaultFavorites())
+            FavoriteEntries.Add(entry);
+    }
+
+    private void AddCurrentToFavorites()
+    {
+        if (ActiveTab?.SessionPath is not { } path ||
+            FavoriteEntries.Any(entry => string.Equals(entry.Path, path, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        FavoriteEntries.Add(CreateFavorite(path));
+        RebuildFavoriteMenuEntries();
+        if (_configManager is null)
+            return;
+
+        _configManager.Settings.Favorites.Paths = FavoriteEntries.Select(entry => entry.Path).ToList();
+        _configManager.SaveSettings();
+    }
+
+    private void RebuildFavoriteMenuEntries()
+    {
+        FavoriteMenuEntries.Clear();
+        foreach (var favorite in FavoriteEntries)
+            FavoriteMenuEntries.Add(new FavoriteMenuItem(favorite.DisplayName, favorite.Path, favorite));
+        FavoriteMenuEntries.Add(new FavoriteMenuItem("＋ Add current directory", null, null, IsAddCurrent: true));
+    }
+
+    private static QuickAccessEntry CreateFavorite(string path) => new()
+    {
+        DisplayName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) is { Length: > 0 } name
+            ? name
+            : path,
+        Path = path,
+        Kind = QuickAccessKind.SpecialFolder,
+    };
 
     // The one place ActiveTab is ever assigned - keeps IsActiveTab (the tab-header button's
     // selected look) in sync with it, the same relationship MainWindowViewModel.SetActivePanel

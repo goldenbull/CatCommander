@@ -10,6 +10,15 @@ public sealed class ApplicationSettings
 
     [TomlPropertyName("terminal")]
     public TerminalSettings Terminal { get; set; } = new();
+
+    [TomlPropertyName("favorites")]
+    public FavoritesSettings Favorites { get; set; } = new();
+}
+
+public sealed class FavoritesSettings
+{
+    [TomlPropertyName("paths")]
+    public List<string> Paths { get; set; } = new();
 }
 
 public sealed class TerminalSettings

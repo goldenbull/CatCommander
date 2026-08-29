@@ -9,6 +9,13 @@ namespace CatCommander.QuickAccess;
 /// </summary>
 public static class QuickAccessService
 {
+    public static IReadOnlyList<QuickAccessEntry> GetDefaultFavorites()
+    {
+        var entries = new List<QuickAccessEntry>();
+        AddCommonFolders(entries);
+        return entries;
+    }
+
     public static IReadOnlyList<QuickAccessEntry> GetEntries()
     {
         var entries = new List<QuickAccessEntry>();

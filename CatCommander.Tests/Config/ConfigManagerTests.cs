@@ -8,16 +8,18 @@ public sealed class ConfigManagerTests : IDisposable
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"CatCommanderConfig_{Guid.NewGuid():N}");
 
     [Fact]
-    public void ConfigToml_RoundTripsShortcutsAndTerminalSettings()
+    public void ConfigToml_RoundTripsShortcutsTerminalAndFavoritesSettings()
     {
         var manager = new ConfigManager(_directory);
         manager.Settings.Shortcuts.Bindings["Copy"] = "Ctrl+C";
         manager.Settings.Terminal.WindowsShell = "powershell";
+        manager.Settings.Favorites.Paths = ["/favorite/a", "/favorite/b"];
         manager.SaveSettings();
 
         var reloaded = new ConfigManager(_directory);
 
         Assert.Equal("powershell", reloaded.Settings.Terminal.WindowsShell);
+        Assert.Equal(["/favorite/a", "/favorite/b"], reloaded.Settings.Favorites.Paths);
         Assert.Equal(Operation.Copy, reloaded.Shortcuts.GetOperation(KeyGesture.Parse("Ctrl+C")));
         Assert.Contains("[shortcuts.bindings]", File.ReadAllText(Path.Combine(_directory, "config.toml")));
     }

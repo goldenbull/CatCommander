@@ -109,6 +109,7 @@ public class ShortcutsSettingsTests
         Assert.Equal("Meta+B", defaults[Operation.ExpandCurrentFolder]);
         Assert.Equal("Meta+M", defaults[Operation.OpenBatchRename]);
         Assert.Equal("Meta+G", defaults[Operation.OpenTerminal]);
+        Assert.Equal("Meta+D", defaults[Operation.ShowFavorites]);
         Assert.Equal("Meta+1", defaults[Operation.CopyContainerPath]);
         Assert.Equal("Meta+2", defaults[Operation.CopyItemNames]);
         Assert.Equal("Meta+3", defaults[Operation.CopyItemPaths]);
@@ -138,6 +139,7 @@ public class ShortcutsSettingsTests
         Assert.Equal("Ctrl+B", defaults[Operation.ExpandCurrentFolder]);
         Assert.Equal("Ctrl+M", defaults[Operation.OpenBatchRename]);
         Assert.Equal("Ctrl+G", defaults[Operation.OpenTerminal]);
+        Assert.Equal("Ctrl+D", defaults[Operation.ShowFavorites]);
         Assert.Equal("Ctrl+1", defaults[Operation.CopyContainerPath]);
         Assert.Equal("Ctrl+2", defaults[Operation.CopyItemNames]);
         Assert.Equal("Ctrl+3", defaults[Operation.CopyItemPaths]);
