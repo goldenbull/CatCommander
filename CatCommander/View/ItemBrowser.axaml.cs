@@ -9,12 +9,15 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CatCommander.ViewModels;
+using CatCommander.Shortcuts;
+using CatCommander.Config;
 
 namespace CatCommander.View;
 
 public partial class ItemBrowser : UserControl
 {
     private ItemBrowserViewModel? _viewModel;
+    private bool _contextTargetsItem = true;
 
     // Keyed by the row *control* (recycled/reused across different FileItemRow models as the grid
     // scrolls), not the model - see OnRowPrepared/OnRowClearing.
@@ -70,6 +73,7 @@ public partial class ItemBrowser : UserControl
         // Mouse double-click: enters a directory, or hands a file to the OS's own default handler
         // (Finder/Explorer double-click behavior) - see ItemBrowserViewModel.OpenOrEnterCurrentItem.
         FileGrid.DoubleTapped += OnFileGridDoubleTapped;
+        FileGrid.AddHandler(PointerPressedEvent, OnFileGridPointerPressed, RoutingStrategies.Tunnel);
 
         // Quick filter: both installed Tunnel-phase on this UserControl, so they run after
         // ShortcutRouter's own Window-level Tunnel handler (giving bound Operations first
@@ -128,7 +132,82 @@ public partial class ItemBrowser : UserControl
 
     private void OnFocusRequested() => FocusGrid();
 
-    private void OnFileGridDoubleTapped(object? sender, TappedEventArgs e) => _viewModel?.OpenOrEnterCurrentItem();
+    private void OnFileGridDoubleTapped(object? sender, TappedEventArgs e) =>
+        _viewModel?.GetCommand(Operation.OpenCurrentItem)?.Execute(null);
+
+    private void OnFileGridPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(FileGrid).Properties.IsRightButtonPressed || _viewModel is null)
+            return;
+
+        var source = e.Source as Visual;
+        var row = source as TreeDataGridRow ?? source?.FindAncestorOfType<TreeDataGridRow>();
+        if (row?.Model is FileItemRow model)
+        {
+            _contextTargetsItem = true;
+            _viewModel.PrepareItemContextMenu(model);
+        }
+        else
+        {
+            _contextTargetsItem = false;
+        }
+    }
+
+    private void OnItemContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        var commandSource = TopLevel.GetTopLevel(this)?.DataContext as IShortcutCommandSource;
+        var targetCount = _viewModel.GetOperationBrowserItems().Count;
+        var isSingleTarget = _contextTargetsItem && targetCount == 1;
+        var isMultipleTargets = _contextTargetsItem &&
+            _viewModel.SelectedFileCount + _viewModel.SelectedFolderCount > 1;
+
+        ConfigureContextItem(ContextOpen, Operation.OpenCurrentItem, commandSource, isSingleTarget);
+        ConfigureContextItem(ContextPreview, Operation.PreviewFile, commandSource, isSingleTarget);
+        ConfigureContextItem(ContextEdit, Operation.EditFile, commandSource, isSingleTarget);
+        ConfigureContextItem(ContextCopyToPanel, Operation.Copy, commandSource, _contextTargetsItem);
+        ConfigureContextItem(ContextMoveToPanel, Operation.Move, commandSource, _contextTargetsItem);
+        ConfigureContextItem(ContextRename, Operation.Rename, commandSource, isSingleTarget);
+        ConfigureContextItem(ContextDelete, Operation.Delete, commandSource, _contextTargetsItem);
+        ConfigureContextItem(ContextExpandCurrent, Operation.ExpandCurrentFolder, commandSource, isSingleTarget);
+        ConfigureContextItem(ContextExpandSelected, Operation.ExpandSelectedFolders, commandSource, isMultipleTargets);
+        ConfigureContextItem(ContextClipboardCopy, Operation.CopyFilesToClipboard, commandSource, _contextTargetsItem);
+        ConfigureContextItem(ContextClipboardCut, Operation.CutFilesToClipboard, commandSource, _contextTargetsItem);
+        ConfigureContextItem(ContextCopyNames, Operation.CopyItemNames, commandSource, _contextTargetsItem);
+        ConfigureContextItem(ContextCopyPaths, Operation.CopyItemPaths, commandSource, _contextTargetsItem);
+
+        ConfigureContextItem(ContextPaste, Operation.PasteFiles, commandSource, !_contextTargetsItem);
+        ConfigureContextItem(ContextPasteAsMove, Operation.PasteFilesAsMove, commandSource, !_contextTargetsItem);
+        ConfigureContextItem(ContextNewFolder, Operation.CreateDirectory, commandSource, !_contextTargetsItem);
+        ConfigureContextItem(ContextRefresh, Operation.Refresh, commandSource, !_contextTargetsItem);
+
+        ContextItemSeparator1.IsVisible = _contextTargetsItem;
+        ContextItemSeparator2.IsVisible = _contextTargetsItem;
+        ContextItemSeparator3.IsVisible = _contextTargetsItem;
+        ContextContainerSeparator.IsVisible = !_contextTargetsItem;
+    }
+
+    private static void ConfigureContextItem(
+        MenuItem item,
+        Operation operation,
+        IShortcutCommandSource? source,
+        bool visible)
+    {
+        item.IsVisible = visible;
+        item.Command = visible ? source?.GetCommand(operation) : null;
+        item.IsEnabled = item.Command is not null;
+    }
+
+    private void OnItemContextMenuClosed(object? sender, RoutedEventArgs e)
+    {
+        _contextTargetsItem = true;
+        FocusGrid();
+    }
 
     /// <summary>
     /// A row just got a (possibly new) FileItemRow model - sync its "marked" class immediately,

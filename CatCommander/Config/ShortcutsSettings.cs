@@ -66,6 +66,7 @@ public enum Operation
     PasteFilesAsMove,
     PreviewFile,
     EditFile,
+    OpenCurrentItem,
 }
 
 /// <summary>

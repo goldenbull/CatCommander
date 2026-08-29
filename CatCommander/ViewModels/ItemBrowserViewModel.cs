@@ -246,6 +246,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
         _commands = new Dictionary<Operation, ICommand>
         {
+            [Operation.OpenCurrentItem] = ReactiveCommand.Create(OpenOrEnterCurrentItem),
             [Operation.GoIntoCurrentFolder] = ReactiveCommand.Create(GoIntoCurrentFolder),
             [Operation.GoBackToParentFolder] = ReactiveCommand.Create(GoBackToParentFolder),
             [Operation.GoBackInHistory] = ReactiveCommand.Create(() => _ = NavigateHistoryAsync(back: true)),
@@ -1158,6 +1159,19 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
         current.IsMarked = !current.IsMarked;
         RecomputeSelection();
+    }
+
+    /// <summary>
+    /// Applies Finder/Explorer right-click selection semantics without involving the grid's
+    /// disabled multi-row selection model. A marked row keeps the marked group intact; an
+    /// unmarked row becomes the sole operation target by clearing marks and moving the cursor.
+    /// </summary>
+    public void PrepareItemContextMenu(FileItemRow row)
+    {
+        if (!row.IsMarked)
+            ClearSelection();
+
+        SelectVisibleRow(candidate => ReferenceEquals(candidate, row));
     }
 
     // Alt+R - flips every currently visible row's marked state. Scoped to IsVisible rows only

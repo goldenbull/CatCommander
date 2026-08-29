@@ -187,6 +187,35 @@
                       Classes.inactive="{Binding $parent[view:MainPanel].((vm:MainPanelViewModel)DataContext).IsActive, Converter={x:Static conv:BooleanConverters.Not}}"
                       Source="{Binding Source}"
                       ShowColumnHeaders="True"
-                      CanUserResizeColumns="True" />
+                      CanUserResizeColumns="True">
+            <TreeDataGrid.ContextMenu>
+                <ContextMenu x:Name="ItemContextMenu"
+                             Opening="OnItemContextMenuOpening"
+                             Closed="OnItemContextMenuClosed">
+                    <MenuItem x:Name="ContextOpen" Header="Open" />
+                    <MenuItem x:Name="ContextPreview" Header="Preview" />
+                    <MenuItem x:Name="ContextEdit" Header="Edit" />
+                    <Separator x:Name="ContextItemSeparator1" />
+                    <MenuItem x:Name="ContextCopyToPanel" Header="Copy to Other Panel..." />
+                    <MenuItem x:Name="ContextMoveToPanel" Header="Move to Other Panel..." />
+                    <MenuItem x:Name="ContextRename" Header="Rename" />
+                    <MenuItem x:Name="ContextDelete" Header="Delete" />
+                    <Separator x:Name="ContextItemSeparator2" />
+                    <MenuItem x:Name="ContextExpandCurrent" Header="Expand Current Folder" />
+                    <MenuItem x:Name="ContextExpandSelected" Header="Expand Selected Folders" />
+                    <Separator x:Name="ContextItemSeparator3" />
+                    <MenuItem x:Name="ContextClipboardCopy" Header="Copy" />
+                    <MenuItem x:Name="ContextClipboardCut" Header="Cut" />
+                    <MenuItem x:Name="ContextCopyNames" Header="Copy Name" />
+                    <MenuItem x:Name="ContextCopyPaths" Header="Copy Full Path" />
+
+                    <MenuItem x:Name="ContextPaste" Header="Paste" />
+                    <MenuItem x:Name="ContextPasteAsMove" Header="Paste as Move" />
+                    <MenuItem x:Name="ContextNewFolder" Header="New Folder" />
+                    <Separator x:Name="ContextContainerSeparator" />
+                    <MenuItem x:Name="ContextRefresh" Header="Refresh" />
+                </ContextMenu>
+            </TreeDataGrid.ContextMenu>
+        </TreeDataGrid>
     </DockPanel>
 </UserControl>

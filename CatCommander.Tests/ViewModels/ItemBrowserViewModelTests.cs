@@ -594,6 +594,35 @@ public class ItemBrowserViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task PrepareItemContextMenu_PreservesMarkedGroup_OrMakesUnmarkedRowTheSoleTarget()
+    {
+        var fileA = Path.Combine(_root, "a.txt");
+        var fileB = Path.Combine(_root, "b.txt");
+        File.WriteAllText(fileA, "a");
+        File.WriteAllText(fileB, "b");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        var rows = vm.Source!.Items.Cast<FileItemRow>().ToList();
+        var child = rows.Single(row => row.Item.FullPath == _child);
+        var a = rows.Single(row => row.Item.FullPath == fileA);
+        var b = rows.Single(row => row.Item.FullPath == fileB);
+
+        child.IsMarked = true;
+        a.IsMarked = true;
+        vm.PrepareItemContextMenu(a);
+
+        Assert.Equal(2, vm.GetOperationTargets().Count);
+        Assert.Contains(vm.GetOperationTargets(), item => item.FullPath == _child);
+        Assert.Contains(vm.GetOperationTargets(), item => item.FullPath == fileA);
+
+        vm.PrepareItemContextMenu(b);
+
+        Assert.False(child.IsMarked);
+        Assert.False(a.IsMarked);
+        Assert.Equal(new[] { fileB }, vm.GetOperationTargets().Select(item => item.FullPath));
+    }
+
+    [Fact]
     public async Task OpenOrEnterCurrentItem_EntersTheDirectory_WhenCursorIsOnOne()
     {
         // Double-click (ItemBrowser.axaml.cs's FileGrid.DoubleTapped) - deliberately not exercised
