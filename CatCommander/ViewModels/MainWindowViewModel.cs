@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using CatCommander.Browsing;
 using CatCommander.Config;
 using CatCommander.FileSystem;
 using CatCommander.Resources;
@@ -24,6 +25,7 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     private readonly FileOperationQueue _fileOperationQueue;
     private readonly ResourceTransferService _transferService;
     private readonly BrowserCommandPolicy _commandPolicy;
+    private readonly FileClipboardState? _fileClipboard;
     private readonly ShortcutInputContext? _shortcutInputContext;
     private readonly ShortcutInputState? _shortcutInputState;
     private readonly Func<FindWindow> _findWindowFactory;
@@ -79,12 +81,14 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         ResourceTransferService? transferService = null,
         BrowserCommandPolicy? commandPolicy = null,
         ShortcutInputContext? shortcutInputContext = null,
-        ShortcutInputState? shortcutInputState = null)
+        ShortcutInputState? shortcutInputState = null,
+        FileClipboardState? fileClipboard = null)
     {
         _configManager = configManager;
         _fileOperationQueue = fileOperationQueue;
         _transferService = transferService ?? new ResourceTransferService();
         _commandPolicy = commandPolicy ?? new BrowserCommandPolicy();
+        _fileClipboard = fileClipboard;
         _shortcutInputContext = shortcutInputContext;
         _shortcutInputState = shortcutInputState;
 
@@ -102,8 +106,8 @@ public partial class MainWindowViewModel : IShortcutCommandSource
 
         if (_configManager.LoadSession() is { } session)
         {
-            LeftPanel.RestoreSession(session.Left);
-            RightPanel.RestoreSession(session.Right);
+            _ = LeftPanel.RestoreSessionAsync(session.Left);
+            _ = RightPanel.RestoreSessionAsync(session.Right);
             SetActivePanel(string.Equals(session.ActivePanel, "right", StringComparison.OrdinalIgnoreCase)
                 ? RightPanel
                 : LeftPanel);
@@ -135,6 +139,8 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             [Operation.Move] = MoveCommand,
             [Operation.Delete] = DeleteCommand,
             [Operation.CreateDirectory] = OpenCreateDirectoryDialogCommand,
+            [Operation.PasteFiles] = ReactiveCommand.CreateFromTask(() => PasteFilesAsync(forceMove: false)),
+            [Operation.PasteFilesAsMove] = ReactiveCommand.CreateFromTask(() => PasteFilesAsync(forceMove: true)),
             [Operation.SwitchPanel] = ReactiveCommand.Create(SwitchPanel),
             [Operation.OpenCurrentFolderInLeftPanel] = ReactiveCommand.Create(() => OpenCurrentFolderInPanel(LeftPanel)),
             [Operation.OpenCurrentFolderInRightPanel] = ReactiveCommand.Create(() => OpenCurrentFolderInPanel(RightPanel)),
@@ -236,6 +242,30 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             destination = writableDestination;
         }
 
+        await ConfirmAndQueueFileOperationAsync(kind, targets, destination, sourceTab, destinationPanel);
+    }
+
+    private Task PasteFilesAsync(bool forceMove)
+    {
+        if (_fileClipboard is not { Items.Count: > 0 } clipboard ||
+            ActivePanel?.ActiveTab?.WritableDestination is not { } destination)
+            return Task.CompletedTask;
+
+        var kind = forceMove || clipboard.MoveOnPaste ? FileOperationKind.Move : FileOperationKind.Copy;
+        var snapshot = clipboard.Items;
+        return ConfirmAndQueueFileOperationAsync(
+            kind, snapshot, destination, clipboard.SourceTab, ActivePanel,
+            clearClipboardAfterSuccess: kind == FileOperationKind.Move ? () => clipboard.ClearIfCurrent(snapshot) : null);
+    }
+
+    private async Task ConfirmAndQueueFileOperationAsync(
+        FileOperationKind kind,
+        IReadOnlyList<BrowserItem> targets,
+        ContainerRef? destination,
+        ItemBrowserViewModel? sourceTab,
+        MainPanelViewModel? destinationPanel,
+        Action? clearClipboardAfterSuccess = null)
+    {
         if (!_commandPolicy.CanRunFileOperation(kind, targets, destination))
             return;
 
@@ -253,7 +283,12 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             return;
 
         var job = new FileOperationJob(kind, targets, destination, _transferService);
-        job.Finished += () => RefreshAfterFileOperation(sourceTab, destinationPanel, destination?.Resource.Path);
+        job.Finished += () =>
+        {
+            RefreshAfterFileOperation(sourceTab, destinationPanel, destination?.Resource.Path);
+            if (job.Status == FileOperationJobStatus.Completed)
+                clearClipboardAfterSuccess?.Invoke();
+        };
         _fileOperationQueue.Enqueue(job);
 
         if (mode == FileOperationMode.RunNow)
@@ -280,12 +315,15 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // was aimed at - the user may have navigated that panel elsewhere while a background job was
     // running, and forcibly yanking them back to `destination` would be a worse surprise than a
     // listing that's one refresh stale.
-    private static void RefreshAfterFileOperation(ItemBrowserViewModel sourceTab, MainPanelViewModel? destinationPanel, string? destination)
+    private static void RefreshAfterFileOperation(ItemBrowserViewModel? sourceTab, MainPanelViewModel? destinationPanel, string? destination)
     {
-        _ = sourceTab.NavigateToAsync(sourceTab.CurrentPath);
+        if (sourceTab is not null)
+            _ = sourceTab.RefreshListingAfterFileOperationAsync();
 
-        if (destinationPanel?.ActiveTab is { } destinationTab && destinationTab.CurrentPath == destination)
-            _ = destinationTab.NavigateToAsync(destination);
+        if (destinationPanel?.ActiveTab is { } destinationTab &&
+            !ReferenceEquals(destinationTab, sourceTab) &&
+            destinationTab.CurrentPath == destination)
+            _ = destinationTab.RefreshListingAfterFileOperationAsync();
     }
 
     private void OpenJobList() => _jobListWindowFactory().Show();
@@ -335,6 +373,19 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             };
 
             if (!available)
+                return null;
+        }
+
+        if (operation is Operation.PasteFiles or Operation.PasteFilesAsMove)
+        {
+            if (_fileClipboard is not { Items.Count: > 0 } clipboard ||
+                ActivePanel?.ActiveTab?.WritableDestination is not { } destination)
+                return null;
+
+            var kind = operation == Operation.PasteFilesAsMove || clipboard.MoveOnPaste
+                ? FileOperationKind.Move
+                : FileOperationKind.Copy;
+            if (!_commandPolicy.CanRunFileOperation(kind, clipboard.Items, destination))
                 return null;
         }
 

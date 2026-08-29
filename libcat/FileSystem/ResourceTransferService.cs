@@ -7,6 +7,13 @@ namespace CatCommander.FileSystem;
 /// <summary>Copies between a readable source provider and an independently writable destination.</summary>
 public sealed class ResourceTransferService
 {
+    private readonly bool _windowsCopyNames;
+
+    public ResourceTransferService(bool? windowsCopyNames = null)
+    {
+        _windowsCopyNames = windowsCopyNames ?? OperatingSystem.IsWindows();
+    }
+
     public async Task CopyAsync(
         BrowserItem source,
         ContainerRef destination,
@@ -15,7 +22,9 @@ public sealed class ResourceTransferService
     {
         EnsureCopyAllowed(source, destination);
 
-        if (ReferenceEquals(source.Resource.Provider, destination.Resource.Provider))
+        var targetName = await GetAvailableCopyNameAsync(source, destination, ct);
+        if (targetName == source.Item.Name &&
+            ReferenceEquals(source.Resource.Provider, destination.Resource.Provider))
         {
             await source.Resource.Provider.CopyAsync(
                 source.Resource.Path,
@@ -28,7 +37,7 @@ public sealed class ResourceTransferService
         if (destination.Resource.Provider is not IWritableResourceProvider writer)
             throw new NotSupportedException($"Provider '{destination.Resource.ProviderId}' is not writable.");
 
-        await CopyAcrossProvidersAsync(source, destination.Resource, writer, progress, ct);
+        await CopyAcrossProvidersAsync(source, destination.Resource, writer, targetName, progress, ct);
     }
 
     public async Task MoveAsync(
@@ -66,6 +75,7 @@ public sealed class ResourceTransferService
         BrowserItem source,
         ResourceRef destination,
         IWritableResourceProvider writer,
+        string targetName,
         IProgress<string>? progress,
         CancellationToken ct)
     {
@@ -73,7 +83,7 @@ public sealed class ResourceTransferService
 
         if (source.Item.ItemType == FileSystemItemType.Directory)
         {
-            var created = await writer.CreateDirectoryResourceAsync(destination, source.Item.Name, ct);
+            var created = await writer.CreateDirectoryResourceAsync(destination, targetName, ct);
             var children = await source.Resource.Provider.ListChildrenAsync(source.Resource.Path, ct);
             foreach (var child in children)
             {
@@ -81,15 +91,40 @@ public sealed class ResourceTransferService
                     source.Resource.Provider,
                     child,
                     source.Resource);
-                await CopyAcrossProvidersAsync(browserItem, created, writer, progress, ct);
+                await CopyAcrossProvidersAsync(browserItem, created, writer, child.Name, progress, ct);
             }
         }
         else
         {
             await using var input = await source.Resource.Provider.OpenReadAsync(source.Resource.Path, ct);
-            await using var output = await writer.OpenWriteAsync(destination, source.Item.Name, ct);
+            await using var output = await writer.OpenWriteAsync(destination, targetName, ct);
             await input.CopyToAsync(output, ct);
             progress?.Report(source.Item.Name);
+        }
+    }
+
+    private async Task<string> GetAvailableCopyNameAsync(
+        BrowserItem source,
+        ContainerRef destination,
+        CancellationToken ct)
+    {
+        var children = await destination.Resource.Provider.ListChildrenAsync(destination.Resource.Path, ct);
+        var names = children.Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!names.Contains(source.Item.Name))
+            return source.Item.Name;
+
+        var extension = source.Item.ItemType == FileSystemItemType.File
+            ? FileNameUtility.GetExtension(source.Item.Name)
+            : string.Empty;
+        var stem = extension.Length > 0 ? source.Item.Name[..^extension.Length] : source.Item.Name;
+        for (var copyNumber = 1; ; copyNumber++)
+        {
+            var suffix = _windowsCopyNames
+                ? $" ({copyNumber})"
+                : copyNumber == 1 ? "_副本" : $"_副本{copyNumber}";
+            var candidate = stem + suffix + extension;
+            if (!names.Contains(candidate))
+                return candidate;
         }
     }
 

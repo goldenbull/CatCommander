@@ -32,6 +32,8 @@ public enum Operation
     ExpandSelectedFolders,
     GoIntoCurrentFolder,
     GoBackToParentFolder,
+    GoBackInHistory,
+    GoForwardInHistory,
     GotoFirstItem,
     GotoLastItem,
     ReverseSelection,
@@ -56,6 +58,9 @@ public enum Operation
     SelectAll,
     ClearSelection,
     CopyFilesToClipboard,
+    CutFilesToClipboard,
+    PasteFiles,
+    PasteFilesAsMove,
 }
 
 /// <summary>
@@ -122,7 +127,7 @@ public class ShortcutsSettings
     {
         var primaryModifier = style == KeyboardStyle.MacOS ? "Meta" : "Ctrl";
 
-        return new Dictionary<Operation, string>
+        var defaults = new Dictionary<Operation, string>
         {
             [Operation.Copy] = "F5",
             [Operation.Move] = "F6",
@@ -133,12 +138,15 @@ public class ShortcutsSettings
             [Operation.ExpandSelectedFolders] = $"{primaryModifier}+Shift+B",
             [Operation.GoIntoCurrentFolder] = "Enter;Right",
             [Operation.GoBackToParentFolder] = "Left",
+            [Operation.GoBackInHistory] = "Alt+Left",
+            [Operation.GoForwardInHistory] = "Alt+Right",
             [Operation.GotoFirstItem] = "Home",
             [Operation.GotoLastItem] = "End",
             [Operation.ReverseSelection] = $"{primaryModifier}+Shift+R",
             [Operation.SelectAll] = $"{primaryModifier}+A",
             [Operation.ClearSelection] = "Escape",
             [Operation.CopyFilesToClipboard] = $"{primaryModifier}+C",
+            [Operation.PasteFiles] = $"{primaryModifier}+V",
             [Operation.Refresh] = $"{primaryModifier}+R",
             [Operation.ToggleHiddenFiles] = $"{primaryModifier}+.",
             [Operation.OpenSelectedFolderInNewTab] = $"{primaryModifier}+Up",
@@ -158,6 +166,13 @@ public class ShortcutsSettings
             [Operation.SortBySize] = $"{primaryModifier}+F5",
             [Operation.SortByDate] = $"{primaryModifier}+F6",
         };
+
+        if (style == KeyboardStyle.MacOS)
+            defaults[Operation.PasteFilesAsMove] = "Meta+Alt+V";
+        else
+            defaults[Operation.CutFilesToClipboard] = "Ctrl+X";
+
+        return defaults;
     }
 
     /// <summary>

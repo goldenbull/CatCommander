@@ -112,16 +112,50 @@ public class MainPanelViewModelTests : IDisposable
         Directory.CreateDirectory(childB);
         var panel = CreatePanel();
 
-        panel.RestoreSession(new PanelSessionState
+        await panel.RestoreSessionAsync(new PanelSessionState
         {
             Tabs = [childA, childB],
             ActiveTab = 1,
         });
-        await WaitUntilAsync(() => panel.Tabs.All(tab => !string.IsNullOrEmpty(tab.CurrentPath)));
-
         Assert.Equal(2, panel.Tabs.Count);
         Assert.Equal(childA, panel.Tabs[0].CurrentPath);
         Assert.Equal(childB, panel.Tabs[1].CurrentPath);
         Assert.Same(panel.Tabs[1], panel.ActiveTab);
+    }
+
+    [Fact]
+    public async Task RestoreSession_SkipsDeletedDirectories_WithoutLeavingBlankTabs()
+    {
+        var existingA = Directory.CreateDirectory(Path.Combine(_root, "a")).FullName;
+        var deleted = Path.Combine(_root, "deleted-after-exit");
+        var existingB = Directory.CreateDirectory(Path.Combine(_root, "b")).FullName;
+        var panel = CreatePanel();
+
+        await panel.RestoreSessionAsync(new PanelSessionState
+        {
+            Tabs = [existingA, deleted, existingB],
+            ActiveTab = 1,
+        });
+
+        Assert.Equal(2, panel.Tabs.Count);
+        Assert.Equal(new[] { existingA, existingB }, panel.Tabs.Select(tab => tab.CurrentPath));
+        Assert.All(panel.Tabs, tab => Assert.False(string.IsNullOrWhiteSpace(tab.CurrentPath)));
+        Assert.Same(panel.Tabs[1], panel.ActiveTab);
+    }
+
+    [Fact]
+    public async Task RestoreSession_WhenEveryDirectoryDisappeared_FallsBackToHomeTab()
+    {
+        var panel = CreatePanel();
+
+        await panel.RestoreSessionAsync(new PanelSessionState
+        {
+            Tabs = [Path.Combine(_root, "missing-a"), Path.Combine(_root, "missing-b")],
+            ActiveTab = 1,
+        });
+
+        Assert.Single(panel.Tabs);
+        Assert.Same(panel.Tabs[0], panel.ActiveTab);
+        Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), panel.ActiveTab!.CurrentPath);
     }
 }

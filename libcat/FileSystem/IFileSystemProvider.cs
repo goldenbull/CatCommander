@@ -89,8 +89,7 @@ public interface IFileSystemProvider
     /// Copies <paramref name="sourcePath"/> (a file, or a directory copied recursively) into
     /// <paramref name="destinationDirectory"/>, keeping its own leaf name - F5's Copy, always run
     /// off the UI thread by FileOperationQueue rather than called directly from a ViewModel.
-    /// A name collision at the destination is overwritten, not skipped or prompted for - jobs run
-    /// unattended in the background queue, where there's no one to prompt.
+    /// ResourceTransferService resolves top-level name collisions before calling this method.
     /// <paramref name="progress"/>, if given, is reported once per file actually written (its full
     /// destination path) - for a directory this fires once per descendant file, not once overall.
     /// </summary>

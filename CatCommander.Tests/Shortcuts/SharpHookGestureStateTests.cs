@@ -67,4 +67,20 @@ public sealed class SharpHookGestureStateTests
 
         Assert.True(context.ShouldYieldToActiveWindowConvention(new KeyGesture(Key.Escape)));
     }
+
+    [Fact]
+    public void InputContext_ExplicitTextEditingScope_IsImmediateAndNestSafe()
+    {
+        var context = new ShortcutInputContext();
+
+        var outer = context.EnterTextEditingScope();
+        var inner = context.EnterTextEditingScope();
+        Assert.True(context.IsTextEditing);
+
+        outer.Dispose();
+        Assert.True(context.IsTextEditing);
+
+        inner.Dispose();
+        Assert.False(context.IsTextEditing);
+    }
 }

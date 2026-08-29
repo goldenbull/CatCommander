@@ -54,6 +54,7 @@ internal class Program
         services.AddSingleton<BrowserCommandPolicy>();
         services.AddSingleton<ITerminalLauncher, TerminalLauncher>();
         services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddSingleton<FileClipboardState>();
         services.AddSingleton<IArchivePasswordPrompt, ArchivePasswordPrompt>();
         services.AddSingleton<ShortcutInputContext>();
         services.AddSingleton<ShortcutInputState>();

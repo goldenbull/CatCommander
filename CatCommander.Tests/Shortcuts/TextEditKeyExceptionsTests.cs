@@ -13,6 +13,9 @@ public class TextEditKeyExceptionsTests
     [InlineData(Key.C, KeyModifiers.Control)]
     [InlineData(Key.C, KeyModifiers.Meta)]
     [InlineData(Key.V, KeyModifiers.Control)]
+    [InlineData(Key.Left, KeyModifiers.Alt)]
+    [InlineData(Key.Right, KeyModifiers.Alt)]
+    [InlineData(Key.Left, KeyModifiers.Meta | KeyModifiers.Shift)]
     public void IsReserved_True_ForKnownTextEditingGestures(Key key, KeyModifiers modifiers)
     {
         Assert.True(TextEditKeyExceptions.IsReserved(new KeyGesture(key, modifiers)));

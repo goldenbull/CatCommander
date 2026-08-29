@@ -15,6 +15,8 @@ public class ShortcutsSettingsTests
 
         Assert.Equal(Operation.Copy, settings.GetOperation(KeyGesture.Parse("F5")));
         Assert.Equal(Operation.Move, settings.GetOperation(KeyGesture.Parse("F6")));
+        Assert.Equal(Operation.GoBackInHistory, settings.GetOperation(KeyGesture.Parse("Alt+Left")));
+        Assert.Equal(Operation.GoForwardInHistory, settings.GetOperation(KeyGesture.Parse("Alt+Right")));
     }
 
     [Fact]
@@ -115,6 +117,9 @@ public class ShortcutsSettingsTests
         Assert.Equal("Escape", defaults[Operation.ClearSelection]);
         Assert.Equal("Meta+Shift+R", defaults[Operation.ReverseSelection]);
         Assert.Equal("Meta+C", defaults[Operation.CopyFilesToClipboard]);
+        Assert.Equal("Meta+V", defaults[Operation.PasteFiles]);
+        Assert.Equal("Meta+Alt+V", defaults[Operation.PasteFilesAsMove]);
+        Assert.DoesNotContain(Operation.CutFilesToClipboard, defaults);
         Assert.Equal("Meta+F6", defaults[Operation.SortByDate]);
 
         var settings = new ShortcutsSettings();
@@ -141,6 +146,9 @@ public class ShortcutsSettingsTests
         Assert.Equal("Escape", defaults[Operation.ClearSelection]);
         Assert.Equal("Ctrl+Shift+R", defaults[Operation.ReverseSelection]);
         Assert.Equal("Ctrl+C", defaults[Operation.CopyFilesToClipboard]);
+        Assert.Equal("Ctrl+X", defaults[Operation.CutFilesToClipboard]);
+        Assert.Equal("Ctrl+V", defaults[Operation.PasteFiles]);
+        Assert.DoesNotContain(Operation.PasteFilesAsMove, defaults);
         Assert.Equal("Ctrl+F6", defaults[Operation.SortByDate]);
     }
 

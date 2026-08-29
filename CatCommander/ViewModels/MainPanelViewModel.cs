@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using CatCommander.Config;
 using CatCommander.QuickAccess;
@@ -135,24 +136,38 @@ public partial class MainPanelViewModel : IShortcutCommandSource
         };
     }
 
-    public void RestoreSession(PanelSessionState state)
+    public async Task RestoreSessionAsync(PanelSessionState state)
     {
         var paths = state.Tabs.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
         if (paths.Count == 0)
             return;
 
-        // Reuse the constructor-created tab. Its startup Home navigation is cancelled by the
-        // restored navigation through ItemBrowserViewModel's generation/CTS mechanism.
-        var first = Tabs[0];
-        _ = first.NavigateToAsync(paths[0]);
-        for (var i = 1; i < paths.Count; i++)
+        // Navigate candidates before adding their headers. A stale session location is common
+        // (deleted local directory, disconnected SFTP host, moved archive) and must not leave a
+        // blank tab behind.
+        var initialTab = Tabs[0];
+        var restoredTabs = new List<(int SessionIndex, ItemBrowserViewModel Tab)>();
+        for (var i = 0; i < paths.Count; i++)
         {
-            var tab = _itemBrowserFactory();
-            Tabs.Add(tab);
-            _ = tab.NavigateToAsync(paths[i]);
+            var tab = restoredTabs.Count == 0 ? initialTab : _itemBrowserFactory();
+            if (!await tab.TryRestoreSessionPathAsync(paths[i]))
+                continue;
+
+            if (!Tabs.Contains(tab))
+                Tabs.Add(tab);
+            restoredTabs.Add((i, tab));
         }
 
-        SetActiveTab(Tabs[Math.Clamp(state.ActiveTab, 0, Tabs.Count - 1)]);
+        if (restoredTabs.Count == 0)
+        {
+            await initialTab.NavigateToAsync(HomePath);
+            SetActiveTab(initialTab);
+            return;
+        }
+
+        var active = restoredTabs.FirstOrDefault(x => x.SessionIndex == state.ActiveTab).Tab
+                     ?? restoredTabs[Math.Clamp(state.ActiveTab, 0, restoredTabs.Count - 1)].Tab;
+        SetActiveTab(active);
     }
 
     // A panel always has at least one tab (see the constructor) - closing the only one would leave

@@ -57,9 +57,13 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private readonly IconCache _iconCache;
     private readonly ITerminalLauncher? _terminalLauncher;
     private readonly IClipboardService? _clipboard;
+    private readonly FileClipboardState? _fileClipboard;
     private readonly IArchivePasswordPrompt? _archivePasswordPrompt;
     private readonly IArchivePasswordStore? _archivePasswords;
+    private readonly ShortcutInputContext? _shortcutInputContext;
     private readonly Dictionary<Operation, ICommand> _commands;
+    [NotObservable]
+    private IDisposable? _renameTextEditingScope;
 
     private IFileSystemProvider? _provider;
     private IReadOnlyList<IFileSystemItem> _allItems = Array.Empty<IFileSystemItem>();
@@ -148,6 +152,10 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     /// back to the front rather than duplicating it.
     /// </summary>
     public ObservableCollection<string> NavigationHistory { get; } = new();
+    [NotObservable]
+    private readonly List<string> _backHistory = new();
+    [NotObservable]
+    private readonly List<string> _forwardHistory = new();
 
     private const int MaxHistoryEntries = 50;
 
@@ -217,14 +225,18 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         ITerminalLauncher? terminalLauncher = null,
         IClipboardService? clipboard = null,
         IArchivePasswordPrompt? archivePasswordPrompt = null,
-        IArchivePasswordStore? archivePasswords = null)
+        IArchivePasswordStore? archivePasswords = null,
+        ShortcutInputContext? shortcutInputContext = null,
+        FileClipboardState? fileClipboard = null)
     {
         _providers = providers;
         _iconCache = iconCache;
         _terminalLauncher = terminalLauncher;
         _clipboard = clipboard;
+        _fileClipboard = fileClipboard;
         _archivePasswordPrompt = archivePasswordPrompt;
         _archivePasswords = archivePasswords;
+        _shortcutInputContext = shortcutInputContext;
 
         ToggleViewModeCommand = ReactiveCommand.Create(ToggleViewMode);
         NavigateToHistoryEntryCommand = ReactiveCommand.Create<string>(path => _ = NavigateToAsync(path));
@@ -233,6 +245,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         {
             [Operation.GoIntoCurrentFolder] = ReactiveCommand.Create(GoIntoCurrentFolder),
             [Operation.GoBackToParentFolder] = ReactiveCommand.Create(GoBackToParentFolder),
+            [Operation.GoBackInHistory] = ReactiveCommand.Create(() => _ = NavigateHistoryAsync(back: true)),
+            [Operation.GoForwardInHistory] = ReactiveCommand.Create(() => _ = NavigateHistoryAsync(back: false)),
             [Operation.GotoFirstItem] = ReactiveCommand.Create(GotoFirstItem),
             [Operation.GotoLastItem] = ReactiveCommand.Create(GotoLastItem),
             [Operation.ReverseSelection] = ReactiveCommand.Create(ReverseSelection),
@@ -252,6 +266,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.SelectAll] = ReactiveCommand.Create(SelectAll),
             [Operation.ClearSelection] = ReactiveCommand.Create(ClearSelection),
             [Operation.CopyFilesToClipboard] = ReactiveCommand.Create(CopyFilesToClipboard),
+            [Operation.CutFilesToClipboard] = ReactiveCommand.Create(() => SetFilesOnClipboard(moveOnPaste: true)),
         };
     }
 
@@ -278,13 +293,17 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             _ = _clipboard.SetTextAsync(string.Join(Environment.NewLine, items.Select(format)));
     }
 
-    private void CopyFilesToClipboard()
+    private void CopyFilesToClipboard() => SetFilesOnClipboard(moveOnPaste: false);
+
+    private void SetFilesOnClipboard(bool moveOnPaste)
     {
-        var paths = GetClipboardFilePaths();
-        if (_clipboard is null || paths is null)
+        var items = GetOperationBrowserItems();
+        if (items.Count == 0)
             return;
 
-        if (paths.Count > 0)
+        _fileClipboard?.Set(items, moveOnPaste, this);
+        var paths = GetClipboardFilePaths();
+        if (_clipboard is not null && paths is { Count: > 0 })
             _ = _clipboard.SetFilesAsync(paths);
     }
 
@@ -318,19 +337,30 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             _terminalLauncher?.Open(directory);
     }
 
-    public Task NavigateToAsync(string path) =>
-        NavigateCoreAsync(path, () => _providers.ResolveAsync(path));
+    public async Task NavigateToAsync(string path) =>
+        _ = await NavigateCoreAsync(path, () => _providers.ResolveAsync(path), logFailure: true, recordHistoryTraversal: true);
 
-    public Task NavigateToAsync(ResourceRef resource) =>
-        NavigateCoreAsync(
+    /// <summary>
+    /// Session restore variant: unavailable locations are an expected stale-session condition,
+    /// not an application error. Returns false so the panel can omit the tab entirely.
+    /// </summary>
+    public Task<bool> TryRestoreSessionPathAsync(string path) =>
+        NavigateCoreAsync(path, () => _providers.ResolveAsync(path), logFailure: false, recordHistoryTraversal: true);
+
+    public async Task NavigateToAsync(ResourceRef resource) =>
+        _ = await NavigateCoreAsync(
             resource.Provider is IExternalPathProvider external
                 ? external.GetExternalPath(resource.Path)
                 : resource.Path,
-            () => Task.FromResult((resource.Provider, resource.Path)));
+            () => Task.FromResult((resource.Provider, resource.Path)),
+            logFailure: true,
+            recordHistoryTraversal: true);
 
-    private async Task NavigateCoreAsync(
+    private async Task<bool> NavigateCoreAsync(
         string displayPath,
-        Func<Task<(IFileSystemProvider Provider, string RelativePath)>> resolve)
+        Func<Task<(IFileSystemProvider Provider, string RelativePath)>> resolve,
+        bool logFailure,
+        bool recordHistoryTraversal)
     {
         var generation = Interlocked.Increment(ref _navigationGeneration);
         var navigationCts = new CancellationTokenSource();
@@ -341,15 +371,21 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         {
             var (provider, relativePath) = await resolve();
             var listing = new DirectoryListingSource(provider, relativePath);
-            await LoadListingAsync(listing, displayPath, generation, navigationCts);
+            return await LoadListingAsync(
+                listing, displayPath, generation, navigationCts, recordHistoryTraversal, preserveFilter: false);
         }
         catch (OperationCanceledException) when (navigationCts.IsCancellationRequested)
         {
             // Superseded by a newer navigation in this tab.
+            return false;
         }
         catch (Exception ex)
         {
-            log.Error(ex, "Failed to navigate to {0}", displayPath);
+            if (logFailure)
+                log.Error(ex, "Failed to navigate to {0}", displayPath);
+            else
+                log.Info("Skipping unavailable session tab: {0} ({1})", displayPath, ex.Message);
+            return false;
         }
         finally
         {
@@ -358,7 +394,10 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         }
     }
 
-    private async Task NavigateToListingAsync(IListingSource listing, string displayPath)
+    private async Task NavigateToListingAsync(
+        IListingSource listing,
+        string displayPath,
+        bool preserveFilter = false)
     {
         var generation = Interlocked.Increment(ref _navigationGeneration);
         var navigationCts = new CancellationTokenSource();
@@ -367,7 +406,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
         try
         {
-            await LoadListingAsync(listing, displayPath, generation, navigationCts);
+            await LoadListingAsync(
+                listing, displayPath, generation, navigationCts,
+                recordHistoryTraversal: true, preserveFilter);
         }
         catch (OperationCanceledException) when (navigationCts.IsCancellationRequested)
         {
@@ -383,11 +424,13 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         }
     }
 
-    private async Task LoadListingAsync(
+    private async Task<bool> LoadListingAsync(
         IListingSource listing,
         string displayPath,
         int generation,
-        CancellationTokenSource navigationCts)
+        CancellationTokenSource navigationCts,
+        bool recordHistoryTraversal,
+        bool preserveFilter)
     {
             ListingSnapshot snapshot;
             while (true)
@@ -402,7 +445,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 {
                     var password = await _archivePasswordPrompt.RequestAsync(ex.ArchivePath);
                     if (password is null)
-                        return;
+                        return false;
                     _archivePasswords.Set(ex.ArchivePath, password);
                 }
             }
@@ -412,8 +455,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 // Recheck only after obtaining the single-writer gate. Without that ordering, two
                 // completed loads can both pass the check and overlap Source disposal/recreation.
                 if (generation != Volatile.Read(ref _navigationGeneration) || navigationCts.IsCancellationRequested)
-                    return;
+                    return false;
 
+                var previousPath = SessionPath;
                 _provider = listing.Location?.Provider;
                 CurrentPath = displayPath;
                 Context = new BrowserContext(listing);
@@ -429,10 +473,19 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                     ViewMode = ItemBrowserViewMode.List;
 
                 if (listing.Location?.Provider.TracksHistory == true)
+                {
+                    if (recordHistoryTraversal && previousPath is not null &&
+                        !string.Equals(previousPath, displayPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _backHistory.Add(previousPath);
+                        _forwardHistory.Clear();
+                    }
                     RecordHistory(displayPath);
+                }
 
-                RebuildSource();
+                RebuildSource(resetFilter: !preserveFilter);
                 RecomputeTotals();
+                return true;
             }
     }
 
@@ -443,6 +496,27 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
         while (NavigationHistory.Count > MaxHistoryEntries)
             NavigationHistory.RemoveAt(NavigationHistory.Count - 1);
+    }
+
+    private async Task NavigateHistoryAsync(bool back)
+    {
+        var source = back ? _backHistory : _forwardHistory;
+        var destination = back ? _forwardHistory : _backHistory;
+        if (source.Count == 0 || SessionPath is not { } currentPath)
+            return;
+
+        var targetIndex = source.Count - 1;
+        var target = source[targetIndex];
+        var success = await NavigateCoreAsync(
+            target,
+            () => _providers.ResolveAsync(target),
+            logFailure: true,
+            recordHistoryTraversal: false);
+        if (!success)
+            return;
+
+        source.RemoveAt(targetIndex);
+        destination.Add(currentPath);
     }
 
     private static IReadOnlyList<IFileSystemItem> Sort(IReadOnlyList<IFileSystemItem> items) =>
@@ -522,12 +596,15 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         RequestFocus();
     }
 
-    private void RebuildSource()
+    private void RebuildSource(bool resetFilter = true)
     {
         (Source as IDisposable)?.Dispose();
         _sortIndicators.Clear();
-        FilterText = string.Empty;
-        IsFilterActive = false;
+        if (resetFilter)
+        {
+            FilterText = string.Empty;
+            IsFilterActive = false;
+        }
         // ShowHiddenFiles deliberately isn't reset here - see its own doc comment.
         _rows = BuildRows(_browserItems);
         UpdateRowVisibilityFlags();
@@ -842,9 +919,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
         if (row.Item.ItemType == FileSystemItemType.File)
         {
-            var dot = name.LastIndexOf('.');
-            if (dot > 0)
-                selectionEnd = dot;
+            var extension = row.Item.Extension;
+            if (extension.Length > 0 && extension.Length < name.Length)
+                selectionEnd = name.Length - extension.Length;
         }
 
         box.SelectionStart = 0;
@@ -862,6 +939,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             return;
 
         row.EditedName = row.Item.Name;
+        _renameTextEditingScope?.Dispose();
+        _renameTextEditingScope = _shortcutInputContext?.EnterTextEditingScope();
         row.IsEditingName = true;
     }
 
@@ -878,6 +957,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             return;
 
         row.IsEditingName = false;
+        EndRenameTextEditingScope();
         var newName = row.EditedName.Trim();
 
         if (string.IsNullOrEmpty(newName) || newName == row.Item.Name ||
@@ -915,7 +995,14 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             return;
 
         row.IsEditingName = false;
+        EndRenameTextEditingScope();
         RequestFocus();
+    }
+
+    private void EndRenameTextEditingScope()
+    {
+        _renameTextEditingScope?.Dispose();
+        _renameTextEditingScope = null;
     }
 
     /// <summary>
@@ -957,7 +1044,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         {
             var newPath = await destination.Resource.Provider.CreateDirectoryAsync(destination.Resource.Path, name);
             await ReloadCurrentListingAsync();
-            SelectItemByPath(newPath);
+            SelectItem(new ResourceRef(destination.Resource.Provider, newPath));
         }
         catch (Exception ex)
         {
@@ -1082,7 +1169,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private void ToggleViewMode()
     {
         ViewMode = ViewMode == ItemBrowserViewMode.List ? ItemBrowserViewMode.TreeList : ItemBrowserViewMode.List;
-        RebuildSource();
+        RebuildSource(resetFilter: false);
     }
 
     private void ExpandCurrentFolder()
@@ -1163,8 +1250,10 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     }
 
     private Task ReloadCurrentListingAsync() => Context?.Listing is { } listing
-        ? NavigateToListingAsync(listing, CurrentPath)
+        ? NavigateToListingAsync(listing, CurrentPath, preserveFilter: true)
         : Task.CompletedTask;
+
+    public Task RefreshListingAfterFileOperationAsync() => ReloadCurrentListingAsync();
 
     private void GoBackToParentFolder()
     {
@@ -1186,40 +1275,35 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     private void SelectItem(ResourceRef resource)
     {
-        var visibleIndex = 0;
-        foreach (var row in _rows)
+        SelectVisibleRow(row =>
         {
-            if (!row.IsVisible)
-                continue;
-
             var candidate = row.BrowserItem.Resource;
-            if (candidate.ProviderId == resource.ProviderId &&
-                string.Equals(candidate.Path, resource.Path, StringComparison.OrdinalIgnoreCase))
-            {
-                SetCurrentRow(visibleIndex);
-                return;
-            }
-
-            visibleIndex++;
-        }
+            return candidate.ProviderId == resource.ProviderId &&
+                   string.Equals(candidate.Path, resource.Path, StringComparison.OrdinalIgnoreCase);
+        });
     }
 
-    private void SelectItemByPath(string path)
-    {
-        var itemIndex = -1;
-        for (var i = 0; i < _allItems.Count; i++)
-        {
-            if (string.Equals(_allItems[i].FullPath, path, StringComparison.OrdinalIgnoreCase))
-            {
-                itemIndex = i;
-                break;
-            }
-        }
+    private void SelectItemByPath(string path) =>
+        SelectVisibleRow(row => string.Equals(row.Item.FullPath, path, StringComparison.OrdinalIgnoreCase));
 
-        if (itemIndex < 0)
+    /// <summary>
+    /// Finds a model in TreeDataGrid's actual displayed-row sequence. _allItems and _rows are
+    /// source collections, so their indexes diverge after filtering/hidden-item removal and do
+    /// not include realized hierarchical child rows.
+    /// </summary>
+    private void SelectVisibleRow(Func<FileItemRow, bool> predicate)
+    {
+        if (Source is null)
             return;
 
-        SetCurrentRow(itemIndex);
+        for (var rowIndex = 0; rowIndex < Source.Rows.Count; rowIndex++)
+        {
+            if (Source.Rows[rowIndex].Model is FileItemRow row && predicate(row))
+            {
+                SetCurrentRow(rowIndex);
+                return;
+            }
+        }
     }
 
     private void GotoFirstItem()
@@ -1246,13 +1330,17 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 (row.IsMarked || ReferenceEquals(row.BrowserItem, current)) &&
                 row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren)),
             Operation.GoBackToParentFolder => Context?.GetBackTarget(current) is not null,
+            Operation.GoBackInHistory => _backHistory.Count > 0,
+            Operation.GoForwardInHistory => _forwardHistory.Count > 0,
             Operation.OpenTerminal => _terminalLauncher is not null && GetLocalShellDirectory() is not null,
             Operation.CopyContainerPath => _clipboard is not null && CurrentPath.Length > 0,
             Operation.CopyItemNames or Operation.CopyItemPaths =>
                 _clipboard is not null && GetOperationBrowserItems().Count > 0,
             Operation.SelectAll => _rows.Any(row => row.IsVisible),
             Operation.ClearSelection => !IsFilterActive,
-            Operation.CopyFilesToClipboard => _clipboard is not null && GetClipboardFilePaths() is { Count: > 0 },
+            Operation.CopyFilesToClipboard or Operation.CutFilesToClipboard =>
+                GetOperationBrowserItems().Count > 0 &&
+                (_fileClipboard is not null || (_clipboard is not null && GetClipboardFilePaths() is { Count: > 0 })),
             _ => true,
         };
 

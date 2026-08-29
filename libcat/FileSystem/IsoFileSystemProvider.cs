@@ -76,7 +76,7 @@ public sealed class IsoFileSystemProvider : IFileSystemProvider, ILocalShellCont
     {
         var path = Normalize(discPath);
         return new FileItemModel { Name = path[(path.LastIndexOf('/') + 1)..], FullPath = path,
-            Extension = directory ? string.Empty : Path.GetExtension(path), Size = size, Modified = modified,
+            Extension = directory ? string.Empty : FileNameUtility.GetExtension(Path.GetFileName(path)), Size = size, Modified = modified,
             ItemType = directory ? FileSystemItemType.Directory : FileSystemItemType.File, CanRead = true, CanWrite = false };
     }
     private static string Normalize(string path) => path == "/" ? "/" : "/" + path.Replace('\\', '/').Trim('/');

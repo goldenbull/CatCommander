@@ -46,7 +46,8 @@ public static class TextEditKeyExceptions
         new KeyGesture(Key.Y, KeyModifiers.Meta),
     };
 
-    public static bool IsReserved(KeyGesture gesture) => ReservedGestures.Contains(gesture);
+    public static bool IsReserved(KeyGesture gesture) => ReservedGestures.Contains(gesture) || gesture.Key is
+        Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End or Key.PageUp or Key.PageDown;
 
     /// <summary>
     /// True if the focused element is a text-editing control and the gesture is in the reserved

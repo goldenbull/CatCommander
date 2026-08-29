@@ -190,7 +190,7 @@ public sealed class ArchiveFileSystemProvider : IFileSystemProvider, ILocalShell
     private static FileItemModel CreateItem(string path, bool directory, long size, DateTime modified) => new()
     {
         Name = path[(path.LastIndexOf('/') + 1)..], FullPath = path,
-        Extension = directory ? string.Empty : Path.GetExtension(path),
+        Extension = directory ? string.Empty : FileNameUtility.GetExtension(Path.GetFileName(path)),
         Size = size, Modified = modified, ItemType = directory ? FileSystemItemType.Directory : FileSystemItemType.File,
         CanRead = true, CanWrite = false,
     };

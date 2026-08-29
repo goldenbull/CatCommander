@@ -364,6 +364,12 @@ namespace Avalonia.Controls
 
         protected void OnPreviewKeyDown(object? o, KeyEventArgs e)
         {
+            // An editor hosted inside a cell owns its complete keyboard contract. In particular,
+            // row selection must not consume Left/Right/Home/End before an embedded TextBox can
+            // move or extend its caret selection during in-place rename.
+            if (e.Source is TextBox)
+                return;
+
             _selection?.OnPreviewKeyDown(this, e);
         }
 
@@ -380,6 +386,8 @@ namespace Avalonia.Controls
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+            if (e.Source is TextBox)
+                return;
             _selection?.OnKeyDown(this, e);
         }
 
@@ -392,6 +400,9 @@ namespace Avalonia.Controls
         protected override void OnTextInput(TextInputEventArgs e)
         {
             base.OnTextInput(e);
+
+            if (e.Source is TextBox)
+                return;
 
             if (e.Text is { Length: > 0 } && char.IsControl(e.Text[0]))
                 return;

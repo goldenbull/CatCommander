@@ -416,6 +416,40 @@ public class MainWindowFocusTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task RenameEditBox_ArrowSelection_CanEditTheExtension()
+    {
+        var original = Path.Combine(_root, "sample.txt");
+        File.WriteAllText(original, "hello");
+        await EnsureNavigatedAsync();
+
+        var leftGrid = GetGrid(_viewModel.LeftPanel);
+        leftGrid.Focus();
+        Pump();
+        _window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Pump();
+
+        // F2 initially selects only "sample". End moves the editor caret past the extension;
+        // Shift+Left then selects "txt" using normal TextBox editing semantics.
+        _window.KeyPress(Key.End, RawInputModifiers.None, PhysicalKey.End, null);
+        _window.KeyPress(Key.Left, RawInputModifiers.Shift, PhysicalKey.ArrowLeft, null);
+        _window.KeyPress(Key.Left, RawInputModifiers.Shift, PhysicalKey.ArrowLeft, null);
+        _window.KeyPress(Key.Left, RawInputModifiers.Shift, PhysicalKey.ArrowLeft, null);
+        _window.KeyTextInput("md");
+        _window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        Pump();
+
+        var renamed = Path.Combine(_root, "sample.md");
+        for (var i = 0; i < 100 && !File.Exists(renamed); i++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+            Pump();
+        }
+
+        Assert.True(File.Exists(renamed));
+        Assert.False(File.Exists(original));
+    }
+
+    [AvaloniaFact]
     public async Task RenameEditBox_Escape_CancelsWithoutTouchingTheFile_ViaRealKeypresses()
     {
         var original = Path.Combine(_root, "sample.txt");

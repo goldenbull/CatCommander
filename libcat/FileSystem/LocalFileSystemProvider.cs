@@ -70,7 +70,7 @@ public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourcePro
                     {
                         Name = info.Name,
                         FullPath = info.FullName,
-                        Extension = info.Extension,
+                        Extension = FileNameUtility.GetExtension(info.Name),
                         Size = info.Length,
                         ItemType = FileSystemItemType.File,
                         Created = info.CreationTime,

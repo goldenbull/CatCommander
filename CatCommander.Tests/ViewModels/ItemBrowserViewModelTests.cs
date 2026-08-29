@@ -118,6 +118,25 @@ public class ItemBrowserViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateDirectoryAsync_MakesTheNewDirectoryCurrent_AfterSortedReload()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "alpha"));
+        Directory.CreateDirectory(Path.Combine(_root, "zeta"));
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+
+        // Keep a non-provider ordering active across the reload. The old implementation looked
+        // up the new path in _allItems, then incorrectly used that index in the sorted grid.
+        vm.GetCommand(Operation.SortByName)!.Execute(null);
+        vm.GetCommand(Operation.SortByName)!.Execute(null);
+
+        await vm.CreateDirectoryAsync("middle");
+
+        var selection = Assert.IsType<TreeDataGridRowSelectionModel<FileItemRow>>(vm.Source!.Selection);
+        Assert.Equal(Path.Combine(_root, "middle"), selection.SelectedItem?.Item.FullPath);
+    }
+
+    [Fact]
     public async Task GoBackToParentFolder_SelectsTheFolderJustLeft()
     {
         // Lets browsing down a tree of subfolders one at a time be Right, Left, Down, Right,
@@ -173,6 +192,28 @@ public class ItemBrowserViewModelTests : IDisposable
         await vm.NavigateToAsync(_root); // revisiting should move it back to front, not duplicate it
 
         Assert.Equal(new[] { _root, _child }, vm.NavigationHistory);
+    }
+
+    [Fact]
+    public async Task HistoryBackAndForward_NavigatePerTabAndClearForwardOnNewNavigation()
+    {
+        var grandchild = Directory.CreateDirectory(Path.Combine(_child, "grandchild")).FullName;
+        var other = Directory.CreateDirectory(Path.Combine(_root, "other")).FullName;
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        await vm.NavigateToAsync(_child);
+        await vm.NavigateToAsync(grandchild);
+
+        vm.GetCommand(Operation.GoBackInHistory)!.Execute(null);
+        await WaitUntilAsync(() => vm.CurrentPath == _child);
+        vm.GetCommand(Operation.GoBackInHistory)!.Execute(null);
+        await WaitUntilAsync(() => vm.CurrentPath == _root);
+
+        vm.GetCommand(Operation.GoForwardInHistory)!.Execute(null);
+        await WaitUntilAsync(() => vm.CurrentPath == _child);
+
+        await vm.NavigateToAsync(other);
+        Assert.Null(vm.GetCommand(Operation.GoForwardInHistory));
     }
 
     [Fact]
@@ -279,7 +320,9 @@ public class ItemBrowserViewModelTests : IDisposable
         var file = Path.Combine(_root, "a.txt");
         File.WriteAllText(file, "a");
         var clipboard = new RecordingClipboard();
-        var vm = new ItemBrowserViewModel(_registryForTest(), new IconCache(), clipboard: clipboard);
+        var fileClipboard = new FileClipboardState();
+        var vm = new ItemBrowserViewModel(
+            _registryForTest(), new IconCache(), clipboard: clipboard, fileClipboard: fileClipboard);
         await vm.NavigateToAsync(_root);
         var gridSelection = Assert.IsType<TreeDataGridRowSelectionModel<FileItemRow>>(vm.Source!.Selection);
         Assert.True(gridSelection.SingleSelect);
@@ -290,6 +333,13 @@ public class ItemBrowserViewModelTests : IDisposable
 
         vm.GetCommand(Operation.CopyFilesToClipboard)!.Execute(null);
         Assert.Equal(new[] { _child, file }, clipboard.Files);
+        Assert.Equal(2, fileClipboard.Items.Count);
+        Assert.False(fileClipboard.MoveOnPaste);
+
+        vm.GetCommand(Operation.CutFilesToClipboard)!.Execute(null);
+        Assert.Equal(2, fileClipboard.Items.Count);
+        Assert.True(fileClipboard.MoveOnPaste);
+        Assert.Same(vm, fileClipboard.SourceTab);
 
         vm.GetCommand(Operation.ClearSelection)!.Execute(null);
         Assert.Equal(0, vm.SelectedFolderCount);
@@ -559,6 +609,48 @@ public class ItemBrowserViewModelTests : IDisposable
         var selection = (TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!;
         Assert.Equal(1, vm.TotalFileCount); // "a.txt" is now picked up
         Assert.Equal(_child, selection.SelectedItem?.Item.FullPath); // cursor stayed on "child"
+    }
+
+    [Fact]
+    public async Task Refresh_KeepsCurrentItem_WhenHiddenRowsChangeItsUnderlyingIndex()
+    {
+        File.WriteAllText(Path.Combine(_root, ".hidden.txt"), "hidden");
+        var visiblePath = Path.Combine(_root, "visible.txt");
+        File.WriteAllText(visiblePath, "visible");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+
+        var selection = Assert.IsType<TreeDataGridRowSelectionModel<FileItemRow>>(vm.Source!.Selection);
+        selection.SelectedIndex = new Avalonia.Controls.IndexPath(1); // child, visible.txt
+        Assert.Equal(visiblePath, selection.SelectedItem?.Item.FullPath);
+
+        vm.GetCommand(Operation.Refresh)!.Execute(null);
+        await WaitUntilAsync(() =>
+            ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedItem?.Item.FullPath == visiblePath);
+
+        Assert.Equal(visiblePath,
+            ((TreeDataGridRowSelectionModel<FileItemRow>)vm.Source!.Selection!).SelectedItem?.Item.FullPath);
+    }
+
+    [Fact]
+    public async Task FileOperationRefresh_PreservesFilterUntilEscapeClearsIt()
+    {
+        File.WriteAllText(Path.Combine(_root, "match.txt"), "match");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        vm.AppendFilterText("match");
+
+        File.WriteAllText(Path.Combine(_root, "match-new.txt"), "new");
+        await vm.RefreshListingAfterFileOperationAsync();
+
+        Assert.True(vm.IsFilterActive);
+        Assert.Equal("match", vm.FilterText);
+        Assert.All(vm.Source!.Items.Cast<FileItemRow>(), row =>
+            Assert.Contains("match", row.Item.Name, StringComparison.OrdinalIgnoreCase));
+
+        vm.ClearFilter();
+        Assert.False(vm.IsFilterActive);
+        Assert.Equal(string.Empty, vm.FilterText);
     }
 
     [Fact]

@@ -35,7 +35,7 @@ public static class ShortcutRouter
         // handler continues to provide every non-OS-reserved shortcut without rebuilding windows.
         window.AddHandler(
             InputElement.KeyDownEvent,
-            (sender, e) => OnKeyDown(window, e, settings, scope),
+            (sender, e) => OnKeyDown(window, e, settings, inputContext, scope),
             RoutingStrategies.Tunnel);
     }
 
@@ -43,6 +43,7 @@ public static class ShortcutRouter
         TopLevel window,
         KeyEventArgs e,
         ShortcutsSettings settings,
+        ShortcutInputContext? inputContext,
         ShortcutScope scope)
     {
         var gesture = new KeyGesture(e.Key, e.KeyModifiers);
@@ -54,7 +55,10 @@ public static class ShortcutRouter
             return;
 
         var focused = window.FocusManager?.GetFocusedElement();
-        if (TextEditKeyExceptions.ShouldYieldToTextEditing(gesture, TextEditKeyExceptions.IsEditableControl(focused)))
+        var isTextEditing = inputContext?.IsTextEditing == true
+                            || TextEditKeyExceptions.IsEditableControl(e.Source)
+                            || TextEditKeyExceptions.IsEditableControl(focused);
+        if (TextEditKeyExceptions.ShouldYieldToTextEditing(gesture, isTextEditing))
             return;
 
         if (window.DataContext is not IShortcutCommandSource commandSource)
