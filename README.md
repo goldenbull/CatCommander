@@ -221,7 +221,8 @@ terminal process is launched by `ITerminalLauncher`; on Windows `[terminal].wind
 ### Configuration and session restoration
 
 `ConfigManager` owns one per-user `config.toml`; shortcut overrides live under
-`[shortcuts.bindings]` and terminal preferences under `[terminal]`. An existing `Config/keymap.toml`
+`[shortcuts.bindings]`, terminal preferences under `[terminal]`, and the optional F4 editor
+executable under `[editor].command`. An existing `Config/keymap.toml`
 is imported the first time the unified file is created. `session.toml` is separate runtime state:
 on clean application exit it records both panels' tab paths, active tab indices, and active panel,
 then restores them at the next launch. Projected search/expanded tabs fall back to their current

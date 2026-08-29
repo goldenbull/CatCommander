@@ -256,6 +256,25 @@ public class ItemBrowserViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task PreviewAndEdit_UseCurrentLocalFile()
+    {
+        var file = Path.Combine(_root, "preview.txt");
+        File.WriteAllText(file, "content");
+        var launcher = new RecordingFileLauncher();
+        var vm = new ItemBrowserViewModel(
+            _registryForTest(), new IconCache(), fileLauncher: launcher);
+        await vm.NavigateToAsync(_root);
+        var selection = Assert.IsType<TreeDataGridRowSelectionModel<FileItemRow>>(vm.Source!.Selection);
+        selection.SelectedIndex = new Avalonia.Controls.IndexPath(1);
+
+        vm.GetCommand(Operation.PreviewFile)!.Execute(null);
+        vm.GetCommand(Operation.EditFile)!.Execute(null);
+
+        Assert.Equal(file, launcher.PreviewedPath);
+        Assert.Equal(file, launcher.EditedPath);
+    }
+
+    [Fact]
     public async Task RightOnLocalArchive_EntersItsVirtualRoot_AndLeftReturnsToContainingDirectory()
     {
         var archiveDirectory = Directory.CreateDirectory(Path.Combine(_root, "archives")).FullName;
@@ -304,6 +323,14 @@ public class ItemBrowserViewModelTests : IDisposable
     {
         public string? OpenedDirectory { get; private set; }
         public void Open(string directory) => OpenedDirectory = directory;
+    }
+
+    private sealed class RecordingFileLauncher : IFileLauncher
+    {
+        public string? PreviewedPath { get; private set; }
+        public string? EditedPath { get; private set; }
+        public void Preview(string path) => PreviewedPath = path;
+        public void Edit(string path) => EditedPath = path;
     }
 
     private sealed class RecordingClipboard : IClipboardService

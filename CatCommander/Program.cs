@@ -57,6 +57,8 @@ internal class Program
             platform: sp.GetRequiredService<PlatformInfo>()));
         services.AddSingleton<BrowserCommandPolicy>();
         services.AddSingleton<ITerminalLauncher, TerminalLauncher>();
+        services.AddSingleton<IFileLauncher, FileLauncher>();
+        services.AddSingleton<IEditorPicker, EditorPicker>();
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<FileClipboardState>();
         services.AddSingleton<IProviderAuthenticationPrompt, ProviderAuthenticationPrompt>();

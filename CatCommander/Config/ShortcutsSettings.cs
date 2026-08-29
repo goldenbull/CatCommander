@@ -64,6 +64,8 @@ public enum Operation
     CutFilesToClipboard,
     PasteFiles,
     PasteFilesAsMove,
+    PreviewFile,
+    EditFile,
 }
 
 /// <summary>
@@ -137,6 +139,8 @@ public class ShortcutsSettings
             [Operation.Rename] = "Shift+F6;F2",
             [Operation.Delete] = "F8;Delete",
             [Operation.CreateDirectory] = "F7",
+            [Operation.PreviewFile] = "F3",
+            [Operation.EditFile] = "F4",
             [Operation.ExpandCurrentFolder] = $"{primaryModifier}+B",
             [Operation.ExpandSelectedFolders] = $"{primaryModifier}+Shift+B",
             [Operation.GoIntoCurrentFolder] = "Enter;Right",

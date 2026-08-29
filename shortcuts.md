@@ -30,6 +30,8 @@ To wipe out all of your customizations and go back to the table below, use
 | Rename | `Shift+F6`, `F2` | `Shift+F6`, `F2` |
 | Delete | `F8`, `Delete` | `F8`, `Delete` |
 | Create directory | `F7` | `F7` |
+| Preview current file | `F3` | `F3` |
+| Edit current file | `F4` | `F4` |
 | Expand current folder | `Ctrl+B` | `Cmd+B` |
 | Expand selected folders | `Ctrl+Shift+B` | `Cmd+Shift+B` |
 | Go into current folder | `Enter`, `Right` | `Enter`, `Right` |
@@ -93,6 +95,11 @@ directory. A local directory opens there; a local archive provider should expose
 containing the archive. On Windows, `[terminal].windows_shell` in `config.toml` selects `"cmd"`
 (default) or `"powershell"`.
 
+`Preview current file` and `Edit current file` are available only for items represented by a real
+local OS path. On macOS F3 uses Quick Look and F4 opens TextEdit by default; Windows uses the shell's
+Open/Edit associations, and Linux uses `xdg-open`. Set `[editor].command` in `config.toml` to an
+editor executable to override F4; the file path is passed as a separate argument.
+
 ## Multi-selection
 
 `Space` toggles the marked state of whatever row is currently under the cursor - Total Commander's
@@ -131,8 +138,8 @@ execution path. **File > File Operations...** (also on the toolbar) opens a non-
 listing every job ever queued this session, each with a live progress bar - not just the ones
 started in Background mode.
 
-A name collision at the destination is overwritten, not skipped or prompted for - jobs run
-unattended on the queue, where there's no one to prompt.
+A name collision at the destination receives a platform-style copy suffix (`_副本`, `_副本2`, ...
+or Windows `(1)`, `(2)`, ...), preserving compound extensions such as `.tar.gz`.
 
 ## Double-click
 

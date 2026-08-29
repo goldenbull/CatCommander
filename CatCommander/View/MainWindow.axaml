@@ -42,6 +42,7 @@
             </NativeMenuItem>
             <NativeMenuItem Header="Settings">
                 <NativeMenu>
+                    <NativeMenuItem Header="Choose F4 Editor..." Command="{Binding ChooseEditorCommand}" />
                     <NativeMenuItem Header="Restore Default Shortcuts" Command="{Binding RestoreDefaultShortcutsCommand}" />
                 </NativeMenu>
             </NativeMenuItem>

@@ -114,6 +114,8 @@ public class ShortcutsSettingsTests
         Assert.Equal("Meta+2", defaults[Operation.CopyItemNames]);
         Assert.Equal("Meta+3", defaults[Operation.CopyItemPaths]);
         Assert.Equal("Meta+F3", defaults[Operation.SortByName]);
+        Assert.Equal("F3", defaults[Operation.PreviewFile]);
+        Assert.Equal("F4", defaults[Operation.EditFile]);
         Assert.Equal("Meta+F4", defaults[Operation.SortByExtension]);
         Assert.Equal("Meta+F5", defaults[Operation.SortBySize]);
         Assert.Equal("Meta+A", defaults[Operation.SelectAll]);
@@ -144,6 +146,8 @@ public class ShortcutsSettingsTests
         Assert.Equal("Ctrl+2", defaults[Operation.CopyItemNames]);
         Assert.Equal("Ctrl+3", defaults[Operation.CopyItemPaths]);
         Assert.Equal("Ctrl+F3", defaults[Operation.SortByName]);
+        Assert.Equal("F3", defaults[Operation.PreviewFile]);
+        Assert.Equal("F4", defaults[Operation.EditFile]);
         Assert.Equal("Ctrl+F4", defaults[Operation.SortByExtension]);
         Assert.Equal("Ctrl+F5", defaults[Operation.SortBySize]);
         Assert.Equal("Ctrl+A", defaults[Operation.SelectAll]);

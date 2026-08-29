@@ -169,4 +169,30 @@ public class MainWindowViewModelTests : IDisposable
         Assert.Single(_viewModel.RightPanel.Tabs);
         Assert.Same(originalRightTab, _viewModel.RightPanel.ActiveTab);
     }
+
+    [Fact]
+    public async Task ChooseEditorCommand_PersistsPickedExecutable()
+    {
+        var configDirectory = Path.Combine(_root, "editor-config");
+        var config = new ConfigManager(configDirectory);
+        var registry = new FileSystemProviderRegistry();
+        registry.Register(new LocalFileSystemProviderFactory());
+        var icons = new IconCache();
+        MainPanelViewModel PanelFactory() => new(() => new ItemBrowserViewModel(registry, icons));
+        var picker = new RecordingEditorPicker("/Applications/Editor.app/");
+        var viewModel = new MainWindowViewModel(
+            config, new FileOperationQueue(), PanelFactory, () => null!, () => null!, () => null!,
+            editorPicker: picker);
+
+        viewModel.ChooseEditorCommand.Execute(null);
+        await WaitUntilAsync(() => config.Settings.Editor.Command == "/Applications/Editor.app");
+
+        Assert.Equal("/Applications/Editor.app", new ConfigManager(configDirectory).Settings.Editor.Command);
+    }
+
+    private sealed class RecordingEditorPicker(string? result) : IEditorPicker
+    {
+        public string? Result { get; } = result;
+        public Task<string?> PickAsync() => Task.FromResult(Result);
+    }
 }

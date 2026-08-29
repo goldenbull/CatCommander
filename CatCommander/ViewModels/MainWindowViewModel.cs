@@ -21,6 +21,7 @@ namespace CatCommander.ViewModels;
 [Observable]
 public partial class MainWindowViewModel : IShortcutCommandSource
 {
+    private static readonly NLog.Logger log = NLog.LogManager.GetCurrentClassLogger();
     private readonly ConfigManager _configManager;
     private readonly FileOperationQueue _fileOperationQueue;
     private readonly ResourceTransferService _transferService;
@@ -28,6 +29,7 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     private readonly FileClipboardState? _fileClipboard;
     private readonly ShortcutInputContext? _shortcutInputContext;
     private readonly ShortcutInputState? _shortcutInputState;
+    private readonly IEditorPicker? _editorPicker;
     private readonly Func<FindWindow> _findWindowFactory;
     private readonly Func<BatchRenameWindow> _batchRenameWindowFactory;
     private readonly Func<JobListWindow> _jobListWindowFactory;
@@ -62,6 +64,7 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // keymap itself is hardcoded per-OS (ShortcutsSettings.CurrentStyle) and not user-selectable -
     // this is the only shortcut-related setting exposed in the UI.
     public ICommand RestoreDefaultShortcutsCommand { get; }
+    public ICommand ChooseEditorCommand { get; }
 
     /// <summary>
     /// Raised after RestoreDefaultShortcutsCommand rebuilds ShortcutsSettings' effective bindings -
@@ -82,7 +85,8 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         BrowserCommandPolicy? commandPolicy = null,
         ShortcutInputContext? shortcutInputContext = null,
         ShortcutInputState? shortcutInputState = null,
-        FileClipboardState? fileClipboard = null)
+        FileClipboardState? fileClipboard = null,
+        IEditorPicker? editorPicker = null)
     {
         _configManager = configManager;
         _fileOperationQueue = fileOperationQueue;
@@ -91,6 +95,7 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         _fileClipboard = fileClipboard;
         _shortcutInputContext = shortcutInputContext;
         _shortcutInputState = shortcutInputState;
+        _editorPicker = editorPicker;
 
         // Two distinct instances of the same type - needs a factory, not direct constructor
         // injection, same reasoning as MainPanelViewModel needing one for ItemBrowserViewModel.
@@ -132,6 +137,7 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             _configManager.RestoreDefaultShortcuts();
             ShortcutsChanged?.Invoke();
         });
+        ChooseEditorCommand = ReactiveCommand.CreateFromTask(ChooseEditorAsync);
 
         _commands = new Dictionary<Operation, ICommand>
         {
@@ -147,6 +153,29 @@ public partial class MainWindowViewModel : IShortcutCommandSource
             [Operation.OpenFind] = OpenFindCommand,
             [Operation.OpenBatchRename] = OpenBatchRenameCommand,
         };
+    }
+
+    private async Task ChooseEditorAsync()
+    {
+        if (_editorPicker is null)
+        {
+            log.Warn("Choose F4 Editor was invoked without an editor picker service");
+            return;
+        }
+
+        if (await _editorPicker.PickAsync() is not { Length: > 0 } command)
+        {
+            log.Info("Choose F4 Editor completed without a usable local path");
+            return;
+        }
+
+        _configManager.Settings.Editor.Command = command.TrimEnd(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar);
+        log.Info("F4 editor changed to {0}; saving configuration", _configManager.Settings.Editor.Command);
+        _configManager.SaveSettings();
+        log.Info("F4 editor configuration save completed; runtime value is {0}",
+            _configManager.Settings.Editor.Command);
     }
 
     // Reactive direction: called from MainPanel's GotFocus handler (a mouse click, or real focus

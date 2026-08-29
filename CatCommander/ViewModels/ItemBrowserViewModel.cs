@@ -56,6 +56,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private readonly FileSystemProviderRegistry _providers;
     private readonly IconCache _iconCache;
     private readonly ITerminalLauncher? _terminalLauncher;
+    private readonly IFileLauncher? _fileLauncher;
     private readonly IClipboardService? _clipboard;
     private readonly FileClipboardState? _fileClipboard;
     private readonly IProviderAuthenticationPrompt? _authenticationPrompt;
@@ -223,6 +224,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         FileSystemProviderRegistry providers,
         IconCache iconCache,
         ITerminalLauncher? terminalLauncher = null,
+        IFileLauncher? fileLauncher = null,
         IClipboardService? clipboard = null,
         IProviderAuthenticationPrompt? authenticationPrompt = null,
         IProviderCredentialStore? credentialStore = null,
@@ -232,6 +234,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         _providers = providers;
         _iconCache = iconCache;
         _terminalLauncher = terminalLauncher;
+        _fileLauncher = fileLauncher;
         _clipboard = clipboard;
         _fileClipboard = fileClipboard;
         _authenticationPrompt = authenticationPrompt;
@@ -258,6 +261,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.ExpandCurrentFolder] = ReactiveCommand.Create(ExpandCurrentFolder),
             [Operation.ExpandSelectedFolders] = ReactiveCommand.Create(ExpandSelectedFolders),
             [Operation.OpenTerminal] = ReactiveCommand.Create(OpenTerminal),
+            [Operation.PreviewFile] = ReactiveCommand.Create(() => OpenCurrentLocalFile(edit: false)),
+            [Operation.EditFile] = ReactiveCommand.Create(() => OpenCurrentLocalFile(edit: true)),
             [Operation.CopyContainerPath] = ReactiveCommand.Create(CopyContainerPath),
             [Operation.CopyItemNames] = ReactiveCommand.Create(CopyItemNames),
             [Operation.CopyItemPaths] = ReactiveCommand.Create(CopyItemPaths),
@@ -337,6 +342,34 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     {
         if (GetLocalShellDirectory() is { } directory)
             _terminalLauncher?.Open(directory);
+    }
+
+    private string? GetCurrentLocalFilePath()
+    {
+        if (SelectionModel?.SelectedItem?.BrowserItem is not { } item ||
+            item.Item.ItemType == FileSystemItemType.Directory ||
+            item.Resource.Provider is not IClipboardFileProvider local)
+            return null;
+
+        return local.GetClipboardFilePath(item.Resource);
+    }
+
+    private void OpenCurrentLocalFile(bool edit)
+    {
+        if (_fileLauncher is null || GetCurrentLocalFilePath() is not { } path)
+            return;
+
+        try
+        {
+            if (edit)
+                _fileLauncher.Edit(path);
+            else
+                _fileLauncher.Preview(path);
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "Failed to {0} {1}", edit ? "edit" : "preview", path);
+        }
     }
 
     public async Task NavigateToAsync(string path) =>
@@ -1385,6 +1418,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             Operation.GoForwardInHistory => _forwardHistory.Count > 0,
             Operation.SelectAndMoveUp or Operation.SelectAndMoveDown => Source?.Rows.Count > 0,
             Operation.OpenTerminal => _terminalLauncher is not null && GetLocalShellDirectory() is not null,
+            Operation.PreviewFile or Operation.EditFile =>
+                _fileLauncher is not null && GetCurrentLocalFilePath() is not null,
             Operation.CopyContainerPath => _clipboard is not null && CurrentPath.Length > 0,
             Operation.CopyItemNames or Operation.CopyItemPaths =>
                 _clipboard is not null && GetOperationBrowserItems().Count > 0,

@@ -13,6 +13,9 @@ public sealed class ApplicationSettings
 
     [TomlPropertyName("favorites")]
     public FavoritesSettings Favorites { get; set; } = new();
+
+    [TomlPropertyName("editor")]
+    public EditorSettings Editor { get; set; } = new();
 }
 
 public sealed class FavoritesSettings
@@ -26,4 +29,14 @@ public sealed class TerminalSettings
     /// <summary>Windows terminal host: "cmd" (default) or "powershell".</summary>
     [TomlPropertyName("windows_shell")]
     public string WindowsShell { get; set; } = "cmd";
+}
+
+public sealed class EditorSettings
+{
+    /// <summary>
+    /// Optional editor executable. Empty uses the platform default; the selected file path is
+    /// passed as one safely separated argument rather than interpolated into a shell command.
+    /// </summary>
+    [TomlPropertyName("command")]
+    public string Command { get; set; } = string.Empty;
 }
