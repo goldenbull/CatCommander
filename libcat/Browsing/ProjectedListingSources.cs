@@ -30,10 +30,10 @@ public sealed class ExpandedListingSource(IReadOnlyList<ResourceRef> roots) : IL
     {
         var results = new List<BrowserItem>();
         var visited = new HashSet<ResourceRef>();
-        var pending = new Stack<(ResourceRef? Container, BrowserItem? Item, int Depth)>();
+        var pending = new Stack<(ResourceRef? Container, BrowserItem? Item)>();
 
         for (var i = roots.Count - 1; i >= 0; i--)
-            pending.Push((roots[i], null, 0));
+            pending.Push((roots[i], null));
 
         while (pending.TryPop(out var next))
         {
@@ -42,7 +42,7 @@ public sealed class ExpandedListingSource(IReadOnlyList<ResourceRef> roots) : IL
             {
                 results.Add(item);
                 if (item.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
-                    pending.Push((item.Resource, null, next.Depth + 1));
+                    pending.Push((item.Resource, null));
                 continue;
             }
 
@@ -57,7 +57,7 @@ public sealed class ExpandedListingSource(IReadOnlyList<ResourceRef> roots) : IL
             for (var i = entries.Count - 1; i >= 0; i--)
             {
                 pending.Push((null, BrowserItemFactory.Create(
-                    container.Provider, entries[i], container, next.Depth), next.Depth));
+                    container.Provider, entries[i], container, depth: 0)));
             }
         }
 

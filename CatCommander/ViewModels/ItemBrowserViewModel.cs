@@ -249,6 +249,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             [Operation.GoForwardInHistory] = ReactiveCommand.Create(() => _ = NavigateHistoryAsync(back: false)),
             [Operation.GotoFirstItem] = ReactiveCommand.Create(GotoFirstItem),
             [Operation.GotoLastItem] = ReactiveCommand.Create(GotoLastItem),
+            [Operation.SelectAndMoveUp] = ReactiveCommand.Create(() => SelectAndMove(-1)),
+            [Operation.SelectAndMoveDown] = ReactiveCommand.Create(() => SelectAndMove(1)),
             [Operation.ReverseSelection] = ReactiveCommand.Create(ReverseSelection),
             [Operation.Rename] = ReactiveCommand.Create(BeginRenameCurrentItem),
             [Operation.Refresh] = ReactiveCommand.Create(RefreshCurrentFolder),
@@ -1097,7 +1099,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     // the grid no longer changes what's counted here, only marking/unmarking does.
     private void RecomputeSelection()
     {
-        var marked = _rows.Where(r => r.IsMarked).Select(r => r.Item).ToList();
+        var marked = GetDisplayedRows().Where(r => r.IsMarked).Select(r => r.Item).ToList();
 
         SelectedFileCount = marked.Count(i => i.ItemType == FileSystemItemType.File);
         SelectedFolderCount = marked.Count(i => i.ItemType == FileSystemItemType.Directory);
@@ -1124,7 +1126,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     // reversing them too would mark rows the user can't currently see, breaking that invariant.
     private void ReverseSelection()
     {
-        foreach (var row in _rows.Where(r => r.IsVisible))
+        foreach (var row in GetDisplayedRows())
             row.IsMarked = !row.IsMarked;
 
         RecomputeSelection();
@@ -1132,14 +1134,14 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     private void SelectAll()
     {
-        foreach (var row in _rows.Where(row => row.IsVisible))
+        foreach (var row in GetDisplayedRows())
             row.IsMarked = true;
         RecomputeSelection();
     }
 
     private void ClearSelection()
     {
-        foreach (var row in _rows)
+        foreach (var row in GetDisplayedRows().Concat(_rows).Distinct())
             row.IsMarked = false;
         RecomputeSelection();
     }
@@ -1154,7 +1156,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     public IReadOnlyList<BrowserItem> GetOperationBrowserItems()
     {
-        var marked = _rows.Where(r => r.IsMarked).Select(r => r.BrowserItem).ToList();
+        var marked = GetDisplayedRows().Where(r => r.IsMarked).Select(r => r.BrowserItem).ToList();
         if (marked.Count > 0)
             return marked;
 
@@ -1166,8 +1168,25 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private TreeDataGridRowSelectionModel<FileItemRow>? SelectionModel =>
         Source?.Selection as TreeDataGridRowSelectionModel<FileItemRow>;
 
+    private IReadOnlyList<FileItemRow> GetDisplayedRows()
+    {
+        if (Source is null)
+            return [];
+
+        var result = new List<FileItemRow>(Source.Rows.Count);
+        for (var i = 0; i < Source.Rows.Count; i++)
+        {
+            if (Source.Rows[i].Model is FileItemRow row)
+                result.Add(row);
+        }
+        return result;
+    }
+
     private void ToggleViewMode()
     {
+        if (Context?.Kind != ListingKind.Directory)
+            return;
+
         ViewMode = ViewMode == ItemBrowserViewMode.List ? ItemBrowserViewMode.TreeList : ItemBrowserViewMode.List;
         RebuildSource(resetFilter: false);
     }
@@ -1184,7 +1203,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     private void ExpandSelectedFolders()
     {
-        var roots = _rows
+        var roots = GetDisplayedRows()
             .Where(row => row.IsMarked && row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren))
             .Select(row => row.BrowserItem.Resource)
             .ToList();
@@ -1319,6 +1338,32 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
             SetCurrentRow(count - 1);
     }
 
+    private void SelectAndMove(int offset)
+    {
+        if (Source is null || SelectionModel?.SelectedItem is not { } current)
+            return;
+
+        var currentRowIndex = -1;
+        for (var i = 0; i < Source.Rows.Count; i++)
+        {
+            if (ReferenceEquals(Source.Rows[i].Model, current))
+            {
+                currentRowIndex = i;
+                break;
+            }
+        }
+
+        var targetRowIndex = currentRowIndex + offset;
+        if (currentRowIndex < 0 || targetRowIndex < 0 || targetRowIndex >= Source.Rows.Count ||
+            Source.Rows[targetRowIndex].Model is not FileItemRow target)
+            return;
+
+        current.IsMarked = true;
+        target.IsMarked = true;
+        SetCurrentRow(targetRowIndex);
+        RecomputeSelection();
+    }
+
     public ICommand? GetCommand(Operation operation)
     {
         var current = SelectionModel?.SelectedItem?.BrowserItem;
@@ -1326,17 +1371,18 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         {
             Operation.Rename => current?.Capabilities.HasFlag(ResourceCapabilities.Rename) == true,
             Operation.ExpandCurrentFolder => Context?.Location is not null,
-            Operation.ExpandSelectedFolders => _rows.Any(row =>
+            Operation.ExpandSelectedFolders => GetDisplayedRows().Any(row =>
                 (row.IsMarked || ReferenceEquals(row.BrowserItem, current)) &&
                 row.BrowserItem.Capabilities.HasFlag(ResourceCapabilities.EnumerateChildren)),
             Operation.GoBackToParentFolder => Context?.GetBackTarget(current) is not null,
             Operation.GoBackInHistory => _backHistory.Count > 0,
             Operation.GoForwardInHistory => _forwardHistory.Count > 0,
+            Operation.SelectAndMoveUp or Operation.SelectAndMoveDown => Source?.Rows.Count > 0,
             Operation.OpenTerminal => _terminalLauncher is not null && GetLocalShellDirectory() is not null,
             Operation.CopyContainerPath => _clipboard is not null && CurrentPath.Length > 0,
             Operation.CopyItemNames or Operation.CopyItemPaths =>
                 _clipboard is not null && GetOperationBrowserItems().Count > 0,
-            Operation.SelectAll => _rows.Any(row => row.IsVisible),
+            Operation.SelectAll => Source?.Rows.Count > 0,
             Operation.ClearSelection => !IsFilterActive,
             Operation.CopyFilesToClipboard or Operation.CutFilesToClipboard =>
                 GetOperationBrowserItems().Count > 0 &&

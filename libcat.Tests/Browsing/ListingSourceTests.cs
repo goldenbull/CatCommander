@@ -51,7 +51,7 @@ public sealed class ListingSourceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExpandedListing_IsDepthFirst_DirectoryFirst_AndRetainsDepthAndContainer()
+    public async Task ExpandedListing_IsFlat_AndRetainsFullResourcePathAndContainer()
     {
         var branch = Directory.CreateDirectory(Path.Combine(_root, "branch")).FullName;
         var nested = Path.Combine(branch, "nested.txt");
@@ -64,7 +64,7 @@ public sealed class ListingSourceTests : IDisposable
         var snapshot = await source.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { branch, nested, rootFile }, snapshot.Items.Select(x => x.Resource.Path));
-        Assert.Equal(new[] { 0, 1, 0 }, snapshot.Items.Select(x => x.Depth));
+        Assert.All(snapshot.Items, item => Assert.Equal(0, item.Depth));
         Assert.Equal(new ResourceRef(provider, branch), snapshot.Items[1].Container);
         Assert.Null(source.WritableDestination);
     }

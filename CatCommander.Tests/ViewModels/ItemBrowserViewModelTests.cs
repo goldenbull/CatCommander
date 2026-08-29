@@ -48,11 +48,18 @@ public class ItemBrowserViewModelTests : IDisposable
             await Task.Delay(10, TestContext.Current.CancellationToken);
 
         Assert.Equal(ListingKind.ExpandedResults, vm.Context?.Kind);
+        Assert.Equal(ItemBrowserViewMode.List, vm.ViewMode);
         Assert.Null(vm.WritableDestination);
         var nested = Assert.Single(
             vm.Source!.Items.Cast<FileItemRow>(),
             row => row.Item.FullPath == nestedFile);
         Assert.Equal(_child, nested.BrowserItem.Container?.Path);
+        Assert.Equal("nested.txt", nested.Item.Name);
+        Assert.Equal(nestedFile, nested.BrowserItem.Resource.Path);
+        Assert.Equal(new Avalonia.Thickness(0), nested.BranchIndent);
+
+        vm.ToggleViewModeCommand.Execute(null);
+        Assert.Equal(ItemBrowserViewMode.List, vm.ViewMode);
     }
 
     [Fact]
@@ -472,6 +479,34 @@ public class ItemBrowserViewModelTests : IDisposable
         vm.ToggleMarkCurrentItem(); // unmark it
         Assert.Equal(0, vm.SelectedFolderCount);
         Assert.Equal(1, vm.SelectedFileCount);
+    }
+
+    [Fact]
+    public async Task ShiftDown_MarksBothTheCurrentAndDestinationRows_ThenMovesCurrent()
+    {
+        var fileA = Path.Combine(_root, "a.txt");
+        var fileB = Path.Combine(_root, "b.txt");
+        File.WriteAllText(fileA, "a");
+        File.WriteAllText(fileB, "b");
+        var vm = CreateViewModel();
+        await vm.NavigateToAsync(_root);
+        var selection = Assert.IsType<TreeDataGridRowSelectionModel<FileItemRow>>(vm.Source!.Selection);
+        Assert.Equal(_child, selection.SelectedItem?.Item.FullPath);
+
+        vm.GetCommand(Operation.SelectAndMoveDown)!.Execute(null);
+
+        Assert.Equal(fileA, selection.SelectedItem?.Item.FullPath);
+        Assert.Equal(2, vm.SelectedFolderCount + vm.SelectedFileCount);
+        Assert.True(vm.Source.Items.Cast<FileItemRow>().Single(row => row.Item.FullPath == _child).IsMarked);
+        Assert.True(vm.Source.Items.Cast<FileItemRow>().Single(row => row.Item.FullPath == fileA).IsMarked);
+
+        vm.GetCommand(Operation.SelectAndMoveDown)!.Execute(null);
+        Assert.Equal(fileB, selection.SelectedItem?.Item.FullPath);
+        Assert.Equal(3, vm.SelectedFolderCount + vm.SelectedFileCount);
+
+        vm.GetCommand(Operation.SelectAndMoveUp)!.Execute(null);
+        Assert.Equal(fileA, selection.SelectedItem?.Item.FullPath);
+        Assert.Equal(3, vm.SelectedFolderCount + vm.SelectedFileCount);
     }
 
     [Fact]

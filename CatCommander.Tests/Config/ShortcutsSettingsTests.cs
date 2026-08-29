@@ -17,6 +17,8 @@ public class ShortcutsSettingsTests
         Assert.Equal(Operation.Move, settings.GetOperation(KeyGesture.Parse("F6")));
         Assert.Equal(Operation.GoBackInHistory, settings.GetOperation(KeyGesture.Parse("Alt+Left")));
         Assert.Equal(Operation.GoForwardInHistory, settings.GetOperation(KeyGesture.Parse("Alt+Right")));
+        Assert.Equal(Operation.SelectAndMoveUp, settings.GetOperation(KeyGesture.Parse("Shift+Up")));
+        Assert.Equal(Operation.SelectAndMoveDown, settings.GetOperation(KeyGesture.Parse("Shift+Down")));
     }
 
     [Fact]
