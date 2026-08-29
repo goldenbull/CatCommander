@@ -87,15 +87,22 @@ public partial class ItemBrowser : UserControl
         // Star-width recompute (normally driven by Avalonia's EffectiveViewportChanged, which only
         // fires on a genuine *geometric* viewport change) never fires again for a Source swap: the
         // new ColumnList's internal viewport width is never told what it actually is, since
-        // nothing about FileGrid's own geometry changed. Feeding it directly from FileGrid's own
-        // (already-correct, stable) Bounds - rather than waiting for a framework notification that
-        // in this scenario never arrives - sidesteps that gap entirely instead of continuing to
-        // guess at framework event timing.
+        // nothing about FileGrid's own geometry changed. Feed it the rows ScrollViewer's actual
+        // viewport, not FileGrid.Bounds: the latter includes the grid border and any vertical
+        // scrollbar, making Star columns a few pixels too wide and falsely keeping the horizontal
+        // Auto scrollbar visible even when all columns fit.
         FileGrid.LayoutUpdated += (_, _) =>
         {
             if (FileGrid.Source?.Columns is { } columns)
             {
-                columns.ViewportChanged(new Rect(FileGrid.Bounds.Size));
+                var rowsScrollViewer = FileGrid.GetVisualDescendants()
+                    .OfType<ScrollViewer>()
+                    .FirstOrDefault(viewer => viewer.Name == "PART_ScrollViewer");
+                var viewport = rowsScrollViewer?.Viewport ?? default;
+                if (viewport.Width <= 0)
+                    return;
+
+                columns.ViewportChanged(new Rect(viewport));
                 columns.CommitActualWidths();
             }
         };

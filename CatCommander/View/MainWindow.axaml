@@ -52,67 +52,56 @@
         <NativeMenuBar DockPanel.Dock="Top" />
 
         <!-- Toolbar -->
-        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource TcBorderBrush}" BorderThickness="0,0,0,1" Padding="2">
+        <Border DockPanel.Dock="Top" BorderThickness="0" Padding="2">
             <StackPanel Orientation="Horizontal" Spacing="2">
                 <StackPanel.Styles>
-                    <Style Selector="Button > StackPanel">
-                        <Setter Property="Orientation" Value="Horizontal" />
-                        <Setter Property="Spacing" Value="4" />
+                    <Style Selector="Button">
+                        <Setter Property="Width" Value="28" />
+                        <Setter Property="Height" Value="26" />
+                        <Setter Property="Padding" Value="5" />
+                        <Setter Property="CornerRadius" Value="0" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                        <Setter Property="Background" Value="Transparent" />
+                    </Style>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
                     </Style>
                     <Style Selector="Button Image">
                         <Setter Property="Width" Value="16" />
                         <Setter Property="Height" Value="16" />
                     </Style>
+                    <Style Selector="Button PathIcon">
+                        <Setter Property="Width" Value="16" />
+                        <Setter Property="Height" Value="16" />
+                        <Setter Property="Foreground" Value="{DynamicResource TcTextBrush}" />
+                    </Style>
                 </StackPanel.Styles>
 
-                <Button Command="{Binding CopyCommand}">
-                    <StackPanel>
-                        <Image Source="/Assets/Icons/copy.png" />
-                        <TextBlock Text="Copy (F5)" />
-                    </StackPanel>
+                <Button Command="{Binding CopyCommand}" ToolTip.Tip="Copy (F5)">
+                    <Image Source="/Assets/Icons/copy.png" />
                 </Button>
-                <Button Command="{Binding MoveCommand}">
-                    <StackPanel>
-                        <Image Source="/Assets/Icons/move.png" />
-                        <TextBlock Text="Move (F6)" />
-                    </StackPanel>
+                <Button Command="{Binding MoveCommand}" ToolTip.Tip="Move (F6)">
+                    <Image Source="/Assets/Icons/move.png" />
                 </Button>
-                <Button Command="{Binding RenameCommand}">
-                    <StackPanel>
-                        <Image Source="/Assets/Icons/rename.png" />
-                        <TextBlock Text="Rename (F2)" />
-                    </StackPanel>
+                <Button Command="{Binding RenameCommand}" ToolTip.Tip="Rename (F2)">
+                    <Image Source="/Assets/Icons/rename.png" />
                 </Button>
-                <Button Command="{Binding DeleteCommand}">
-                    <StackPanel>
-                        <Image Source="/Assets/Icons/delete.png" />
-                        <TextBlock Text="Delete (F8)" />
-                    </StackPanel>
+                <Button Command="{Binding DeleteCommand}" ToolTip.Tip="Delete (F8)">
+                    <Image Source="/Assets/Icons/delete.png" />
                 </Button>
-                <Button Command="{Binding OpenCreateDirectoryDialogCommand}">
-                    <StackPanel>
-                        <TextBlock Text="New Folder (F7)" />
-                    </StackPanel>
+                <Button Command="{Binding OpenCreateDirectoryDialogCommand}" ToolTip.Tip="New Folder (F7)">
+                    <PathIcon Data="M2,5 L8,5 L10,7 L22,7 L22,20 L2,20 Z" />
                 </Button>
 
-                <Separator Width="1" />
-
-                <Button Command="{Binding OpenFindCommand}">
-                    <StackPanel>
-                        <Image Source="/Assets/Icons/find.png" />
-                        <TextBlock Text="Find" />
-                    </StackPanel>
+                <Button Command="{Binding OpenFindCommand}" ToolTip.Tip="Find (Alt+F7)">
+                    <Image Source="/Assets/Icons/find.png" />
                 </Button>
-                <Button Command="{Binding OpenBatchRenameCommand}">
-                    <StackPanel>
-                        <Image Source="/Assets/Icons/batch_rename.png" />
-                        <TextBlock Text="Batch Rename" />
-                    </StackPanel>
+                <Button Command="{Binding OpenBatchRenameCommand}" ToolTip.Tip="Batch Rename">
+                    <Image Source="/Assets/Icons/batch_rename.png" />
                 </Button>
-                <Button Command="{Binding OpenJobListCommand}">
-                    <StackPanel>
-                        <TextBlock Text="File Operations" />
-                    </StackPanel>
+                <Button Command="{Binding OpenJobListCommand}" ToolTip.Tip="File Operations">
+                    <PathIcon Data="M3,4 L21,4 L21,7 L3,7 Z M3,10 L21,10 L21,13 L3,13 Z M3,16 L21,16 L21,19 L3,19 Z" />
                 </Button>
             </StackPanel>
         </Border>

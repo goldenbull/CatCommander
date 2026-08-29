@@ -9,23 +9,22 @@
              Focusable="True">
     <UserControl.Styles>
         <!-- Tab-header buttons - not a TabControl (see MainPanelViewModel's doc comment for why):
-             plain flat/square buttons, selected = white (matches the grid below it), and tinted
-             navy - the same active-panel signal ItemBrowser.axaml uses for the address bar/grid
-             selection - only when this panel is also the active one. -->
+             unselected headers blend into the panel; the selected tab alone gets a pale-blue
+             background, independent of which side currently owns keyboard focus. -->
         <Style Selector="Button.tabHeader">
             <Setter Property="Padding" Value="8,2" />
             <Setter Property="MinHeight" Value="20" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="BorderThickness" Value="1,1,1,0" />
             <Setter Property="BorderBrush" Value="{DynamicResource TcBorderBrush}" />
-            <Setter Property="Background" Value="{DynamicResource TcHeaderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource TcPanelBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TcTextBrush}" />
         </Style>
         <Style Selector="Button.tabHeader.selected">
-            <Setter Property="Background" Value="{DynamicResource TcPanelBrush}" />
+            <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
         </Style>
         <Style Selector="Button.tabHeader.selected.panelActive">
-            <Setter Property="Background" Value="{DynamicResource TcActiveTabBrush}" />
+            <Setter Property="Background" Value="{DynamicResource TcCursorBrush}" />
         </Style>
         <Style Selector="Button.panelCommand">
             <Setter Property="Background" Value="{DynamicResource TcPanelBrush}" />
