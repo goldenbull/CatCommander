@@ -74,7 +74,8 @@ public class MainWindowViewModelTests : IDisposable
 
         var restored = new MainWindowViewModel(
             config, new FileOperationQueue(), PanelFactory, () => null!, () => null!, () => null!);
-        await WaitUntilAsync(() => restored.LeftPanel.Tabs.All(tab => !string.IsNullOrEmpty(tab.CurrentPath)) &&
+        await WaitUntilAsync(() => restored.LeftPanel.Tabs.Count == 2 &&
+                                   restored.LeftPanel.Tabs.All(tab => !string.IsNullOrEmpty(tab.CurrentPath)) &&
                                    restored.RightPanel.Tabs.All(tab => !string.IsNullOrEmpty(tab.CurrentPath)));
 
         Assert.Same(restored.RightPanel, restored.ActivePanel);

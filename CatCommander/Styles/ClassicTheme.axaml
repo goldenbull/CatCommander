@@ -36,17 +36,19 @@
            doesn't invert its text to white the way the old navy selection used to - a light
            background needs no contrast correction. Marked rows (Space-toggled multi-selection,
            FileItemRow.IsMarked, applied via the TreeDataGridRow.marked class in ItemBrowser.axaml)
-           are a separate, stronger look: navy (the same TcSelectionColor as the active address bar)
-           with white text. -->
+           use a medium blue with white text; only the marked row which is also current uses the
+           stronger navy background. -->
       <Color x:Key="TcHeaderColor">#C2DBF2</Color>
       <Color x:Key="TcCursorColor">#D1E7FD</Color>
+      <Color x:Key="TcMarkedColor">#4c4ff5</Color>
       <Color x:Key="TcItemTextColor">#2E7D32</Color>
 
       <SolidColorBrush x:Key="TcChromeBrush" Color="{StaticResource TcChromeColor}" />
       <SolidColorBrush x:Key="TcPanelBrush" Color="{StaticResource TcPanelColor}" />
       <SolidColorBrush x:Key="TcBorderBrush" Color="{StaticResource TcBorderColor}" />
       <SolidColorBrush x:Key="TcSelectionBrush" Color="{StaticResource TcSelectionColor}" />
-      <SolidColorBrush x:Key="TcMarkedBrush" Color="{StaticResource TcSelectionColor}" />
+      <SolidColorBrush x:Key="TcMarkedBrush" Color="{StaticResource TcMarkedColor}" />
+      <SolidColorBrush x:Key="TcCurrentMarkedBrush" Color="{StaticResource TcSelectionColor}" />
       <SolidColorBrush x:Key="TcTextBrush" Color="{StaticResource TcTextColor}" />
       <SolidColorBrush x:Key="TcHoverBrush" Color="{StaticResource TcHoverColor}" />
       <SolidColorBrush x:Key="TcActiveTabBrush" Color="{StaticResource TcActiveTabColor}" />

@@ -59,10 +59,10 @@
         </Style>
 
         <!-- Marked rows (Space-toggled multi-selection - ItemBrowserViewModel.ToggleMarkCurrentItem,
-             FileItemRow.IsMarked): navy background, white text, Total Commander's own "marked file"
+             FileItemRow.IsMarked): medium-blue background, Total Commander's own "marked file"
              look - scoped to TreeDataGrid.active for the same reason the cursor styles above are:
-             an inactive panel's marked rows would otherwise keep competing for attention (strong
-             navy/white) while the user is working in the *other* panel. Losing that panel's own
+             an inactive panel's marked rows would otherwise keep competing for attention while
+             the user is working in the *other* panel. Losing that panel's own
              at-a-glance "what's marked here" reminder while it's inactive is the deliberate
              trade-off - IsMarked itself is untouched (Copy/Move/Delete still act on the real marked
              set regardless of which panel is currently active), only the visual goes back to a
@@ -93,7 +93,15 @@
         <Style Selector="TreeDataGrid.active TreeDataGridRow.marked TextBlock">
             <Setter Property="Foreground" Value="White" />
         </Style>
-
+        <!-- A marked row which is also TreeDataGrid's current row gets the stronger navy/white
+             treatment. Other marked rows stay light blue, so the cursor remains identifiable
+             inside a multi-item selection; all marked rows use white text. -->
+        <Style Selector="TreeDataGrid.active TreeDataGridRow.marked:selected /template/ TreeDataGridCellsPresenter#PART_CellsPresenter">
+            <Setter Property="Background" Value="{DynamicResource TcCurrentMarkedBrush}" />
+        </Style>
+        <Style Selector="TreeDataGrid.active TreeDataGridRow.marked:selected :is(TreeDataGridCell)">
+            <Setter Property="Background" Value="{DynamicResource TcCurrentMarkedBrush}" />
+        </Style>
         <!-- History dropdown (see the Flyout below): compact, square, left-aligned - matching the
              rest of the classic TC chrome instead of Fluent's default roomy/centered ListBox. -->
         <Style Selector="ListBox">
