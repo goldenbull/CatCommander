@@ -155,8 +155,9 @@ this code is touched:
   Background" button just closes the dialog without touching the job. **File Operations** opens a
   non-modal window listing every job's live progress - a running history for the session, not just
   jobs started in Background mode.
-- A destination-name collision is overwritten, not skipped or prompted - jobs run unattended on the
-  queue, where there's no one to prompt.
+- A destination-name collision is resolved before the job runs by adding the platform-style copy
+  suffix (`_副本`, `_副本2`, ... or Windows `(1)`, `(2)`, ...), preserving compound extensions such
+  as `.tar.gz`.
 
 ### Providers, listings, and capabilities
 
@@ -174,6 +175,14 @@ opens that listing's parent; Left in search/branch results opens the current row
 Resource and container capability flags, rather than provider type tests, decide whether Rename,
 Delete, Create Directory, Expand, Copy, or Move is valid. `BrowserCommandPolicy` centralizes those
 decisions.
+
+Provider identity is stable across provider object instances: `IFileSystemProvider.Id` identifies
+one filesystem/session, while provider-specific `PathComparer`/`NameComparer` preserve the backing
+filesystem's case semantics. Optional interfaces separate mutation, native same-filesystem
+transfer, stream-writing, external-open, clipboard, and local-shell abilities; read-only providers
+do not implement write methods that merely throw. Network providers leave `SupportsTreeMode` false
+until TreeDataGrid has an asynchronous child adapter, while ordinary navigation and flattened
+expanded listings remain asynchronous.
 
 Copy/Move run through `ResourceTransferService`. Same-provider transfers use the provider's native
 operation; cross-provider copies stream from the source provider into an
@@ -194,8 +203,10 @@ opposite panel, so Copy is extraction without a temporary directory.
 
 `.tar.gz`/`.tgz` is treated as a composed stream: `GZipStream` feeds `TarReader` directly. The TAR
 tree is read for browsing and the selected entry is streamed again during Copy. Encrypted payloads
-are probed while entering; `ArchivePasswordRequiredException` is converted by
-`IArchivePasswordPrompt` into a modal request, cached only for this process, and retried.
+are probed while entering; a provider-neutral `ProviderAuthenticationRequiredException` is handled
+by `IProviderAuthenticationPrompt`, cached through `IProviderCredentialStore` only for this process,
+and retried. The same challenge boundary is intended for SFTP password/private-key authentication;
+persistent secrets belong in an OS credential vault, never `config.toml` or `session.toml`.
 
 `ExpandCurrentFolder` and `ExpandSelectedFolders` create a Total Commander-style branch view using
 `ExpandedListingSource`. The projection is never a Copy/Move destination, but its rows remain valid

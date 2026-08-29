@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.VisualBasic.FileIO;
+using CatCommander.Platform;
 
 namespace CatCommander.FileSystem;
 
@@ -11,20 +12,19 @@ public interface ITrashService
 /// <summary>Moves local resources to the OS-managed trash without a permanent-delete fallback.</summary>
 public sealed class SystemTrashService : ITrashService
 {
-    public static SystemTrashService Instance { get; } = new();
+    public static SystemTrashService Instance { get; } = new(PlatformInfo.Current);
+    private readonly PlatformInfo _platform;
 
-    private SystemTrashService()
-    {
-    }
+    public SystemTrashService(PlatformInfo platform) => _platform = platform;
 
     public void MoveToTrash(string path)
     {
-        if (OperatingSystem.IsWindows())
+        if (_platform.IsWindows)
         {
             MoveToWindowsRecycleBin(path);
             return;
         }
-        if (OperatingSystem.IsMacOS())
+        if (_platform.IsMacOS)
         {
             MacTrash.Move(path);
             return;

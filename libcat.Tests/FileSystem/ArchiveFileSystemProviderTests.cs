@@ -23,7 +23,7 @@ public sealed class ArchiveFileSystemProviderTests : IDisposable
             await using var output = entry.Open();
             await output.WriteAsync("hello"u8.ToArray(), TestContext.Current.CancellationToken);
         }
-        var provider = new ArchiveFileSystemProvider(path, new ArchivePasswordStore());
+        var provider = CreateArchiveProvider(path);
 
         var rootItems = await provider.ListChildrenAsync("/", TestContext.Current.CancellationToken);
         var folder = Assert.Single(rootItems);
@@ -49,7 +49,7 @@ public sealed class ArchiveFileSystemProviderTests : IDisposable
             await tar.WriteEntryAsync(entry, TestContext.Current.CancellationToken);
         }
 
-        var provider = new ArchiveFileSystemProvider(path, new ArchivePasswordStore());
+        var provider = CreateArchiveProvider(path);
         var item = Assert.Single(await provider.ListChildrenAsync("/", TestContext.Current.CancellationToken));
         Assert.Equal("inside.txt", item.Name);
         Assert.False(Directory.EnumerateDirectories(_root).Any());
@@ -63,7 +63,7 @@ public sealed class ArchiveFileSystemProviderTests : IDisposable
         await using (var gzip = new GZipStream(file, CompressionMode.Compress))
             await gzip.WriteAsync("single"u8.ToArray(), TestContext.Current.CancellationToken);
 
-        var provider = new ArchiveFileSystemProvider(path, new ArchivePasswordStore());
+        var provider = CreateArchiveProvider(path);
         var item = Assert.Single(await provider.ListChildrenAsync("/", TestContext.Current.CancellationToken));
 
         Assert.Equal(FileSystemItemType.File, item.ItemType);
@@ -82,7 +82,7 @@ public sealed class ArchiveFileSystemProviderTests : IDisposable
             await using var output = entry.Open();
             await output.WriteAsync("copied"u8.ToArray(), TestContext.Current.CancellationToken);
         }
-        var archiveProvider = new ArchiveFileSystemProvider(path, new ArchivePasswordStore());
+        var archiveProvider = CreateArchiveProvider(path);
         var folder = Assert.Single(await archiveProvider.ListChildrenAsync("/", TestContext.Current.CancellationToken));
         var source = new BrowserItem(
             folder,
@@ -108,13 +108,44 @@ public sealed class ArchiveFileSystemProviderTests : IDisposable
         var builder = new CDBuilder { UseJoliet = true, VolumeIdentifier = "TEST" };
         builder.AddFile("folder\\iso.txt", "iso-data"u8.ToArray());
         builder.Build(path);
-        var provider = new IsoFileSystemProvider(path);
+        var local = new LocalFileSystemProvider();
+        var provider = new IsoFileSystemProvider(
+            path,
+            new ResourceRef(local, path),
+            new ResourceRef(local, _root));
 
         var folder = Assert.Single(await provider.ListChildrenAsync("/", TestContext.Current.CancellationToken));
         var file = Assert.Single(await provider.ListChildrenAsync(folder.FullPath, TestContext.Current.CancellationToken));
         await using var input = await provider.OpenReadAsync(file.FullPath, TestContext.Current.CancellationToken);
         using var reader = new StreamReader(input);
         Assert.Equal("iso-data", await reader.ReadToEndAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void Factory_UsesInjectedBackingProviderWhenLeavingArchiveRoot()
+    {
+        var path = Path.Combine(_root, "backing.zip");
+        using (ZipFile.Open(path, ZipArchiveMode.Create)) { }
+        var local = new LocalFileSystemProvider();
+        var provider = new ArchiveFileSystemProviderFactory(
+            new ProviderCredentialStore(), local).Create(path);
+        var root = new ResourceRef(provider, "/");
+
+        var parent = provider.GetParentResource(root);
+        Assert.True(parent.HasValue);
+        Assert.Same(local, parent.Value.Provider);
+        Assert.Equal(_root, parent.Value.Path);
+        Assert.Same(local, provider.GetParentSelectionResource(root).Provider);
+    }
+
+    private ArchiveFileSystemProvider CreateArchiveProvider(string path)
+    {
+        var local = new LocalFileSystemProvider();
+        return new ArchiveFileSystemProvider(
+            path,
+            new ProviderCredentialStore(),
+            new ResourceRef(local, path),
+            new ResourceRef(local, Path.GetDirectoryName(path)!));
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

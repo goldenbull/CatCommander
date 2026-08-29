@@ -37,12 +37,15 @@ internal class Program
         // One shared registry/cache for the whole app - registry only ever needs one
         // LocalFileSystemProviderFactory (registered last, unconditional catch-all - see its own
         // doc comment); IconCache's whole point is caching across every ItemBrowserViewModel.
-        services.AddSingleton<IArchivePasswordStore, ArchivePasswordStore>();
+        services.AddSingleton<IProviderCredentialStore, ProviderCredentialStore>();
         services.AddSingleton<FileSystemProviderRegistry>(sp =>
         {
+            var localProvider = new LocalFileSystemProvider(
+                platform: sp.GetRequiredService<PlatformInfo>());
             var registry = new FileSystemProviderRegistry();
-            registry.Register(new ArchiveFileSystemProviderFactory(sp.GetRequiredService<IArchivePasswordStore>()));
-            registry.Register(new LocalFileSystemProviderFactory());
+            registry.Register(new ArchiveFileSystemProviderFactory(
+                sp.GetRequiredService<IProviderCredentialStore>(), localProvider));
+            registry.Register(new LocalFileSystemProviderFactory(localProvider));
             return registry;
         });
         services.AddSingleton<IconCache>();
@@ -50,12 +53,13 @@ internal class Program
         // F5/F6's "system-level job list" - one shared queue/worker for the whole app (see its
         // own doc comment), independent of any single window.
         services.AddSingleton<FileOperationQueue>();
-        services.AddSingleton<ResourceTransferService>();
+        services.AddSingleton(sp => new ResourceTransferService(
+            platform: sp.GetRequiredService<PlatformInfo>()));
         services.AddSingleton<BrowserCommandPolicy>();
         services.AddSingleton<ITerminalLauncher, TerminalLauncher>();
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<FileClipboardState>();
-        services.AddSingleton<IArchivePasswordPrompt, ArchivePasswordPrompt>();
+        services.AddSingleton<IProviderAuthenticationPrompt, ProviderAuthenticationPrompt>();
         services.AddSingleton<ShortcutInputContext>();
         services.AddSingleton<ShortcutInputState>();
 

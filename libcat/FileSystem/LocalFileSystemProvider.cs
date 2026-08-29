@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using CatCommander.Models;
 using CatCommander.Resources;
+using CatCommander.Platform;
 
 namespace CatCommander.FileSystem;
 
@@ -9,21 +10,30 @@ namespace CatCommander.FileSystem;
 /// interface stays consistent with providers that have genuine network latency (SFTP, etc.) -
 /// callers on the UI thread never block regardless of which provider they're talking to.
 /// </summary>
-public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourceProvider, ILocalShellContextProvider, IClipboardFileProvider
+public class LocalFileSystemProvider : IFileSystemProvider, IWritableResourceProvider,
+    IResourceMutationProvider, INativeResourceTransferProvider, IExternalOpenProvider,
+    ILocalShellContextProvider, IClipboardFileProvider
 {
     private readonly ITrashService _trash;
+    private readonly StringComparer _pathComparer;
 
-    public LocalFileSystemProvider(ITrashService? trash = null)
+    public LocalFileSystemProvider(ITrashService? trash = null, PlatformInfo? platform = null)
     {
         _trash = trash ?? SystemTrashService.Instance;
+        var host = platform ?? PlatformInfo.Current;
+        _pathComparer = host.IsLinux ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
     }
 
+    public StringComparer PathComparer => _pathComparer;
+    public StringComparer NameComparer => _pathComparer;
+    public bool SupportsTreeMode => true;
+
     public string? GetClipboardFilePath(ResourceRef resource) =>
-        ReferenceEquals(resource.Provider, this) ? resource.Path : null;
+        ((IFileSystemProvider)this).IsSameFileSystem(resource.Provider) ? resource.Path : null;
 
     public string? GetLocalShellDirectory(ResourceRef location)
     {
-        if (!ReferenceEquals(location.Provider, this))
+        if (!((IFileSystemProvider)this).IsSameFileSystem(location.Provider))
             return null;
         if (Directory.Exists(location.Path))
             return location.Path;

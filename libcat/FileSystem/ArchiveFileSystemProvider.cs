@@ -12,12 +12,20 @@ namespace CatCommander.FileSystem;
 public sealed class ArchiveFileSystemProvider : IFileSystemProvider, ILocalShellContextProvider, IExternalPathProvider
 {
     private readonly string _archivePath;
-    private readonly IArchivePasswordStore _passwords;
+    private readonly IProviderCredentialStore _credentials;
+    private readonly ResourceRef _backingArchive;
+    private readonly ResourceRef _backingContainer;
 
-    public ArchiveFileSystemProvider(string archivePath, IArchivePasswordStore passwords)
+    public ArchiveFileSystemProvider(
+        string archivePath,
+        IProviderCredentialStore credentials,
+        ResourceRef backingArchive,
+        ResourceRef backingContainer)
     {
         _archivePath = Path.GetFullPath(archivePath);
-        _passwords = passwords;
+        _credentials = credentials;
+        _backingArchive = backingArchive;
+        _backingContainer = backingContainer;
     }
 
     public string Id => $"archive:{_archivePath}";
@@ -25,6 +33,7 @@ public sealed class ArchiveFileSystemProvider : IFileSystemProvider, ILocalShell
         ResourceCapabilities.Read | ResourceCapabilities.EnumerateChildren;
     public ContainerCapabilities ContainerCapabilities => ContainerCapabilities.None;
     public bool TracksHistory => false;
+    public bool SupportsTreeMode => true;
 
     public string? GetParentPath(string path)
     {
@@ -35,12 +44,12 @@ public sealed class ArchiveFileSystemProvider : IFileSystemProvider, ILocalShell
     }
 
     public ResourceRef? GetParentResource(ResourceRef location) => NormalizeVirtualPath(location.Path) == "/"
-        ? new ResourceRef(new LocalFileSystemProvider(), Path.GetDirectoryName(_archivePath)!)
+        ? _backingContainer
         : new ResourceRef(this, GetParentPath(location.Path)!);
 
     public ResourceRef GetParentSelectionResource(ResourceRef location) =>
         NormalizeVirtualPath(location.Path) == "/"
-            ? new ResourceRef(new LocalFileSystemProvider(), _archivePath)
+            ? _backingArchive
             : location;
 
     public Task<IReadOnlyList<IFileSystemItem>> ListChildrenAsync(string path, CancellationToken ct = default) =>
@@ -87,7 +96,7 @@ public sealed class ArchiveFileSystemProvider : IFileSystemProvider, ILocalShell
         }
         catch (Exception ex) when (LooksPasswordRelated(ex))
         {
-            throw new ArchivePasswordRequiredException(_archivePath, ex);
+            throw AuthenticationRequired(ex);
         }
     }
 
@@ -120,25 +129,27 @@ public sealed class ArchiveFileSystemProvider : IFileSystemProvider, ILocalShell
         }
         catch (Exception ex) when (LooksPasswordRelated(ex))
         {
-            throw new ArchivePasswordRequiredException(_archivePath, ex);
+            throw AuthenticationRequired(ex);
         }
     }
 
     public bool CanEnter(IFileSystemItem item) => item.ItemType == FileSystemItemType.Directory;
     public string? GetLocalShellDirectory(ResourceRef location) => Path.GetDirectoryName(_archivePath);
     public string GetExternalPath(string providerPath) => $"{_archivePath}!{NormalizeVirtualPath(providerPath)}";
-    public Task<string> CreateDirectoryAsync(string parentPath, string name, CancellationToken ct = default) => ReadOnly<string>();
-    public Task<string> RenameAsync(string path, string newName, CancellationToken ct = default) => ReadOnly<string>();
-    public Task OpenExternallyAsync(string path, CancellationToken ct = default) => ReadOnly();
-    public Task CopyAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default) => ReadOnly();
-    public Task MoveAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default) => ReadOnly();
-    public Task DeleteAsync(string path, CancellationToken ct = default) => ReadOnly();
-
     private IArchive OpenArchive()
     {
-        var options = new ReaderOptions { Password = _passwords.Get(_archivePath) };
+        var options = new ReaderOptions { Password = _credentials.Get(CredentialKey) };
         return ArchiveFactory.Open(_archivePath, options);
     }
+
+    private ProviderCredentialKey CredentialKey => new(Id, _archivePath, ProviderCredentialKind.Password);
+
+    private ProviderAuthenticationRequiredException AuthenticationRequired(Exception inner) => new(
+        new ProviderAuthenticationChallenge(
+            CredentialKey,
+            "Archive Password",
+            $"Enter the password for {Path.GetFileName(_archivePath)}"),
+        inner);
 
     private bool IsTarGZip() => _archivePath.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
                                  _archivePath.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase);
@@ -224,9 +235,6 @@ public sealed class ArchiveFileSystemProvider : IFileSystemProvider, ILocalShell
         ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
         ex.Message.Contains("encrypted", StringComparison.OrdinalIgnoreCase) ||
         (ex.InnerException is not null && LooksPasswordRelated(ex.InnerException));
-
-    private static Task ReadOnly() => Task.FromException(new NotSupportedException("Archive providers are read-only."));
-    private static Task<T> ReadOnly<T>() => Task.FromException<T>(new NotSupportedException("Archive providers are read-only."));
 
     private sealed class OwnedReadStream(Stream inner, IDisposable owner) : Stream
     {

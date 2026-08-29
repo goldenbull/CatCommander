@@ -18,18 +18,61 @@ public interface IFileSystemProvider
     /// </summary>
     string Id => GetType().FullName ?? GetType().Name;
 
+    /// <summary>
+    /// Provider-specific namespace semantics. Remote Unix filesystems and archive entry names are
+    /// case-sensitive even when CatCommander itself is running on Windows or macOS.
+    /// </summary>
+    StringComparer PathComparer => StringComparer.Ordinal;
+    StringComparer NameComparer => StringComparer.Ordinal;
+
+    /// <summary>
+    /// Whether the current synchronous TreeDataGrid child selector may enumerate this provider.
+    /// Network providers must leave this false until the UI has a genuinely asynchronous tree
+    /// adapter; ordinary list navigation and flattened expansion remain fully asynchronous.
+    /// </summary>
+    bool SupportsTreeMode => false;
+
+    bool IsSameFileSystem(IFileSystemProvider other) =>
+        string.Equals(Id, other.Id, StringComparison.Ordinal);
+
     /// <summary>Provider-wide defaults; individual resources may further restrict them later.</summary>
     ResourceCapabilities ResourceCapabilities =>
         CatCommander.Resources.ResourceCapabilities.Read |
         CatCommander.Resources.ResourceCapabilities.EnumerateChildren |
-        CatCommander.Resources.ResourceCapabilities.Rename |
-        CatCommander.Resources.ResourceCapabilities.Delete |
-        CatCommander.Resources.ResourceCapabilities.OpenExternally;
+        (this is IResourceMutationProvider
+            ? CatCommander.Resources.ResourceCapabilities.Rename | CatCommander.Resources.ResourceCapabilities.Delete
+            : CatCommander.Resources.ResourceCapabilities.None) |
+        (this is IExternalOpenProvider
+            ? CatCommander.Resources.ResourceCapabilities.OpenExternally
+            : CatCommander.Resources.ResourceCapabilities.None);
 
     ContainerCapabilities ContainerCapabilities =>
-        CatCommander.Resources.ContainerCapabilities.AcceptFiles |
-        CatCommander.Resources.ContainerCapabilities.AcceptDirectories |
-        CatCommander.Resources.ContainerCapabilities.CreateDirectory;
+        (this is IWritableResourceProvider
+            ? CatCommander.Resources.ContainerCapabilities.AcceptFiles | CatCommander.Resources.ContainerCapabilities.AcceptDirectories
+            : CatCommander.Resources.ContainerCapabilities.None) |
+        (this is IResourceMutationProvider
+            ? CatCommander.Resources.ContainerCapabilities.CreateDirectory
+            : CatCommander.Resources.ContainerCapabilities.None);
+
+    /// <summary>
+    /// Computes permissions for one item in its containing directory. The default preserves local
+    /// behavior, while Unix/SFTP providers can correctly derive Rename/Delete from parent-directory
+    /// permissions instead of conflating them with whether the file contents are writable.
+    /// </summary>
+    ResourceCapabilities GetResourceCapabilities(IFileSystemItem item, ResourceRef? container)
+    {
+        var capabilities = ResourceCapabilities;
+        if (!CanEnter(item))
+            capabilities &= ~CatCommander.Resources.ResourceCapabilities.EnumerateChildren;
+        if (!item.CanRead)
+            capabilities &= ~CatCommander.Resources.ResourceCapabilities.Read;
+        if (!item.CanWrite)
+        {
+            capabilities &= ~(CatCommander.Resources.ResourceCapabilities.Rename |
+                              CatCommander.Resources.ResourceCapabilities.Delete);
+        }
+        return capabilities;
+    }
 
     /// <summary>
     /// Returns the parent address inside this provider's namespace. Archive/SFTP providers can
@@ -66,51 +109,6 @@ public interface IFileSystemProvider
     Task<Stream> OpenReadAsync(string path, CancellationToken ct = default);
 
     /// <summary>
-    /// Creates a new, empty subdirectory named <paramref name="name"/> directly under
-    /// <paramref name="parentPath"/> (F7 - see ItemBrowserViewModel.CreateDirectoryAsync), returning
-    /// its full path.
-    /// </summary>
-    Task<string> CreateDirectoryAsync(string parentPath, string name, CancellationToken ct = default);
-
-    /// <summary>
-    /// Renames an item in place - same parent, only the leaf name changes (F2's in-place edit in
-    /// the grid, not a full move to a different directory) - returning its new full path.
-    /// </summary>
-    Task<string> RenameAsync(string path, string newName, CancellationToken ct = default);
-
-    /// <summary>
-    /// Opens this item with the OS's own default handler for its type - Finder/Explorer's own
-    /// double-click behavior. Only meaningful for an item CanEnter says no to; entering a directory
-    /// goes through NavigateToAsync/ListChildrenAsync instead, never this.
-    /// </summary>
-    Task OpenExternallyAsync(string path, CancellationToken ct = default);
-
-    /// <summary>
-    /// Copies <paramref name="sourcePath"/> (a file, or a directory copied recursively) into
-    /// <paramref name="destinationDirectory"/>, keeping its own leaf name - F5's Copy, always run
-    /// off the UI thread by FileOperationQueue rather than called directly from a ViewModel.
-    /// ResourceTransferService resolves top-level name collisions before calling this method.
-    /// <paramref name="progress"/>, if given, is reported once per file actually written (its full
-    /// destination path) - for a directory this fires once per descendant file, not once overall.
-    /// </summary>
-    Task CopyAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default);
-
-    /// <summary>
-    /// Moves <paramref name="sourcePath"/> into <paramref name="destinationDirectory"/>, keeping
-    /// its own leaf name - F6's Move. Same overwrite-on-collision and progress-reporting contract
-    /// as CopyAsync.
-    /// </summary>
-    Task MoveAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default);
-
-    /// <summary>
-    /// Deletes <paramref name="path"/> - a file, or a directory and everything in it - Del/F8's
-    /// Delete, always run off the UI thread by FileOperationQueue rather than called directly from
-    /// a ViewModel. No per-file progress reporting, unlike CopyAsync/MoveAsync: a local recursive
-    /// delete has no meaningful per-file latency to report on the way through.
-    /// </summary>
-    Task DeleteAsync(string path, CancellationToken ct = default);
-
-    /// <summary>
     /// Whether this item is itself another browsable root within this same provider (e.g. a
     /// directory). Archive providers will later say "no" for an item that's actually a nested
     /// archive - entering that needs a different provider, resolved via FileSystemProviderRegistry.
@@ -126,6 +124,25 @@ public interface IFileSystemProvider
     /// scoped to whatever specific archive/tree is currently open, not general destinations.
     /// </summary>
     bool TracksHistory { get; }
+}
+
+public interface IResourceMutationProvider
+{
+    Task<string> CreateDirectoryAsync(string parentPath, string name, CancellationToken ct = default);
+    Task<string> RenameAsync(string path, string newName, CancellationToken ct = default);
+    Task DeleteAsync(string path, CancellationToken ct = default);
+}
+
+/// <summary>Optional optimized same-filesystem transfer operations.</summary>
+public interface INativeResourceTransferProvider
+{
+    Task CopyAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default);
+    Task MoveAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default);
+}
+
+public interface IExternalOpenProvider
+{
+    Task OpenExternallyAsync(string path, CancellationToken ct = default);
 }
 
 /// <summary>Maps provider resources to real OS paths suitable for native clipboard file items.</summary>

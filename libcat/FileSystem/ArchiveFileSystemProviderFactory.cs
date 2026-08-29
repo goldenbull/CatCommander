@@ -4,9 +4,16 @@ public sealed class ArchiveFileSystemProviderFactory : IFileSystemProviderFactor
 {
     private static readonly string[] Extensions =
         [".zip", ".7z", ".rar", ".tar", ".gz", ".gzip", ".tgz", ".bz2", ".xz", ".iso"];
-    private readonly IArchivePasswordStore _passwords;
+    private readonly IProviderCredentialStore _credentials;
+    private readonly IFileSystemProvider _backingProvider;
 
-    public ArchiveFileSystemProviderFactory(IArchivePasswordStore passwords) => _passwords = passwords;
+    public ArchiveFileSystemProviderFactory(
+        IProviderCredentialStore credentials,
+        IFileSystemProvider backingProvider)
+    {
+        _credentials = credentials;
+        _backingProvider = backingProvider;
+    }
 
     public bool CanHandle(string path) => TrySplit(path, out _, out _);
     public bool CanEnter(string path) => TrySplit(path, out _, out _);
@@ -14,9 +21,13 @@ public sealed class ArchiveFileSystemProviderFactory : IFileSystemProviderFactor
     public IFileSystemProvider Create(string path)
     {
         if (!TrySplit(path, out var archive, out _)) throw new NotSupportedException(path);
+        var archiveResource = new Resources.ResourceRef(_backingProvider, archive);
+        var containerResource = new Resources.ResourceRef(
+            _backingProvider,
+            Path.GetDirectoryName(archive) ?? Path.GetPathRoot(archive) ?? archive);
         return archive.EndsWith(".iso", StringComparison.OrdinalIgnoreCase)
-            ? new IsoFileSystemProvider(archive)
-            : new ArchiveFileSystemProvider(archive, _passwords);
+            ? new IsoFileSystemProvider(archive, archiveResource, containerResource)
+            : new ArchiveFileSystemProvider(archive, _credentials, archiveResource, containerResource);
     }
 
     private static bool TrySplit(string path, out string archivePath, out string innerPath)

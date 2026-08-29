@@ -272,7 +272,10 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         if (GetActiveWindow() is not { } owner)
             return;
 
-        var confirmViewModel = new FileOperationConfirmViewModel(kind, targets.Count, destination?.Resource.Path);
+        var confirmViewModel = new FileOperationConfirmViewModel(
+            kind,
+            targets.Count,
+            destination is { } target ? GetDisplayPath(target.Resource) : null);
         var confirmWindow = new FileOperationConfirmWindow(
             confirmViewModel,
             _configManager.Shortcuts,
@@ -285,7 +288,7 @@ public partial class MainWindowViewModel : IShortcutCommandSource
         var job = new FileOperationJob(kind, targets, destination, _transferService);
         job.Finished += () =>
         {
-            RefreshAfterFileOperation(sourceTab, destinationPanel, destination?.Resource.Path);
+            RefreshAfterFileOperation(sourceTab, destinationPanel, destination);
             if (job.Status == FileOperationJobStatus.Completed)
                 clearClipboardAfterSuccess?.Invoke();
         };
@@ -315,16 +318,27 @@ public partial class MainWindowViewModel : IShortcutCommandSource
     // was aimed at - the user may have navigated that panel elsewhere while a background job was
     // running, and forcibly yanking them back to `destination` would be a worse surprise than a
     // listing that's one refresh stale.
-    private static void RefreshAfterFileOperation(ItemBrowserViewModel? sourceTab, MainPanelViewModel? destinationPanel, string? destination)
+    private static void RefreshAfterFileOperation(
+        ItemBrowserViewModel? sourceTab,
+        MainPanelViewModel? destinationPanel,
+        ContainerRef? destination)
     {
         if (sourceTab is not null)
             _ = sourceTab.RefreshListingAfterFileOperationAsync();
 
-        if (destinationPanel?.ActiveTab is { } destinationTab &&
+        if (destination is { } target &&
+            destinationPanel?.ActiveTab is { } destinationTab &&
             !ReferenceEquals(destinationTab, sourceTab) &&
-            destinationTab.CurrentPath == destination)
+            destinationTab.Context?.Location is { } displayed &&
+            displayed.Provider.IsSameFileSystem(target.Resource.Provider) &&
+            displayed.Provider.PathComparer.Equals(displayed.Path, target.Resource.Path))
             _ = destinationTab.RefreshListingAfterFileOperationAsync();
     }
+
+    private static string GetDisplayPath(ResourceRef resource) =>
+        resource.Provider is IExternalPathProvider external
+            ? external.GetExternalPath(resource.Path)
+            : resource.Path;
 
     private void OpenJobList() => _jobListWindowFactory().Show();
 

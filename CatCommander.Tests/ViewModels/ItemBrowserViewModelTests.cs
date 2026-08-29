@@ -262,10 +262,11 @@ public class ItemBrowserViewModelTests : IDisposable
         var archivePath = Path.Combine(archiveDirectory, "sample.zip");
         using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
             archive.CreateEntry("inside.txt");
-        var passwords = new ArchivePasswordStore();
+        var passwords = new ProviderCredentialStore();
         var registry = new FileSystemProviderRegistry();
-        registry.Register(new ArchiveFileSystemProviderFactory(passwords));
-        registry.Register(new LocalFileSystemProviderFactory());
+        var localProvider = new LocalFileSystemProvider();
+        registry.Register(new ArchiveFileSystemProviderFactory(passwords, localProvider));
+        registry.Register(new LocalFileSystemProviderFactory(localProvider));
         var vm = new ItemBrowserViewModel(registry, new IconCache());
         await vm.NavigateToAsync(archiveDirectory);
 
@@ -718,5 +719,28 @@ public class ItemBrowserViewModelTests : IDisposable
         await vm.NavigateToAsync(_child);
 
         Assert.True(vm.ShowHiddenFiles); // not reset by RebuildSource, unlike FilterText
+    }
+
+    [Fact]
+    public async Task ProviderWithoutAsyncTreeSupport_CannotEnterSynchronousTreeMode()
+    {
+        var provider = new RemoteStyleProvider();
+        var vm = new ItemBrowserViewModel(new FileSystemProviderRegistry(), new IconCache());
+        await vm.NavigateToAsync(new CatCommander.Resources.ResourceRef(provider, "/"));
+
+        vm.ToggleViewModeCommand.Execute(null);
+
+        Assert.Equal(ItemBrowserViewMode.List, vm.ViewMode);
+    }
+
+    private sealed class RemoteStyleProvider : IFileSystemProvider
+    {
+        public string Id => "remote:test";
+        public bool TracksHistory => true;
+        public bool CanEnter(IFileSystemItem item) => item.ItemType == FileSystemItemType.Directory;
+        public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default) =>
+            Task.FromResult<Stream>(new MemoryStream());
+        public Task<IReadOnlyList<IFileSystemItem>> ListChildrenAsync(string path, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<IFileSystemItem>>([]);
     }
 }

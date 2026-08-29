@@ -7,11 +7,20 @@ namespace CatCommander.FileSystem;
 public sealed class IsoFileSystemProvider : IFileSystemProvider, ILocalShellContextProvider, IExternalPathProvider
 {
     private readonly string _isoPath;
-    public IsoFileSystemProvider(string isoPath) => _isoPath = Path.GetFullPath(isoPath);
+    private readonly ResourceRef _backingArchive;
+    private readonly ResourceRef _backingContainer;
+
+    public IsoFileSystemProvider(string isoPath, ResourceRef backingArchive, ResourceRef backingContainer)
+    {
+        _isoPath = Path.GetFullPath(isoPath);
+        _backingArchive = backingArchive;
+        _backingContainer = backingContainer;
+    }
     public string Id => $"iso:{_isoPath}";
     public ResourceCapabilities ResourceCapabilities => ResourceCapabilities.Read | ResourceCapabilities.EnumerateChildren;
     public ContainerCapabilities ContainerCapabilities => ContainerCapabilities.None;
     public bool TracksHistory => false;
+    public bool SupportsTreeMode => true;
 
     public string? GetParentPath(string path)
     {
@@ -22,11 +31,11 @@ public sealed class IsoFileSystemProvider : IFileSystemProvider, ILocalShellCont
     }
 
     public ResourceRef? GetParentResource(ResourceRef location) => Normalize(location.Path) == "/"
-        ? new ResourceRef(new LocalFileSystemProvider(), Path.GetDirectoryName(_isoPath)!)
+        ? _backingContainer
         : new ResourceRef(this, GetParentPath(location.Path)!);
 
     public ResourceRef GetParentSelectionResource(ResourceRef location) => Normalize(location.Path) == "/"
-        ? new ResourceRef(new LocalFileSystemProvider(), _isoPath)
+        ? _backingArchive
         : location;
 
     public Task<IReadOnlyList<IFileSystemItem>> ListChildrenAsync(string path, CancellationToken ct = default) => Task.Run(() =>
@@ -65,13 +74,6 @@ public sealed class IsoFileSystemProvider : IFileSystemProvider, ILocalShellCont
     public bool CanEnter(IFileSystemItem item) => item.ItemType == FileSystemItemType.Directory;
     public string? GetLocalShellDirectory(ResourceRef location) => Path.GetDirectoryName(_isoPath);
     public string GetExternalPath(string providerPath) => $"{_isoPath}!{Normalize(providerPath)}";
-    public Task<string> CreateDirectoryAsync(string parentPath, string name, CancellationToken ct = default) => ReadOnly<string>();
-    public Task<string> RenameAsync(string path, string newName, CancellationToken ct = default) => ReadOnly<string>();
-    public Task OpenExternallyAsync(string path, CancellationToken ct = default) => ReadOnly();
-    public Task CopyAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default) => ReadOnly();
-    public Task MoveAsync(string sourcePath, string destinationDirectory, IProgress<string>? progress, CancellationToken ct = default) => ReadOnly();
-    public Task DeleteAsync(string path, CancellationToken ct = default) => ReadOnly();
-
     private static FileItemModel Item(string discPath, bool directory, long size, DateTime modified)
     {
         var path = Normalize(discPath);
@@ -81,9 +83,6 @@ public sealed class IsoFileSystemProvider : IFileSystemProvider, ILocalShellCont
     }
     private static string Normalize(string path) => path == "/" ? "/" : "/" + path.Replace('\\', '/').Trim('/');
     private static string ToDiscPath(string path) => Normalize(path) == "/" ? "\\" : Normalize(path).Replace('/', '\\');
-    private static Task ReadOnly() => Task.FromException(new NotSupportedException("ISO providers are read-only."));
-    private static Task<T> ReadOnly<T>() => Task.FromException<T>(new NotSupportedException("ISO providers are read-only."));
-
     private sealed class OwnedIsoStream(Stream inner, IDisposable reader, IDisposable source) : Stream
     {
         public override bool CanRead => inner.CanRead; public override bool CanSeek => inner.CanSeek; public override bool CanWrite => false;

@@ -1,6 +1,7 @@
 using CatCommander.Browsing;
 using CatCommander.Models;
 using CatCommander.Resources;
+using CatCommander.Platform;
 
 namespace CatCommander.FileSystem;
 
@@ -9,9 +10,9 @@ public sealed class ResourceTransferService
 {
     private readonly bool _windowsCopyNames;
 
-    public ResourceTransferService(bool? windowsCopyNames = null)
+    public ResourceTransferService(bool? windowsCopyNames = null, PlatformInfo? platform = null)
     {
-        _windowsCopyNames = windowsCopyNames ?? OperatingSystem.IsWindows();
+        _windowsCopyNames = windowsCopyNames ?? (platform ?? PlatformInfo.Current).IsWindows;
     }
 
     public async Task CopyAsync(
@@ -24,9 +25,10 @@ public sealed class ResourceTransferService
 
         var targetName = await GetAvailableCopyNameAsync(source, destination, ct);
         if (targetName == source.Item.Name &&
-            ReferenceEquals(source.Resource.Provider, destination.Resource.Provider))
+            source.Resource.Provider.IsSameFileSystem(destination.Resource.Provider) &&
+            source.Resource.Provider is INativeResourceTransferProvider nativeTransfer)
         {
-            await source.Resource.Provider.CopyAsync(
+            await nativeTransfer.CopyAsync(
                 source.Resource.Path,
                 destination.Resource.Path,
                 progress,
@@ -50,9 +52,10 @@ public sealed class ResourceTransferService
         if (!source.Capabilities.HasFlag(ResourceCapabilities.Delete))
             throw new NotSupportedException($"'{source.Item.Name}' cannot be removed from its source provider.");
 
-        if (ReferenceEquals(source.Resource.Provider, destination.Resource.Provider))
+        if (source.Resource.Provider.IsSameFileSystem(destination.Resource.Provider) &&
+            source.Resource.Provider is INativeResourceTransferProvider nativeTransfer)
         {
-            await source.Resource.Provider.MoveAsync(
+            await nativeTransfer.MoveAsync(
                 source.Resource.Path,
                 destination.Resource.Path,
                 progress,
@@ -61,14 +64,18 @@ public sealed class ResourceTransferService
         }
 
         await CopyAsync(source, destination, progress, ct);
-        await source.Resource.Provider.DeleteAsync(source.Resource.Path, ct);
+        if (source.Resource.Provider is not IResourceMutationProvider mutation)
+            throw new NotSupportedException($"Provider '{source.Resource.ProviderId}' cannot remove the move source.");
+        await mutation.DeleteAsync(source.Resource.Path, ct);
     }
 
     public Task DeleteAsync(BrowserItem item, CancellationToken ct = default)
     {
         if (!item.Capabilities.HasFlag(ResourceCapabilities.Delete))
             throw new NotSupportedException($"'{item.Item.Name}' cannot be deleted from its provider.");
-        return item.Resource.Provider.DeleteAsync(item.Resource.Path, ct);
+        return item.Resource.Provider is IResourceMutationProvider mutation
+            ? mutation.DeleteAsync(item.Resource.Path, ct)
+            : Task.FromException(new NotSupportedException($"Provider '{item.Resource.ProviderId}' cannot delete resources."));
     }
 
     private static async Task CopyAcrossProvidersAsync(
@@ -109,7 +116,7 @@ public sealed class ResourceTransferService
         CancellationToken ct)
     {
         var children = await destination.Resource.Provider.ListChildrenAsync(destination.Resource.Path, ct);
-        var names = children.Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var names = children.Select(item => item.Name).ToHashSet(destination.Resource.Provider.NameComparer);
         if (!names.Contains(source.Item.Name))
             return source.Item.Name;
 

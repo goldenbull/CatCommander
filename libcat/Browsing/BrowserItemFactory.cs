@@ -12,19 +12,11 @@ internal static class BrowserItemFactory
         ResourceRef? container,
         int depth = 0)
     {
-        var capabilities = provider.ResourceCapabilities;
-        if (!provider.CanEnter(entry))
-            capabilities &= ~ResourceCapabilities.EnumerateChildren;
-        if (!entry.CanRead)
-            capabilities &= ~ResourceCapabilities.Read;
-        if (!entry.CanWrite)
-            capabilities &= ~(ResourceCapabilities.Rename | ResourceCapabilities.Delete);
-
         return new BrowserItem(
             entry,
             new ResourceRef(provider, entry.FullPath),
             container,
-            capabilities,
+            provider.GetResourceCapabilities(entry, container),
             depth);
     }
 }

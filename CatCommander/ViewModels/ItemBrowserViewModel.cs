@@ -58,8 +58,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     private readonly ITerminalLauncher? _terminalLauncher;
     private readonly IClipboardService? _clipboard;
     private readonly FileClipboardState? _fileClipboard;
-    private readonly IArchivePasswordPrompt? _archivePasswordPrompt;
-    private readonly IArchivePasswordStore? _archivePasswords;
+    private readonly IProviderAuthenticationPrompt? _authenticationPrompt;
+    private readonly IProviderCredentialStore? _credentialStore;
     private readonly ShortcutInputContext? _shortcutInputContext;
     private readonly Dictionary<Operation, ICommand> _commands;
     [NotObservable]
@@ -224,8 +224,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         IconCache iconCache,
         ITerminalLauncher? terminalLauncher = null,
         IClipboardService? clipboard = null,
-        IArchivePasswordPrompt? archivePasswordPrompt = null,
-        IArchivePasswordStore? archivePasswords = null,
+        IProviderAuthenticationPrompt? authenticationPrompt = null,
+        IProviderCredentialStore? credentialStore = null,
         ShortcutInputContext? shortcutInputContext = null,
         FileClipboardState? fileClipboard = null)
     {
@@ -234,8 +234,8 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         _terminalLauncher = terminalLauncher;
         _clipboard = clipboard;
         _fileClipboard = fileClipboard;
-        _archivePasswordPrompt = archivePasswordPrompt;
-        _archivePasswords = archivePasswords;
+        _authenticationPrompt = authenticationPrompt;
+        _credentialStore = credentialStore;
         _shortcutInputContext = shortcutInputContext;
 
         ToggleViewModeCommand = ReactiveCommand.Create(ToggleViewMode);
@@ -442,13 +442,13 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                     snapshot = await listing.LoadAsync(navigationCts.Token);
                     break;
                 }
-                catch (ArchivePasswordRequiredException ex) when (
-                    _archivePasswordPrompt is not null && _archivePasswords is not null)
+                catch (ProviderAuthenticationRequiredException ex) when (
+                    _authenticationPrompt is not null && _credentialStore is not null)
                 {
-                    var password = await _archivePasswordPrompt.RequestAsync(ex.ArchivePath);
-                    if (password is null)
+                    var credential = await _authenticationPrompt.RequestAsync(ex.Challenge);
+                    if (credential is null)
                         return false;
-                    _archivePasswords.Set(ex.ArchivePath, password);
+                    _credentialStore.Set(ex.Challenge.CredentialKey, credential);
                 }
             }
 
@@ -797,7 +797,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
                 item,
                 new ResourceRef(provider, item.FullPath),
                 container,
-                provider.ResourceCapabilities));
+                provider.GetResourceCapabilities(item, container)));
             return BuildRows(browserItems);
         }
         catch (Exception ex)
@@ -976,7 +976,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     {
         try
         {
-            var newPath = await resource.Provider.RenameAsync(resource.Path, newName);
+            if (resource.Provider is not IResourceMutationProvider mutation)
+                return;
+            var newPath = await mutation.RenameAsync(resource.Path, newName);
             await ReloadCurrentListingAsync();
             SelectItemByPath(newPath);
         }
@@ -1044,7 +1046,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
         try
         {
-            var newPath = await destination.Resource.Provider.CreateDirectoryAsync(destination.Resource.Path, name);
+            if (destination.Resource.Provider is not IResourceMutationProvider mutation)
+                return;
+            var newPath = await mutation.CreateDirectoryAsync(destination.Resource.Path, name);
             await ReloadCurrentListingAsync();
             SelectItem(new ResourceRef(destination.Resource.Provider, newPath));
         }
@@ -1079,7 +1083,9 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
     {
         try
         {
-            await resource.Provider.OpenExternallyAsync(resource.Path);
+            if (resource.Provider is not IExternalOpenProvider external)
+                return;
+            await external.OpenExternallyAsync(resource.Path);
         }
         catch (Exception ex)
         {
@@ -1184,7 +1190,7 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
 
     private void ToggleViewMode()
     {
-        if (Context?.Kind != ListingKind.Directory)
+        if (Context?.Kind != ListingKind.Directory || Context.Location?.Provider.SupportsTreeMode != true)
             return;
 
         ViewMode = ViewMode == ItemBrowserViewMode.List ? ItemBrowserViewMode.TreeList : ItemBrowserViewMode.List;
@@ -1298,12 +1304,12 @@ public partial class ItemBrowserViewModel : IShortcutCommandSource
         {
             var candidate = row.BrowserItem.Resource;
             return candidate.ProviderId == resource.ProviderId &&
-                   string.Equals(candidate.Path, resource.Path, StringComparison.OrdinalIgnoreCase);
+                   candidate.Provider.PathComparer.Equals(candidate.Path, resource.Path);
         });
     }
 
     private void SelectItemByPath(string path) =>
-        SelectVisibleRow(row => string.Equals(row.Item.FullPath, path, StringComparison.OrdinalIgnoreCase));
+        SelectVisibleRow(row => row.BrowserItem.Resource.Provider.PathComparer.Equals(row.Item.FullPath, path));
 
     /// <summary>
     /// Finds a model in TreeDataGrid's actual displayed-row sequence. _allItems and _rows are

@@ -6,7 +6,12 @@ namespace CatCommander.FileSystem;
 /// </summary>
 public class LocalFileSystemProviderFactory : IFileSystemProviderFactory
 {
+    private readonly IFileSystemProvider _provider;
+
+    public LocalFileSystemProviderFactory(IFileSystemProvider? provider = null) =>
+        _provider = provider ?? new LocalFileSystemProvider();
+
     public bool CanHandle(string path) => true;
 
-    public IFileSystemProvider Create(string path) => new LocalFileSystemProvider();
+    public IFileSystemProvider Create(string path) => _provider;
 }

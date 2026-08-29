@@ -7,26 +7,26 @@ using CatCommander.View;
 
 namespace CatCommander.Services;
 
-public interface IArchivePasswordPrompt
+public interface IProviderAuthenticationPrompt
 {
-    Task<string?> RequestAsync(string archivePath);
+    Task<string?> RequestAsync(ProviderAuthenticationChallenge challenge);
 }
 
-public sealed class ArchivePasswordPrompt : IArchivePasswordPrompt
+public sealed class ProviderAuthenticationPrompt : IProviderAuthenticationPrompt
 {
     private readonly ShortcutInputContext _inputContext;
 
-    public ArchivePasswordPrompt(ShortcutInputContext inputContext)
+    public ProviderAuthenticationPrompt(ShortcutInputContext inputContext)
     {
         _inputContext = inputContext;
     }
 
-    public async Task<string?> RequestAsync(string archivePath)
+    public async Task<string?> RequestAsync(ProviderAuthenticationChallenge challenge)
     {
         var password = new TextBox { PasswordChar = '●', MinWidth = 280 };
         var window = new Window
         {
-            Title = "Archive Password",
+            Title = challenge.Title,
             Width = 380,
             Height = 170,
             CanResize = false,
@@ -35,7 +35,7 @@ public sealed class ArchivePasswordPrompt : IArchivePasswordPrompt
                 Margin = new Thickness(16), Spacing = 10,
                 Children =
                 {
-                    new TextBlock { Text = $"Enter the password for {Path.GetFileName(archivePath)}" },
+                    new TextBlock { Text = challenge.Prompt },
                     password,
                 },
             },
